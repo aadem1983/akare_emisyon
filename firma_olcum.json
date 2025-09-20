@@ -1,0 +1,56 @@
+[
+    {
+        "id": "5ce529ad-3d5e-41af-8c6f-5c49ad509b76",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "olcum_kodu": "E-250821-02",
+        "baslangic_tarihi": "2025-08-22",
+        "bitis_tarihi": "2025-08-22",
+        "il": "KOCAELİ",
+        "ilce": "BAŞİSKELE",
+        "yetkili": "ADEM",
+        "telefon": "",
+        "durum": "Aktif",
+        "personel": [
+            "Atalay"
+        ],
+        "baca_sayisi": "2",
+        "baca_parametreleri": {
+            "AAA": [
+                "Yg",
+                "Toc"
+            ],
+            "SSS": [
+                "Yg",
+                "Toc"
+            ]
+        },
+        "notlar": "",
+        "olusturma_tarihi": "2025-08-21T00:31:44.191107"
+    },
+    {
+        "id": "16335e94-05e7-45c0-8ff0-3944ec8592ae",
+        "firma_adi": "ATALAY TOKER",
+        "olcum_kodu": "EE-250811-02",
+        "baslangic_tarihi": "2025-08-11",
+        "bitis_tarihi": "2025-08-12",
+        "il": "SAKARYA",
+        "ilce": "ADAPAZARI",
+        "yetkili": "",
+        "telefon": "5065064457",
+        "durum": "Aktif",
+        "personel": [],
+        "baca_sayisi": "2",
+        "baca_parametreleri": {
+            "SSSS": [
+                "Yg",
+                "Toc"
+            ],
+            "DDDD": [
+                "Yg",
+                "Toc"
+            ]
+        },
+        "notlar": "",
+        "olusturma_tarihi": "2025-08-21T00:36:22.713107"
+    }
+]

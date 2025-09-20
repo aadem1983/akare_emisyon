@@ -1,0 +1,104 @@
+[
+    {
+        "id": "597fad80-d28f-40ea-bd28-a76c61c5203d",
+        "baca_par_adi": "BACA NO",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462407"
+    },
+    {
+        "id": "ddca398d-0e55-4662-b661-3731e0975bd2",
+        "baca_par_adi": "YAKIT TÜRÜ",
+        "liste_icerigi": "BİOKÜTLE, DOĞAL GAZ, KÖMÜR, SIVI YAKIT",
+        "created_at": "2025-07-30T02:57:50.462460"
+    },
+    {
+        "id": "22867c9a-ca3c-4d80-b017-b73dafdd7fef",
+        "baca_par_adi": "ISIL GÜÇ (MW)",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462482"
+    },
+    {
+        "id": "6b3546e0-184c-49de-82e4-e2835e81923b",
+        "baca_par_adi": "ÇATI ŞEKLİ",
+        "liste_icerigi": "BAĞIMSIZ, DÜZ, EĞİK",
+        "created_at": "2025-07-30T02:57:50.462504"
+    },
+    {
+        "id": "98399625-5bbc-465e-8e09-de454f231ae4",
+        "baca_par_adi": "KAYNAK TÜRÜ",
+        "liste_icerigi": "YAKMA, PROSES",
+        "created_at": "2025-07-30T02:57:50.462523"
+    },
+    {
+        "id": "d9958774-43f7-4bc3-8e12-436614a6193a",
+        "baca_par_adi": "BACA ŞEKLİ",
+        "liste_icerigi": "DÖRTGEN, DAİRESEL",
+        "created_at": "2025-07-30T02:57:50.462535"
+    },
+    {
+        "id": "b1b6fc38-98c0-4048-8b8e-795cf7d44c48",
+        "baca_par_adi": "BACA ÖLÇÜSÜ",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462546"
+    },
+    {
+        "id": "6a301d72-f21b-485b-b8fb-116ad5cb223f",
+        "baca_par_adi": "YERDEN YÜK.",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462556"
+    },
+    {
+        "id": "8ec9ecc9-ecda-4bf2-9802-02fa2e3fda4c",
+        "baca_par_adi": "ÇATI YÜK",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462567"
+    },
+    {
+        "id": "ab2b67dd-16a5-4bee-9b6e-b60b8cfc2d0c",
+        "baca_par_adi": "RÜZGAR HIZ (M/S)",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462578"
+    },
+    {
+        "id": "eca60e54-ec39-4412-8884-caa17faed0be",
+        "baca_par_adi": "ORT SIC",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462589"
+    },
+    {
+        "id": "64238e0a-6387-4c31-9bf4-d7f800ef17e1",
+        "baca_par_adi": "ORT NEM",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462599"
+    },
+    {
+        "id": "b09ad69a-e4d4-4219-b055-2cf923ffd499",
+        "baca_par_adi": "ORT BAS.",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462609"
+    },
+    {
+        "id": "9c8c8bcf-c98e-4109-8b10-63b08b26460e",
+        "baca_par_adi": "A-BACA",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462619"
+    },
+    {
+        "id": "af55c55f-f83b-4b90-a655-ee76bf6bb2ac",
+        "baca_par_adi": "B-BACA",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462629"
+    },
+    {
+        "id": "20881447-f7c8-4a6b-8583-76c7246082ef",
+        "baca_par_adi": "C-DELİK",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462640"
+    },
+    {
+        "id": "a2c28cce-86ed-41ff-97aa-d23fec4e01ca",
+        "baca_par_adi": "FOTO",
+        "liste_icerigi": "",
+        "created_at": "2025-07-30T02:57:50.462650"
+    }
+]

@@ -1,0 +1,133 @@
+{
+  "test_timestamp": "2025-08-07T01:39:14.692683",
+  "total_operations": 15,
+  "successful_operations": 15,
+  "failed_operations": 0,
+  "results": [
+    {
+      "user": "test_user3",
+      "action": "baca_bilgileri_created",
+      "firma": "Test Firma A",
+      "olcum_kodu": "TEST-003",
+      "baca": "Baca 3",
+      "timestamp": "2025-08-07T01:39:05.398643",
+      "success": true
+    },
+    {
+      "user": "test_user1",
+      "action": "baca_bilgileri_created",
+      "firma": "Test Firma C",
+      "olcum_kodu": "TEST-004",
+      "baca": "Baca 3",
+      "timestamp": "2025-08-07T01:39:05.400359",
+      "success": true
+    },
+    {
+      "user": "test_user2",
+      "action": "baca_bilgileri_created",
+      "firma": "Test Firma D",
+      "olcum_kodu": "TEST-002",
+      "baca": "Baca 3",
+      "timestamp": "2025-08-07T01:39:05.406624",
+      "success": true
+    },
+    {
+      "user": "test_user5",
+      "action": "baca_bilgileri_created",
+      "firma": "Test Firma A",
+      "olcum_kodu": "TEST-003",
+      "baca": "Baca 2",
+      "timestamp": "2025-08-07T01:39:05.437451",
+      "success": true
+    },
+    {
+      "user": "test_user4",
+      "action": "baca_bilgileri_created",
+      "firma": "Test Firma B",
+      "olcum_kodu": "TEST-001",
+      "baca": "Baca 3",
+      "timestamp": "2025-08-07T01:39:05.438547",
+      "success": true
+    },
+    {
+      "user": "test_user5",
+      "action": "parametre_olcum_created",
+      "firma": "Test Firma D",
+      "olcum_kodu": "TEST-003",
+      "baca": "Baca 3",
+      "parametre": "SÜLF.A",
+      "timestamp": "2025-08-07T01:39:08.080575",
+      "success": true
+    },
+    {
+      "user": "test_user2",
+      "action": "parametre_olcum_created",
+      "firma": "Test Firma B",
+      "olcum_kodu": "TEST-001",
+      "baca": "Baca 2",
+      "parametre": "TOZ",
+      "timestamp": "2025-08-07T01:39:08.164341",
+      "success": true
+    },
+    {
+      "user": "test_user4",
+      "action": "parametre_olcum_created",
+      "firma": "Test Firma A",
+      "olcum_kodu": "TEST-004",
+      "baca": "Baca 4",
+      "parametre": "HCL",
+      "timestamp": "2025-08-07T01:39:08.484017",
+      "success": true
+    },
+    {
+      "user": "test_user3",
+      "action": "parametre_olcum_created",
+      "firma": "Test Firma C",
+      "olcum_kodu": "TEST-004",
+      "baca": "Baca 1",
+      "parametre": "SÜLF.A",
+      "timestamp": "2025-08-07T01:39:08.622039",
+      "success": true
+    },
+    {
+      "user": "test_user1",
+      "action": "parametre_olcum_created",
+      "firma": "Test Firma A",
+      "olcum_kodu": "TEST-002",
+      "baca": "Baca 4",
+      "parametre": "SÜLF.A",
+      "timestamp": "2025-08-07T01:39:09.221158",
+      "success": true
+    },
+    {
+      "user": "test_user5",
+      "action": "data_viewed",
+      "timestamp": "2025-08-07T01:39:13.393507",
+      "success": true
+    },
+    {
+      "user": "test_user4",
+      "action": "data_viewed",
+      "timestamp": "2025-08-07T01:39:13.409419",
+      "success": true
+    },
+    {
+      "user": "test_user2",
+      "action": "data_viewed",
+      "timestamp": "2025-08-07T01:39:13.483446",
+      "success": true
+    },
+    {
+      "user": "test_user3",
+      "action": "data_viewed",
+      "timestamp": "2025-08-07T01:39:14.485894",
+      "success": true
+    },
+    {
+      "user": "test_user1",
+      "action": "data_viewed",
+      "timestamp": "2025-08-07T01:39:14.688321",
+      "success": true
+    }
+  ]
+}

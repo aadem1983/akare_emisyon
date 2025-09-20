@@ -1,0 +1,137 @@
+[
+    {
+        "id": "1c3b8550-0edc-4807-9dd0-eafef5775de6",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "olcum_kodu": "E-250821-02",
+        "baca_adi": "AAA",
+        "parametre_adi": "Yg",
+        "parametre_verileri": {
+            "KK1-O2": "7,15",
+            "KK1-CO": "475",
+            "KK1-NO": "485",
+            "KK1-SO2": "495"
+        },
+        "created_at": "2025-08-21T00:40:31.959126",
+        "updated_at": "2025-08-21T00:40:31.959140"
+    },
+    {
+        "id": "81824523-f1e7-45a5-ad84-ac651220374f",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "olcum_kodu": "E-250821-02",
+        "baca_adi": "AAA",
+        "parametre_adi": "Toc",
+        "parametre_verileri": {
+            "TARİH": "22.08.25",
+            "B.NEM": "*",
+            "B.SIC": "*",
+            "TOC(PPM)": "*",
+            "KK1-SPAN": "102",
+            "KK2-O": "*",
+            "KK2-SPAN": "*"
+        },
+        "created_at": "2025-08-21T00:41:09.512408",
+        "updated_at": "2025-08-21T01:23:42.124105"
+    },
+    {
+        "id": "78b68112-e2ae-49c6-95ea-9868ea086b68",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "olcum_kodu": "E-250821-02",
+        "baca_adi": "SSS",
+        "parametre_adi": "Yg",
+        "parametre_verileri": {
+            "TARİH": "22.08.25",
+            "KK1-O2": "6,96",
+            "KK1-CO": "505",
+            "KK1-NO": "515",
+            "KK1-SO2": "525"
+        },
+        "created_at": "2025-08-21T00:41:52.464686",
+        "updated_at": "2025-08-21T00:41:52.464702"
+    },
+    {
+        "id": "d8f19dda-315d-44ce-bb0c-6f3be5a27e0a",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "olcum_kodu": "E-250821-02",
+        "baca_adi": "SSS",
+        "parametre_adi": "Toc",
+        "parametre_verileri": {
+            "TARİH": "24.08.25",
+            "B.NEM": "*",
+            "B.SIC": "*",
+            "TOC(PPM)": "*",
+            "KK1-SPAN": "97",
+            "KK2-O": "*",
+            "KK2-SPAN": "*"
+        },
+        "created_at": "2025-08-21T00:47:35.490119",
+        "updated_at": "2025-08-21T01:23:53.346664"
+    },
+    {
+        "id": "bf1474b9-441e-4c3d-8b9a-1076dd3fef8a",
+        "firma_adi": "ATALAY TOKER",
+        "olcum_kodu": "EE-250811-02",
+        "baca_adi": "SSSS",
+        "parametre_adi": "Yg",
+        "parametre_verileri": {
+            "TARİH": "11.08.25",
+            "KK1-O2": "7,35",
+            "KK1-CO": "510",
+            "KK1-NO": "485",
+            "KK1-SO2": "515"
+        },
+        "created_at": "2025-08-21T00:48:47.652055",
+        "updated_at": "2025-08-21T00:48:47.652064"
+    },
+    {
+        "id": "83852ec8-f251-43a1-bf56-0a9c9b505baf",
+        "firma_adi": "ATALAY TOKER",
+        "olcum_kodu": "EE-250811-02",
+        "baca_adi": "SSSS",
+        "parametre_adi": "Toc",
+        "parametre_verileri": {
+            "TARİH": "19.08.25",
+            "B.NEM": "*",
+            "B.SIC": "*",
+            "TOC(PPM)": "*",
+            "KK1-SPAN": "96",
+            "KK2-O": "*",
+            "KK2-SPAN": "*"
+        },
+        "created_at": "2025-08-21T00:49:08.632338",
+        "updated_at": "2025-08-21T01:24:10.586734"
+    },
+    {
+        "id": "c874858c-00ba-45e0-a2fe-6b05b2e8e355",
+        "firma_adi": "ATALAY TOKER",
+        "olcum_kodu": "EE-250811-02",
+        "baca_adi": "DDDD",
+        "parametre_adi": "Yg",
+        "parametre_verileri": {
+            "TARİH": "15.08.25",
+            "KK1-O2": "7,2",
+            "KK1-CO": "480",
+            "KK1-NO": "490",
+            "KK1-SO2": "500"
+        },
+        "created_at": "2025-08-21T00:49:39.395707",
+        "updated_at": "2025-08-21T00:49:39.395715"
+    },
+    {
+        "id": "533d7194-7697-4cc4-bf03-721b7b7038a6",
+        "firma_adi": "ATALAY TOKER",
+        "olcum_kodu": "EE-250811-02",
+        "baca_adi": "DDDD",
+        "parametre_adi": "Toc",
+        "parametre_verileri": {
+            "TARİH": "09.08.25",
+            "B.NEM": "*",
+            "B.SIC": "*",
+            "TOC(PPM)": "*",
+            "KK1-SPAN": "105",
+            "KK2-O": "*",
+            "KK2-SPAN": "*"
+        },
+        "created_at": "2025-08-21T00:50:09.179019",
+        "updated_at": "2025-08-21T01:24:27.505605"
+    }
+]

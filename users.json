@@ -1,0 +1,57 @@
+{
+    "admin": {
+        "password": "1",
+        "role": "admin"
+    },
+    "Adem": {
+        "password": "1",
+        "role": "3",
+        "surname": "Yıldırım",
+        "gorev": "Saha",
+        "imza": "Adem_imza_adem.png"
+    },
+    "Atalay": {
+        "password": "1",
+        "role": "3",
+        "surname": "Toker",
+        "gorev": "Saha",
+        "imza": "Atalay_imza_atalay.png"
+    },
+    "Kamuran": {
+        "password": "1",
+        "role": "3",
+        "surname": "Osman",
+        "gorev": "Saha",
+        "imza": "Kamuran_imza_kamuran.png"
+    },
+    "Semih": {
+        "password": "1",
+        "role": "3",
+        "surname": "",
+        "gorev": "Saha"
+    },
+    "Kaan": {
+        "password": "1",
+        "role": "3",
+        "surname": "Süzer",
+        "gorev": "Saha"
+    },
+    "Emin": {
+        "password": "1",
+        "role": "3",
+        "surname": "",
+        "gorev": "Saha"
+    },
+    "Resul": {
+        "password": "1",
+        "role": "3",
+        "surname": "Poyraz",
+        "gorev": "Saha"
+    },
+    "Hafize": {
+        "password": "1",
+        "role": "3",
+        "surname": "Fazlı",
+        "gorev": "Rap"
+    }
+}

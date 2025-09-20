@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "firma_olcumler",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "firma_adi",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "olcum_kodu",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+} 

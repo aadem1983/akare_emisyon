@@ -1,0 +1,170 @@
+{
+  "test_timestamp": "2025-08-07T01:50:55.114058",
+  "firma_adi": "AKARE ÇELİK SANAYİ A.Ş.",
+  "olcum_kodu": "AKARE-2024-001",
+  "total_operations": 15,
+  "successful_operations": 15,
+  "failed_operations": 0,
+  "results": [
+    {
+      "user": "teknik_ekip3",
+      "action": "baca_bilgileri_viewed",
+      "baca_no": "BACA-003",
+      "yakit_turu": "Fuel Oil",
+      "isil_guc": "30.0",
+      "timestamp": "2025-08-07T01:50:45.890426",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip5",
+      "action": "baca_bilgileri_viewed",
+      "baca_no": "BACA-005",
+      "yakit_turu": "Kömür",
+      "isil_guc": "40.0",
+      "timestamp": "2025-08-07T01:50:45.895066",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip1",
+      "action": "baca_bilgileri_viewed",
+      "baca_no": "BACA-001",
+      "yakit_turu": "Doğalgaz",
+      "isil_guc": "45.5",
+      "timestamp": "2025-08-07T01:50:45.896040",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip4",
+      "action": "baca_bilgileri_viewed",
+      "baca_no": "BACA-004",
+      "yakit_turu": "Doğalgaz",
+      "isil_guc": "60.0",
+      "timestamp": "2025-08-07T01:50:45.896917",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip2",
+      "action": "baca_bilgileri_viewed",
+      "baca_no": "BACA-002",
+      "yakit_turu": "Kömür",
+      "isil_guc": "75.0",
+      "timestamp": "2025-08-07T01:50:45.897436",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip4",
+      "action": "parametre_olcumleri_viewed",
+      "baca_adi": "Yedek Üretim Bacası",
+      "parametre_sayisi": 4,
+      "parametreler": [
+        "TOZ",
+        "YG",
+        "TOC",
+        "AĞIR.MET"
+      ],
+      "timestamp": "2025-08-07T01:50:49.268821",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip2",
+      "action": "parametre_olcumleri_viewed",
+      "baca_adi": "Yan Üretim Bacası",
+      "parametre_sayisi": 4,
+      "parametreler": [
+        "TOZ",
+        "YG",
+        "TOC",
+        "AĞIR.MET"
+      ],
+      "timestamp": "2025-08-07T01:50:49.454266",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip3",
+      "action": "parametre_olcumleri_viewed",
+      "baca_adi": "Acil Durum Bacası",
+      "parametre_sayisi": 4,
+      "parametreler": [
+        "TOZ",
+        "YG",
+        "TOC",
+        "AĞIR.MET"
+      ],
+      "timestamp": "2025-08-07T01:50:49.840668",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip5",
+      "action": "parametre_olcumleri_viewed",
+      "baca_adi": "Test Bacası",
+      "parametre_sayisi": 4,
+      "parametreler": [
+        "TOZ",
+        "YG",
+        "TOC",
+        "AĞIR.MET"
+      ],
+      "timestamp": "2025-08-07T01:50:50.337808",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip1",
+      "action": "parametre_olcumleri_viewed",
+      "baca_adi": "Ana Üretim Bacası",
+      "parametre_sayisi": 4,
+      "parametreler": [
+        "TOZ",
+        "YG",
+        "TOC",
+        "AĞIR.MET"
+      ],
+      "timestamp": "2025-08-07T01:50:50.637977",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip2",
+      "action": "new_parametre_olcum_created",
+      "baca_adi": "Yan Üretim Bacası",
+      "parametre": "TOC",
+      "deger": "4.0",
+      "timestamp": "2025-08-07T01:50:53.234001",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip4",
+      "action": "new_parametre_olcum_created",
+      "baca_adi": "Yedek Üretim Bacası",
+      "parametre": "YG",
+      "deger": "9.2",
+      "timestamp": "2025-08-07T01:50:53.584168",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip3",
+      "action": "new_parametre_olcum_created",
+      "baca_adi": "Acil Durum Bacası",
+      "parametre": "TOC",
+      "deger": "6.8",
+      "timestamp": "2025-08-07T01:50:53.874133",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip1",
+      "action": "new_parametre_olcum_created",
+      "baca_adi": "Ana Üretim Bacası",
+      "parametre": "YG",
+      "deger": "9.4",
+      "timestamp": "2025-08-07T01:50:54.519776",
+      "success": true
+    },
+    {
+      "user": "teknik_ekip5",
+      "action": "new_parametre_olcum_created",
+      "baca_adi": "Test Bacası",
+      "parametre": "AĞIR.MET",
+      "deger": "0.6",
+      "timestamp": "2025-08-07T01:50:55.099532",
+      "success": true
+    }
+  ]
+}
