@@ -1,43 +1,80 @@
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
-.tox
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
+# Git
 .git
-.mypy_cache
-.pytest_cache
-.hypothesis
+.gitignore
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
-.vscode
-.idea
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
+# Logs
+*.log
+logs/
+
+# Temporary files
 *.tmp
 *.temp
-node_modules
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+temp/
 
-# Exclude large files
+# Node modules
+node_modules/
+
+# Local development files
+*.backup
+*_backup.*
+test_*
+real_scenario_test_results_*
+
+# Large files
 static/uploads/photos/*.jpg
 static/uploads/photos/*.jpeg
 static/uploads/photos/*.png
 static/uploads/photos/*.gif
 
-# Exclude backup files
-*.backup
-*_backup.*
+# Security - Never include these
+serviceAccountKey.json
+*.pem
+*.key
+.env
+.env.local
