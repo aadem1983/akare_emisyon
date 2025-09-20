@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Kullanıcı Yönetimi - Emisyon Saha Programı{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-users me-2"></i>Kullanıcı Yönetimi</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin') }}" id="userForm">
+                        <input type="hidden" name="action" value="add_user" id="formAction">
+                        <input type="hidden" name="edit_username" id="editUsername">
+                        
+                        <!-- Üst Kısım - Form Alanları -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                                <label for="username" class="form-label">Kullanıcı Adı</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="surname" class="form-label">Soyad</label>
+                                <input type="text" class="form-control" id="surname" name="surname" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="password" class="form-label">Şifre</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="gorev" class="form-label">Görev</label>
+                                <select class="form-select" id="gorev" name="gorev" required>
+                                    <option value="">Seçin...</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Saha">Saha</option>
+                                    <option value="Rap">Rap</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="role" class="form-label">Rol</label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="">Seçin...</option>
+                                    <option value="1">1 - Sadece Okuma</option>
+                                    <option value="2">2 - Okuma Yazma</option>
+                                    <option value="3">3 - Okuma Yazma Değiştirme</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Alt Kısım - Butonlar -->
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-success w-100" id="yeniEkleBtn">
+                                    <i class="fas fa-plus me-1"></i>Yeni Ekle
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-warning w-100" id="guncelleBtn" disabled>
+                                    <i class="fas fa-edit me-1"></i>Güncelle
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-primary w-100" id="kaydetBtn">
+                                    <i class="fas fa-save me-1"></i>Kaydet
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Kullanıcı Listesi -->
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0"><i class="fas fa-list me-2"></i>Kullanıcı Listesi</h3>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-danger btn-sm" id="secilenleriSil" disabled>
+                            <i class="fas fa-trash me-1"></i>Seçilenleri Sil
+                        </button>
+                        <button type="button" class="btn btn-light btn-sm" id="secilenleriAktar" disabled>
+                            <i class="fas fa-file-download me-1"></i>Seçilenleri Dışa Aktar
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="tumunuSec" class="form-check-input">
+                                    </th>
+                                    <th style="width: 60px;">Sıra</th>
+                                    <th>Kullanıcı Adı</th>
+                                    <th>Soyad</th>
+                                    <th>Görev</th>
+                                    <th>Rol</th>
+                                    <th class="text-end">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for username, user_data in users.items() %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input kullanici-checkbox" value="{{ username }}" {% if username == 'admin' %}disabled{% endif %}>
+                                    </td>
+                                    <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
+                                    <td>{{ username }}</td>
+                                    <td>{{ user_data.get('surname', '-') }}</td>
+                                    <td>{{ user_data.get('gorev', '-') }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if user_data.role == '1' %}info{% elif user_data.role == '2' %}primary{% else %}success{% endif %}">
+                                            {% if user_data.role == '1' %}
+                                                1 - Sadece Okuma
+                                            {% elif user_data.role == '2' %}
+                                                2 - Okuma Yazma
+                                            {% elif user_data.role == '3' %}
+                                                3 - Okuma Yazma Değiştirme
+                                            {% else %}
+                                                {{ user_data.role }}
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if username != 'admin' %}
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary edit-user-btn" 
+                                                    data-username="{{ username }}" 
+                                                    data-surname="{{ user_data.get('surname', '') }}"
+                                                    data-gorev="{{ user_data.get('gorev', '') }}"
+                                                    data-role="{{ user_data.role }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <form method="POST" action="{{ url_for('admin') }}" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?');" style="display:inline;">
+                                                <input type="hidden" name="action" value="delete_user">
+                                                <input type="hidden" name="username" value="{{ username }}">
+                                                <button type="submit" class="btn btn-outline-danger">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">Admin</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Admin sayfası yüklendi');
+        
+        const form = document.getElementById('userForm');
+        const yeniEkleBtn = document.getElementById('yeniEkleBtn');
+        const guncelleBtn = document.getElementById('guncelleBtn');
+        const formAction = document.getElementById('formAction');
+        const editUsername = document.getElementById('editUsername');
+        const usernameInput = document.getElementById('username');
+        const surnameInput = document.getElementById('surname');
+        const passwordInput = document.getElementById('password');
+        const gorevInput = document.getElementById('gorev');
+        const roleSelect = document.getElementById('role');
+        
+        // Düzenleme butonları
+        document.querySelectorAll('.edit-user-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const username = this.dataset.username;
+                const surname = this.dataset.surname;
+                const gorev = this.dataset.gorev;
+                const role = this.dataset.role;
+                
+                // Form alanlarını doldur
+                usernameInput.value = username;
+                surnameInput.value = surname;
+                passwordInput.value = ''; // Şifre boş bırakılır
+                gorevInput.value = gorev;
+                roleSelect.value = role;
+                
+                // Form modunu güncelleme olarak değiştir
+                formAction.value = 'update_user';
+                editUsername.value = username;
+                
+                // Buton durumlarını değiştir
+                yeniEkleBtn.disabled = true;
+                guncelleBtn.disabled = false;
+                
+                // Kullanıcı adı alanını readonly yap
+                usernameInput.readOnly = true;
+                
+                // Sayfayı form alanına kaydır
+                form.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+        
+        // Yeni ekle butonuna tıklandığında formu submit et
+        yeniEkleBtn.addEventListener('click', function() {
+            form.submit();
+        });
+        
+        // Güncelle butonuna tıklandığında formu gönder
+        guncelleBtn.addEventListener('click', function() {
+            form.submit();
+        });
+        
+        // Kaydet butonuna tıklandığında formu gönder
+        document.getElementById('kaydetBtn').addEventListener('click', function() {
+            form.submit();
+        });
+        
+        function resetForm() {
+            form.reset();
+            formAction.value = 'add_user';
+            editUsername.value = '';
+            usernameInput.readOnly = false;
+            yeniEkleBtn.disabled = false;
+            guncelleBtn.disabled = true;
+        }
+        
+        // Form submit edildiğinde
+        form.addEventListener('submit', function(e) {
+            if (formAction.value === 'update_user' && !passwordInput.value) {
+                // Güncelleme modunda şifre boşsa, şifre alanını kaldır
+                passwordInput.disabled = true;
+            }
+        });
+        
+        var tumunuSecCheckbox = document.getElementById('tumunuSec');
+        var secilenleriAktarButton = document.getElementById('secilenleriAktar');
+        var secilenleriSilButton = document.getElementById('secilenleriSil');
+        
+        // Tümünü seç checkbox'ı
+        if (tumunuSecCheckbox) {
+            tumunuSecCheckbox.addEventListener('change', function() {
+                var checkboxes = document.querySelectorAll('.kullanici-checkbox:not(:disabled)');
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.checked = tumunuSecCheckbox.checked;
+                });
+                updateSecilenleriAktarButton();
+            });
+        }
+
+        // Tekil checkbox'lar
+        var kullaniciCheckboxes = document.querySelectorAll('.kullanici-checkbox');
+        kullaniciCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                updateSecilenleriAktarButton();
+                var allCheckboxes = document.querySelectorAll('.kullanici-checkbox:not(:disabled)');
+                var checkedCheckboxes = document.querySelectorAll('.kullanici-checkbox:checked');
+                if (tumunuSecCheckbox) {
+                    tumunuSecCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                }
+            });
+        });
+
+        // Seçilenleri sil butonu
+        if (secilenleriSilButton) {
+            secilenleriSilButton.addEventListener('click', function() {
+                var selectedUsernames = [];
+                document.querySelectorAll('.kullanici-checkbox:checked').forEach(function(checkbox) {
+                    selectedUsernames.push(checkbox.value);
+                });
+                
+                if (selectedUsernames.length > 0) {
+                    if (confirm('Seçilen ' + selectedUsernames.length + ' kullanıcıyı silmek istediğinizden emin misiniz?')) {
+                        // AJAX ile silme işlemi
+                        fetch('/delete_selected_users', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({usernames: selectedUsernames})
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Hata: ' + data.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Bir hata oluştu!');
+                        });
+                    }
+                }
+            });
+        }
+
+        // Seçilenleri dışa aktar butonu
+        if (secilenleriAktarButton) {
+            secilenleriAktarButton.addEventListener('click', function() {
+                var selectedUsernames = [];
+                document.querySelectorAll('.kullanici-checkbox:checked').forEach(function(checkbox) {
+                    selectedUsernames.push(checkbox.value);
+                });
+                
+                if (selectedUsernames.length > 0) {
+                    var usernamesParam = selectedUsernames.join(',');
+                    window.location.href = '/export_selected_users?usernames=' + usernamesParam;
+                }
+            });
+        }
+
+        function updateSecilenleriAktarButton() {
+            var checkedCount = document.querySelectorAll('.kullanici-checkbox:checked').length;
+            
+            if (secilenleriAktarButton) {
+                secilenleriAktarButton.disabled = checkedCount === 0;
+                if (checkedCount > 0) {
+                    secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-1"></i>Seçilenleri Dışa Aktar (' + checkedCount + ')';
+                } else {
+                    secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-1"></i>Seçilenleri Dışa Aktar';
+                }
+            }
+            
+            if (secilenleriSilButton) {
+                secilenleriSilButton.disabled = checkedCount === 0;
+                if (checkedCount > 0) {
+                    secilenleriSilButton.innerHTML = '<i class="fas fa-trash me-1"></i>Seçilenleri Sil (' + checkedCount + ')';
+                } else {
+                    secilenleriSilButton.innerHTML = '<i class="fas fa-trash me-1"></i>Seçilenleri Sil';
+                }
+            }
+        }
+        
+        // İlk yüklemede buton durumunu güncelle
+        updateSecilenleriAktarButton();
+    });
+    </script>
+{% endblock %}

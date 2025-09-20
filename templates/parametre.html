@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}Parametreler - Emisyon Saha Programı{% endblock %}
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 10px !important;
+    }
+    
+    .card {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .table-responsive {
+        width: 100% !important;
+        overflow-x: auto !important;
+    }
+    
+    #parametreTablo {
+        width: 100% !important;
+        min-width: 1600px !important;
+        table-layout: fixed;
+    }
+    
+    #parametreTablo th,
+    #parametreTablo td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .btn-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    
+    .btn-group {
+        flex-shrink: 0;
+    }
+</style>
+
+{% block content %}
+<div class="container-fluid mt-4" style="max-width: 100%; padding: 0 15px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Parametre Yönetimi</h2>
+                    <div class="btn-toolbar">
+                <div class="btn-group me-2">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal">
+                        <i class="fas fa-file-upload me-2"></i>İçeri Aktar
+                    </button>
+                    <a href="{{ url_for('export_parameters') }}" class="btn btn-info">
+                        <i class="fas fa-file-download me-2"></i>Dışarı Aktar
+                    </a>
+                    <button type="button" class="btn btn-warning" id="secilenleriAktar" disabled>
+                        <i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar
+                    </button>
+                    {% if role in ['3', 'admin'] %}
+                    <button type="button" class="btn btn-danger" id="secilenleriSil" disabled>
+                        <i class="fas fa-trash me-2"></i>Seçilenleri Sil
+                    </button>
+                    {% endif %}
+                </div>
+                                    {% if role in ['2', '3', 'admin'] %}
+                    <a href="{{ url_for('add_parameter') }}" class="btn btn-primary shadow-sm">
+                        <i class="fas fa-plus me-2"></i>Yeni Parametre Ekle
+                    </a>
+                    <button type="button" class="btn btn-success shadow-sm ms-2" id="secilenleriEkle" disabled>
+                        <i class="fas fa-plus me-2"></i>Seçilenleri Ekle
+                    </button>
+                    {% endif %}
+            </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body" style="padding: 0;">
+            <div class="mb-3" style="padding: 15px 15px 0 15px;">
+                <input type="text" id="parametreArama" class="form-control" placeholder="Parametre adına göre ara...">
+            </div>
+            <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
+                <table class="table table-hover align-middle" id="parametreTablo" style="width: 100%; min-width: 1600px;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 35px;" class="no-sort">
+                                <input type="checkbox" id="tumunuSec" class="form-check-input">
+                            </th>
+                            <th style="width: 45px;" class="no-sort">Sıra</th>
+                            <th style="width: 120px;">Parametre Adı</th>
+                            <th style="width: 80px;">Metot</th>
+                            <th style="width: 70px;">İzo Oran</th>
+                            <th style="width: 60px;">Nozzle</th>
+                            <th style="width: 55px;">1. İmp</th>
+                            <th style="width: 55px;">2. İmp</th>
+                            <th style="width: 55px;">3. İmp</th>
+                            <th style="width: 55px;">4. İmp</th>
+                            <th style="width: 60px;">L/DAK</th>
+                            <th style="width: 60px;">T.HAC</th>
+                            <th style="width: 60px;">LOQ</th>
+                            <th style="width: 50px;">KK</th>
+                            <th style="width: 50px;">-3S</th>
+                            <th style="width: 50px;">-2S</th>
+                            <th style="width: 50px;">+2S</th>
+                            <th style="width: 50px;">+3S</th>
+                            <th style="width: 80px;" class="text-end no-sort">İşlemler</th>
+                        </tr>
+                        <tr id="filterRow">
+                            <th></th>
+                            <th></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(2, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(3, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(4, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(5, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(6, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(7, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(8, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(9, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(10, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(11, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(12, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(13, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(14, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(15, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(16, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(17, this.value)"></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if parameters %}
+                            {% for param in parameters %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input parametre-checkbox" value="{{ param.id }}">
+                                </td>
+                                <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
+                                <td>{{ param['Parametre Adı'] | default('', true) }}</td>
+                                <td>{{ param['Metot'] | default('', true) }}</td>
+                                <td>{{ param['İzo Oran'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['Nozzle'] | default('', true) }}</td>
+                                <td>{{ param['1. imp'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['2. imp'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['3. imp'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['4. imp'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['L/DAK'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['T.HAC'] | default('', true) | replace('.', ',') }}</td>
+                                <td>{{ param['LOQ'] | default('', true) | replace('.', ',') }}</td>
+                                <td class="editable-cell" data-field="KK" data-id="{{ param.id }}">{{ param['KK'] | default('', true) | replace('.', ',') }}</td>
+                                <td class="editable-cell" data-field="-3S" data-id="{{ param.id }}">{{ param['-3S'] | default('', true) | replace('.', ',') }}</td>
+                                <td class="editable-cell" data-field="-2S" data-id="{{ param.id }}">{{ param['-2S'] | default('', true) | replace('.', ',') }}</td>
+                                <td class="editable-cell" data-field="+2S" data-id="{{ param.id }}">{{ param['+2S'] | default('', true) | replace('.', ',') }}</td>
+                                <td class="editable-cell" data-field="+3S" data-id="{{ param.id }}">{{ param['+3S'] | default('', true) | replace('.', ',') }}</td>
+                                <td class="text-end">
+                                    {% if role in ['3', 'admin'] %}
+                                    <a href="{{ url_for('edit_parameter', parameter_id=param.id) }}" class="btn btn-sm btn-outline-primary me-1"><i class="fas fa-edit"></i></a>
+                                    <form action="{{ url_for('delete_parameter', parameter_id=param.id) }}" method="post" class="d-inline" onsubmit="return confirm('Bu parametreyi silmek istediğinizden emin misiniz?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                    {% elif role in ['2', 'admin'] %}
+                                    <a href="{{ url_for('edit_parameter', parameter_id=param.id) }}" class="btn btn-sm btn-outline-primary me-1"><i class="fas fa-edit"></i></a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="19" class="text-center text-muted p-4">Henüz parametre kaydı bulunmuyor.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importModalLabel">Excel'den Veri Aktar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Lütfen içeri aktarmak istediğiniz Excel dosyasını seçin. Dosyanın sütun sıralaması şu şekilde olmalıdır:</p>
+        <p><small><code>Parametre Adı, Metot, İzo Oran, LOQ, 1. İmp, 2. İmp, 3. İmp, 4. İmp, L/DAK</code></small></p>
+        <form action="{{ url_for('import_parameters') }}" method="post" enctype="multipart/form-data" id="importForm">
+            <div class="mb-3">
+                <label for="excelFile" class="form-label">Excel Dosyası (.xlsx, .xls)</label>
+                <input class="form-control" type="file" id="excelFile" name="excel_file" accept=".xlsx, .xls" required>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="submit" form="importForm" class="btn btn-primary">Yükle</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Parametreler sayfası yüklendi');
+        
+        var aramaInput = document.getElementById('parametreArama');
+        var tablo = document.getElementById('parametreTablo');
+        var tumunuSecCheckbox = document.getElementById('tumunuSec');
+        var secilenleriAktarButton = document.getElementById('secilenleriAktar');
+        var secilenleriSilButton = document.getElementById('secilenleriSil');
+        var secilenleriEkleButton = document.getElementById('secilenleriEkle');
+        
+        // Arama fonksiyonu
+        if (aramaInput && tablo) {
+            aramaInput.addEventListener('keyup', function() {
+                var filtre = aramaInput.value.toLowerCase();
+                var satirlar = tablo.getElementsByTagName('tr');
+                for (var i = 1; i < satirlar.length; i++) { // 0. satır başlık
+                    var hucre = satirlar[i].getElementsByTagName('td')[2]; // Parametre Adı sütunu (3. sütun, indeks 2)
+                    if (hucre) {
+                        var txt = hucre.textContent || hucre.innerText;
+                        satirlar[i].style.display = txt.toLowerCase().indexOf(filtre) > -1 ? '' : 'none';
+                    }
+                }
+            });
+        }
+        
+        // Tümünü seç checkbox'ı
+        if (tumunuSecCheckbox) {
+            console.log('Tümünü seç checkbox bulundu');
+            tumunuSecCheckbox.addEventListener('change', function() {
+                console.log('Tümünü seç checkbox değişti:', this.checked);
+                var checkboxes = document.querySelectorAll('.parametre-checkbox');
+                console.log('Bulunan checkbox sayısı:', checkboxes.length);
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.checked = tumunuSecCheckbox.checked;
+                });
+                updateSecilenleriAktarButton();
+                updateSecilenleriSilButton();
+                updateSecilenleriEkleButton();
+            });
+        } else {
+            console.error('Tümünü seç checkbox bulunamadı!');
+        }
+
+        // Tekil checkbox'lar
+        var parametreCheckboxes = document.querySelectorAll('.parametre-checkbox');
+        console.log('Parametre checkbox sayısı:', parametreCheckboxes.length);
+        
+        parametreCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                console.log('Tekil checkbox değişti:', this.value, this.checked);
+                updateSecilenleriAktarButton();
+                updateSecilenleriSilButton();
+                updateSecilenleriEkleButton();
+                // Tüm checkbox'lar seçili mi kontrol et
+                var allCheckboxes = document.querySelectorAll('.parametre-checkbox');
+                var checkedCheckboxes = document.querySelectorAll('.parametre-checkbox:checked');
+                if (tumunuSecCheckbox) {
+                    tumunuSecCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                }
+            });
+        });
+
+        // Seçilenleri dışa aktar butonu
+        if (secilenleriAktarButton) {
+            secilenleriAktarButton.addEventListener('click', function() {
+                var selectedIds = [];
+                document.querySelectorAll('.parametre-checkbox:checked').forEach(function(checkbox) {
+                    selectedIds.push(checkbox.value);
+                });
+                
+                console.log('Seçilen ID\'ler:', selectedIds);
+                
+                if (selectedIds.length > 0) {
+                    // Seçilen ID'leri URL parametresi olarak gönder
+                    var idsParam = selectedIds.join(',');
+                    window.location.href = '/export_selected_parameters?ids=' + idsParam;
+                }
+            });
+        }
+
+        function updateSecilenleriAktarButton() {
+            var checkedCount = document.querySelectorAll('.parametre-checkbox:checked').length;
+            console.log('Seçili checkbox sayısı:', checkedCount);
+            
+            if (secilenleriAktarButton) {
+                secilenleriAktarButton.disabled = checkedCount === 0;
+                if (checkedCount > 0) {
+                    secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar (' + checkedCount + ')';
+                } else {
+                    secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar';
+                }
+            }
+        }
+        
+        // Seçilenleri sil butonu
+        if (secilenleriSilButton) {
+            secilenleriSilButton.addEventListener('click', function() {
+                var selectedIds = [];
+                document.querySelectorAll('.parametre-checkbox:checked').forEach(function(checkbox) {
+                    selectedIds.push(checkbox.value);
+                });
+                if (selectedIds.length > 0) {
+                    if (confirm('Seçili parametreleri silmek istediğinize emin misiniz?')) {
+                        // POST ile silme isteği gönder
+                        fetch('/delete_selected_parameters', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ ids: selectedIds })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert('Silme işlemi başarısız!');
+                            }
+                        })
+                        .catch(() => alert('Silme işlemi sırasında hata oluştu!'));
+                    }
+                }
+            });
+        }
+
+        function updateSecilenleriSilButton() {
+            var checkedCount = document.querySelectorAll('.parametre-checkbox:checked').length;
+            if (secilenleriSilButton) {
+                secilenleriSilButton.disabled = checkedCount === 0;
+                if (checkedCount > 0) {
+                    secilenleriSilButton.innerHTML = '<i class="fas fa-trash me-2"></i>Seçilenleri Sil (' + checkedCount + ')';
+                } else {
+                    secilenleriSilButton.innerHTML = '<i class="fas fa-trash me-2"></i>Seçilenleri Sil';
+                }
+            }
+        }
+
+        // Seçilenleri ekle butonu
+        if (secilenleriEkleButton) {
+            secilenleriEkleButton.addEventListener('click', function() {
+                var selectedIds = [];
+                document.querySelectorAll('.parametre-checkbox:checked').forEach(function(checkbox) {
+                    selectedIds.push(checkbox.value);
+                });
+                
+                console.log('Eklenecek parametre ID\'leri:', selectedIds);
+                
+                if (selectedIds.length > 0) {
+                    if (confirm('Seçili parametreleri eklemek istediğinize emin misiniz?')) {
+                        // POST ile ekleme isteği gönder
+                        fetch('/add_selected_parameters', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ ids: selectedIds })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Seçili parametreler başarıyla eklendi!');
+                                location.reload();
+                            } else {
+                                alert('Ekleme işlemi başarısız: ' + (data.error || 'Bilinmeyen hata'));
+                            }
+                        })
+                        .catch(() => alert('Ekleme işlemi sırasında hata oluştu!'));
+                    }
+                }
+            });
+        }
+
+        function updateSecilenleriEkleButton() {
+            var checkedCount = document.querySelectorAll('.parametre-checkbox:checked').length;
+            if (secilenleriEkleButton) {
+                secilenleriEkleButton.disabled = checkedCount === 0;
+                if (checkedCount > 0) {
+                    secilenleriEkleButton.innerHTML = '<i class="fas fa-plus me-2"></i>Seçilenleri Ekle (' + checkedCount + ')';
+                } else {
+                    secilenleriEkleButton.innerHTML = '<i class="fas fa-plus me-2"></i>Seçilenleri Ekle';
+                }
+            }
+        }
+
+        // İlk yüklemede buton durumunu güncelle
+        updateSecilenleriAktarButton();
+        updateSecilenleriSilButton();
+        updateSecilenleriEkleButton();
+    });
+    // Sütun bazlı filtreleme fonksiyonu
+    function filterTable(colIndex, value) {
+        var tablo = document.getElementById('parametreTablo');
+        var satirlar = tablo.getElementsByTagName('tr');
+        value = value.toLowerCase();
+        for (var i = 2; i < satirlar.length; i++) { // 0: başlık, 1: filtre satırı
+            var hucre = satirlar[i].getElementsByTagName('td')[colIndex];
+            if (hucre) {
+                var txt = hucre.textContent || hucre.innerText;
+                if (txt.toLowerCase().indexOf(value) > -1) {
+                    satirlar[i].style.display = '';
+                } else {
+                    satirlar[i].style.display = 'none';
+                }
+            }
+        }
+    }
+
+    // Düzenlenebilir hücre fonksiyonları
+    document.addEventListener('DOMContentLoaded', function() {
+        // Düzenlenebilir hücrelere tıklama olayı ekle
+        document.querySelectorAll('.editable-cell').forEach(function(cell) {
+            cell.addEventListener('click', function() {
+                if (this.querySelector('input')) return; // Zaten düzenleme modunda
+                
+                var originalText = this.textContent.trim();
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control form-control-sm';
+                input.value = originalText;
+                input.style.width = '100%';
+                input.style.border = '2px solid #007bff';
+                
+                // Enter tuşu ile kaydet
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        saveCellValue(cell, input.value);
+                    } else if (e.key === 'Escape') {
+                        cancelEdit(cell, originalText);
+                    }
+                });
+                
+                // Input'tan çıkınca kaydet
+                input.addEventListener('blur', function() {
+                    saveCellValue(cell, input.value);
+                });
+                
+                this.textContent = '';
+                this.appendChild(input);
+                input.focus();
+                input.select();
+            });
+        });
+    });
+
+    function saveCellValue(cell, value) {
+        var parameterId = cell.getAttribute('data-id');
+        var field = cell.getAttribute('data-field');
+        
+        // Virgülü noktaya çevir (veritabanı için)
+        var dbValue = value.replace(',', '.');
+        
+        // AJAX ile güncelle
+        fetch('/update_parameter_field', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                parameter_id: parameterId,
+                field: field,
+                value: dbValue
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Başarılı güncelleme - virgülle göster
+                cell.textContent = value;
+            } else {
+                // Hata durumunda eski değeri geri yükle
+                cell.textContent = cell.getAttribute('data-original') || '';
+                alert('Güncelleme başarısız: ' + (data.error || 'Bilinmeyen hata'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            cell.textContent = cell.getAttribute('data-original') || '';
+            alert('Güncelleme sırasında hata oluştu!');
+        });
+    }
+
+    function cancelEdit(cell, originalText) {
+        cell.textContent = originalText;
+    }
+    </script>
+{% endblock %}

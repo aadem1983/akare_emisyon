@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Firma Ölçüm Düzenle - Emisyon Saha Programı{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <h2 class="mb-0 me-4">Firma Ölçüm Düzenle</h2>
+                </div>
+                <div>
+                    <a href="{{ url_for('firma_olcum') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Geri Dön
+                    </a>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST" id="editForm">
+                        <!-- Firma Bilgileri -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="firma_adi" class="form-label">Firma Adı <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="firma_adi" name="firma_adi" value="{{ olcum.firma_adi }}" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="olcum_kodu" class="form-label">Ölçüm Kodu <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="olcum_kodu" name="olcum_kodu" value="{{ olcum.olcum_kodu }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="baslangic_tarihi" class="form-label">Başlangıç Tarihi</label>
+                                <input type="date" class="form-control" id="baslangic_tarihi" name="baslangic_tarihi" 
+                                       value="{{ olcum.baslangic_tarihi or '' }}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="bitis_tarihi" class="form-label">Bitiş Tarihi</label>
+                                <input type="date" class="form-control" id="bitis_tarihi" name="bitis_tarihi" 
+                                       value="{{ olcum.bitis_tarihi or '' }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="il" class="form-label">İl</label>
+                                <select class="form-control" id="il" name="il">
+                                    <option value="">İl Seçiniz</option>
+                                    {% for il in cities %}
+                                    <option value="{{ il.il_adi }}" {% if il.il_adi == olcum.il %}selected{% endif %}>{{ il.il_adi }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="ilce" class="form-label">İlçe</label>
+                                <select class="form-control" id="ilce" name="ilce">
+                                    <option value="">İlçe Seçiniz</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="yetkili" class="form-label">Yetkili</label>
+                                <input type="text" class="form-control" id="yetkili" name="yetkili" value="{{ olcum.yetkili or '' }}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="telefon" class="form-label">Telefon</label>
+                                <input type="tel" class="form-control" id="telefon" name="telefon" value="{{ olcum.telefon or '' }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="durum" class="form-label">Durum</label>
+                                <select class="form-control" id="durum" name="durum">
+                                    <option value="Aktif" {% if olcum.durum == 'Aktif' %}selected{% endif %}>Aktif</option>
+                                    <option value="Pasif" {% if olcum.durum == 'Pasif' %}selected{% endif %}>Pasif</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Ölçüm Personeli</label>
+                                <div class="d-flex flex-wrap">
+                                    {% for person in saha_personeli %}
+                                    <div class="form-check me-3">
+                                        <input class="form-check-input" type="checkbox" name="personel" value="{{ person.username }}" 
+                                               id="personel_{{ loop.index }}" 
+                                               {% if person.username in (olcum.personel or []) %}checked{% endif %}>
+                                        <label class="form-check-label" for="personel_{{ loop.index }}">
+                                            {{ person.username }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Baca Sayısı ve Parametreler -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="baca_sayisi" class="form-label">Baca Sayısı</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="baca_sayisi" name="baca_sayisi" min="1" max="20" value="{{ olcum.baca_sayisi or 1 }}">
+                                    <button type="button" class="btn btn-primary" id="bacaEkleBtn">
+                                        <i class="fas fa-plus"></i> Ekle
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">Baca sayısını girin ve "Ekle" butonuna tıklayın</small>
+                            </div>
+                        </div>
+
+                        <!-- Dinamik Baca-Parametre Tablosu -->
+                        <div id="bacaTabloContainer" style="display: none;">
+                            <h5 class="mb-3">Baca-Parametre Matrisi</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm" id="bacaTablo">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 300px;">Baca İsimleri</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Notlar -->
+                        <div class="row mt-4">
+                            <div class="col-12 mb-3">
+                                <label for="notlar" class="form-label">Notlar</label>
+                                <textarea class="form-control" id="notlar" name="notlar" rows="4" placeholder="Ek notlarınızı buraya yazabilirsiniz...">{{ olcum.notlar or '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Butonlar -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('firma_olcum') }}" class="btn btn-secondary">
+                                        <i class="fas fa-times"></i> İptal
+                                    </a>
+                                    <button type="submit" class="btn btn-success" id="kaydetBtn">
+                                        <i class="fas fa-save"></i> Güncelle
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script id="parameters-json" type="application/json">{{ parameters | tojson | safe }}</script>
+<script id="current-ilce-json" type="application/json">{{ olcum.ilce or '' }}</script>
+<script id="baca-parametreleri-json" type="application/json">{{ olcum.baca_parametreleri | tojson | safe }}</script>
+<script src="{{ url_for('static', filename='js/edit_firma_olcum.js') }}"></script>
+{% endblock %} 

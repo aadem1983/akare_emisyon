@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Yeni Kayıt Ekle - Emisyon Saha Programı{% endblock %}
+
+{% block content %}
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('index') }}">Ana Sayfa</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Hoşgeldin, {{ username }}
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Çıkış Yap</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Yeni Emisyon Kaydı Ekle</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('add_emission') }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="tesis_adi" class="form-label">Tesis Adı</label>
+                                <input type="text" class="form-control" id="tesis_adi" name="tesis_adi" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="tarih" class="form-label">Tarih</label>
+                                <input type="date" class="form-control" id="tarih" name="tarih" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="parametre" class="form-label">Parametre</label>
+                                <input type="text" class="form-control" id="parametre" name="parametre" placeholder="Örn: Toz, SO2, NOx" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sonuc" class="form-label">Sonuç</label>
+                                <input type="text" class="form-control" id="sonuc" name="sonuc" 
+                                       pattern="[0-9,]+" placeholder="Örn: 15,5" required>
+                                <div class="form-text">Ondalık ayraç olarak virgül kullanın (örn: 15,5)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="birim" class="form-label">Birim</label>
+                                <input type="text" class="form-control" id="birim" name="birim" placeholder="Örn: mg/Nm3" required>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary me-2">İptal</a>
+                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sayısal alanlar için virgül desteği
+        var sonucInput = document.getElementById('sonuc');
+        if (sonucInput) {
+            sonucInput.addEventListener('input', function(e) {
+                var value = e.target.value;
+                // Sadece sayı ve virgül karakterlerine izin ver
+                value = value.replace(/[^0-9,]/g, '');
+                // Birden fazla virgül varsa sadece ilkini tut
+                var commaCount = (value.match(/,/g) || []).length;
+                if (commaCount > 1) {
+                    var parts = value.split(',');
+                    value = parts[0] + ',' + parts.slice(1).join('');
+                }
+                e.target.value = value;
+            });
+
+            // Form gönderilmeden önce virgülü nokta ile değiştir
+            var form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    var sonucValue = sonucInput.value;
+                    if (sonucValue.includes(',')) {
+                        sonucInput.value = sonucValue.replace(',', '.');
+                    }
+                });
+            }
+        }
+    });
+    </script>
+{% endblock %}

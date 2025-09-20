@@ -1,0 +1,3282 @@
+{% extends "base.html" %}
+
+{% block title %}TEKLİF{% endblock %}
+
+<style>
+    /* Zengin Metin Editörü CSS */
+    .rich-text-toolbar {
+        border: 1px solid #dee2e6;
+        border-bottom: none;
+        border-radius: 0.375rem 0.375rem 0 0;
+        padding: 0.5rem;
+        background-color: #f8f9fa;
+    }
+    
+    .rich-text-editor {
+        border: 1px solid #dee2e6;
+        border-radius: 0 0 0.375rem 0.375rem;
+        padding: 0.75rem;
+        background-color: #fff;
+        outline: none;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    
+    .rich-text-editor:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .rich-text-editor[contenteditable="true"]:empty:before {
+        content: attr(placeholder);
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    /* Word benzeri paragraf ve liste stilleri */
+    .rich-text-editor p {
+        margin: 0 0 6pt 0;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    
+    .rich-text-editor ul {
+        margin: 0 0 6pt 0;
+        padding-left: 20pt;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    
+    .rich-text-editor li {
+        margin: 0 0 3pt 0;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    
+    .rich-text-editor strong {
+        font-weight: bold;
+        font-family: "Times New Roman", Times, serif;
+    }
+    
+    .rich-text-editor em {
+        font-style: italic;
+        font-family: "Times New Roman", Times, serif;
+    }
+</style>
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="min-height: calc(100vh - 100px);">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-file-contract me-2"></i>
+                            Teklif Sistemi
+                        </h4>
+                                                 <div class="btn-group" role="group">
+                             <button class="btn btn-light btn-sm" id="btnYeniTeklif">
+                                 <i class="fas fa-plus me-1"></i>
+                                 Yeni Teklif
+                             </button>
+                             <button class="btn btn-warning btn-sm" onclick="showParametreYonetimi()">
+                                 <i class="fas fa-cog me-1"></i>
+                                 Parametre Yönetimi
+                             </button>
+                             <button class="btn btn-success btn-sm" onclick="exportTeklifler()">
+                                 <i class="fas fa-download me-1"></i>
+                                 Dışa Aktar
+                             </button>
+                             <button class="btn btn-info btn-sm" onclick="importTeklifler()">
+                                 <i class="fas fa-upload me-1"></i>
+                                 İçe Aktar
+                             </button>
+                         </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-0">
+                                         <!-- Teklif Listesi -->
+                     <div id="teklifListesi" class="p-3">
+                         <!-- Filtreleme Bölümü -->
+                         <div class="card mb-3">
+                             <div class="card-header bg-light">
+                                 <h6 class="mb-0">
+                                     <i class="fas fa-filter me-2"></i>
+                                     Filtreleme
+                                 </h6>
+                             </div>
+                             <div class="card-body">
+                                 <div class="row">
+                                     <div class="col-md-3">
+                                         <div class="mb-3">
+                                             <label for="filterTeklifNo" class="form-label">Teklif No</label>
+                                             <input type="text" class="form-control" id="filterTeklifNo" placeholder="Teklif no ara...">
+                                         </div>
+                                     </div>
+                                     <div class="col-md-3">
+                                         <div class="mb-3">
+                                             <label for="filterFirma" class="form-label">Firma</label>
+                                             <input type="text" class="form-control" id="filterFirma" placeholder="Firma ara...">
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <div class="mb-3">
+                                             <label for="filterTeklifTipi" class="form-label">Teklif Tipi</label>
+                                             <select class="form-select" id="filterTeklifTipi">
+                                                 <option value="">Tümü</option>
+                                                 <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
+                                                 <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
+                                             </select>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <div class="mb-3">
+                                             <label for="filterDurum" class="form-label">Teklif Durumu</label>
+                                             <select class="form-select" id="filterDurum">
+                                                 <option value="">Tümü</option>
+                                                 <option value="BEKLEMEDE">BEKLEMEDE</option>
+                                                 <option value="KABUL">KABUL</option>
+                                                 <option value="RED">RED</option>
+                                             </select>
+                                         </div>
+                                     </div>
+                                     <div class="col-md-2">
+                                         <div class="mb-3">
+                                             <label class="form-label">&nbsp;</label>
+                                             <div class="d-grid">
+                                                 <button type="button" class="btn btn-primary" onclick="filterTeklifler()">
+                                                     <i class="fas fa-search me-1"></i>
+                                                     Filtrele
+                                                 </button>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <div class="table-responsive">
+                             <table class="table table-striped table-hover">
+                                 <thead class="table-dark">
+                                     <tr>
+                                         <th class="text-center" width="50">
+                                             <input type="checkbox" id="tumunuSecTeklif" class="form-check-input" onchange="tumunuSecTeklif(this)">
+                                         </th>
+                                         <th class="text-center">SIRA</th>
+                                         <th>TEKLİF NO</th>
+                                         <th>FİRMA ADI</th>
+                                         <th>TEKLİF TİPİ</th>
+                                         <th>TEKLİF TARİHİ</th>
+                                         <th class="text-end">TOP FİYAT</th>
+                                         <th class="text-end">İSKONTO (TL)</th>
+                                         <th class="text-end">SON FİYAT</th>
+                                         <th>TEKLİF DURUMU</th>
+                                         <th>DRM TRH.</th>
+                                         <th class="text-center">İŞLEMLER</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="teklifTablosu">
+                                     {% for teklif in teklifler %}
+                                     <tr data-teklif-id="{{ teklif.id }}">
+                                         <td class="text-center">
+                                             <input type="checkbox" name="selected_teklifler" class="form-check-input teklif-secim-checkbox" value="{{ teklif.id }}">
+                                         </td>
+                                         <td class="text-center">{{ loop.index }}</td>
+                                         <td>{{ teklif.teklif_no }}</td>
+                                         <td>{{ teklif.firma_adi }}</td>
+                                         <td>{{ teklif.teklif_tipi }}</td>
+                                         <td>{{ teklif.teklif_tarihi }}</td>
+                                         <td class="text-end">{{ "%.2f"|format(teklif.toplam or 0) }} TL</td>
+                                         <td class="text-end">{{ "%.2f"|format(teklif.indirim or 0) }} TL</td>
+                                         <td class="text-end">{{ "%.2f"|format(teklif.netToplam or 0) }} TL</td>
+                                         <td>
+                                             <select class="form-select form-select-sm" onchange="updateTeklifDurum('{{ teklif.id }}', this.value)" style="min-width: 140px;">
+                                                 <option value="BEKLEMEDE" {{ 'selected' if (teklif.teklif_durumu or 'BEKLEMEDE') == 'BEKLEMEDE' else '' }}>
+                                                     BEKLEMEDE
+                                                 </option>
+                                                 <option value="KABUL" {{ 'selected' if (teklif.teklif_durumu or 'BEKLEMEDE') == 'KABUL' else '' }}>
+                                                     KABUL
+                                                 </option>
+                                                 <option value="RED" {{ 'selected' if (teklif.teklif_durumu or 'BEKLEMEDE') == 'RED' else '' }}>
+                                                     RED
+                                                 </option>
+                                             </select>
+                                         </td>
+                                         <td>
+                                             <input type="date" class="form-control form-control-sm" 
+                                                    value="{{ teklif.durum_tarihi or '' }}" 
+                                                    onchange="updateDurumTarihi('{{ teklif.id }}', this.value)"
+                                                    style="min-width: 130px;">
+                                         </td>
+                                         <td class="text-center">
+                                             <div class="btn-group btn-group-sm">
+                                                 <button class="btn btn-outline-info" title="Yazdır" onclick="teklifiYazdir('{{ teklif.id }}')">
+                                                     <i class="fas fa-print"></i>
+                                                 </button>
+                                                 <button class="btn btn-outline-primary" title="Detay" onclick="showTeklifDetail('{{ teklif.id }}')">
+                                                     <i class="fas fa-eye"></i>
+                                                 </button>
+                                                 <button class="btn btn-outline-warning" title="Düzenle" onclick="editTeklif('{{ teklif.id }}')">
+                                                     <i class="fas fa-pencil"></i>
+                                                 </button>
+                                                 <button class="btn btn-outline-danger" title="Sil" onclick="deleteTeklif('{{ teklif.id }}')">
+                                                     <i class="fas fa-times"></i>
+                                                 </button>
+                                             </div>
+                                         </td>
+                                     </tr>
+                                     {% endfor %}
+                                 </tbody>
+                             </table>
+                         </div>
+                     </div>
+
+                                         <!-- Yeni Teklif Formu - İlk Aşama -->
+                     <div id="yeniTeklifForm" class="p-3 bg-light border-bottom" style="display: none;">
+                         <h5 class="mb-3">
+                             <i class="fas fa-plus-circle me-2"></i>
+                             Yeni Teklif - 1. Aşama
+                         </h5>
+                         <form id="teklifForm">
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="mb-3">
+                                         <label for="teklifTipi" class="form-label">Teklif Tipi *</label>
+                                         <select class="form-select" id="teklifTipi" name="teklif_tipi" required>
+                                             <option value="">Seçiniz</option>
+                                             <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
+                                             <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
+                                         </select>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="mb-3">
+                                         <label for="firmaAdi" class="form-label">Firma Adı *</label>
+                                         <select class="form-select" id="firmaAdi" name="firma_adi" required>
+                                             <option value="">Firma Seçiniz</option>
+                                             {% for firma in firma_kayitlar %}
+                                             <option value="{{ firma.firmaAdi }}">{{ firma.firmaAdi }}</option>
+                                             {% endfor %}
+                                         </select>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="mb-3">
+                                         <label for="teklifTarihi" class="form-label">Teklif Tarihi *</label>
+                                         <input type="date" class="form-control" id="teklifTarihi" name="teklif_tarihi" required>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="mb-3">
+                                         <label for="teklifNo" class="form-label">Teklif No *</label>
+                                         <div class="input-group">
+                                             <input type="text" class="form-control" id="teklifNo" name="teklif_no" required>
+                                             <button class="btn btn-outline-secondary" type="button" onclick="getNextTeklifNo()">
+                                                 <i class="fas fa-magic"></i>
+                                             </button>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="d-flex justify-content-end gap-2">
+                                 <button type="button" class="btn btn-secondary" onclick="cancelTeklif()">
+                                     <i class="fas fa-times me-1"></i>
+                                     İptal
+                                 </button>
+                                 <button type="submit" class="btn btn-primary">
+                                     <i class="fas fa-arrow-right me-1"></i>
+                                     2. Aşamaya Geç
+                                 </button>
+                             </div>
+                         </form>
+                     </div>
+
+                     <!-- Yeni Teklif Formu - İkinci Aşama - Parametre Seçimi -->
+                     <div id="teklifAsama2" class="p-3 bg-light border-bottom" style="display: none;">
+                         <h5 class="mb-3">
+                             <i class="fas fa-list me-2"></i>
+                             Yeni Teklif - 2. Aşama (Parametre Seçimi)
+                         </h5>
+                         
+                         <!-- Üst Buton -->
+                         <div class="d-flex justify-content-end mb-3">
+                             <button type="button" class="btn btn-primary" onclick="secilenParametreleriEkle()">
+                                 <i class="fas fa-plus me-1"></i>
+                                 Seçilen Parametreleri Ekle
+                             </button>
+                         </div>
+                         
+                         <!-- Parametre Seçim Tablosu -->
+                         <div class="table-responsive mb-3">
+                             <table class="table table-striped table-hover">
+                                 <thead class="table-dark">
+                                     <tr>
+                                         <th class="text-center" width="50">
+                                             <input type="checkbox" id="tumunuSec" class="form-check-input" onchange="tumunuSec(this)">
+                                         </th>
+                                         <th class="text-center" width="60">SIRA</th>
+                                         <th>PARAMETRE ADI</th>
+                                         <th>METOT</th>
+                                         <th class="text-end">BİRİM FİYAT (TL)</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="parametreSecimTablosu">
+                                     <!-- Parametreler JavaScript ile doldurulacak -->
+                                 </tbody>
+                             </table>
+                         </div>
+
+                         <!-- Butonlar -->
+                         <div class="d-flex justify-content-between mt-3">
+                             <button type="button" class="btn btn-secondary" onclick="geriAsama1()">
+                                 <i class="fas fa-arrow-left me-1"></i>
+                                 1. Aşamaya Geri Dön
+                             </button>
+                             <button type="button" class="btn btn-primary" onclick="secilenParametreleriEkle()">
+                                 <i class="fas fa-plus me-1"></i>
+                                 Seçilen Parametreleri Ekle
+                             </button>
+                         </div>
+                     </div>
+
+                     <!-- Yeni Teklif Formu - İkinci Aşama - Fiyat Girişi -->
+                     <div id="teklifAsama2Fiyat" class="p-3 bg-light border-bottom" style="display: none;">
+                         <h5 class="mb-3">
+                             <i class="fas fa-calculator me-2"></i>
+                             Yeni Teklif - 2. Aşama (Fiyat Girişi)
+                         </h5>
+                         
+                         <!-- Seçilen Parametreler Tablosu -->
+                         <div class="table-responsive mb-3">
+                             <table class="table table-striped table-hover">
+                                 <thead class="table-dark">
+                                     <tr>
+                                         <th class="text-center" width="50">SIRA</th>
+                                         <th>PARAMETRE ADI</th>
+                                         <th>METOT</th>
+                                         <th>BİRİM FİYAT (TL)</th>
+                                         <th>ADET</th>
+                                         <th class="text-end">TOP.FİYAT (TL)</th>
+                                         <th class="text-center" width="80">İŞLEM</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="secilenParametrelerTablosu">
+                                     <!-- Seçilen parametreler buraya eklenecek -->
+                                 </tbody>
+                             </table>
+                         </div>
+
+                         <!-- Özet Bilgiler -->
+                         <div class="row">
+                             <div class="col-md-4">
+                                 <div class="card">
+                                     <div class="card-header bg-info text-white">
+                                         <h6 class="mb-0">Teklif Özeti</h6>
+                                     </div>
+                                     <div class="card-body">
+                                         <div class="row">
+                                             <div class="col-6">
+                                                 <strong>Teklif No:</strong><br>
+                                                 <span id="ozetTeklifNo">-</span>
+                                             </div>
+                                             <div class="col-6">
+                                                 <strong>Firma:</strong><br>
+                                                 <span id="ozetFirmaAdi">-</span>
+                                             </div>
+                                         </div>
+                                         <hr>
+                                         <div class="row">
+                                             <div class="col-6">
+                                                 <strong>Teklif Tipi:</strong><br>
+                                                 <span id="ozetTeklifTipi">-</span>
+                                             </div>
+                                             <div class="col-6">
+                                                 <strong>Tarih:</strong><br>
+                                                 <span id="ozetTeklifTarihi">-</span>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="col-md-4">
+                                 <div class="card">
+                                     <div class="card-header bg-warning text-dark">
+                                         <h6 class="mb-0">İndirim Ayarları</h6>
+                                     </div>
+                                     <div class="card-body">
+                                         <div class="mb-3">
+                                             <label for="indirimOrani" class="form-label">İndirim Oranı</label>
+                                             <div class="input-group">
+                                                 <input type="number" class="form-control" id="indirimOrani" name="indirim_orani" step="0.01" min="0" value="0">
+                                                 <select class="form-select" id="indirimTipi" name="indirim_tipi" style="max-width: 80px;">
+                                                     <option value="TL">TL</option>
+                                                     <option value="%">%</option>
+                                                 </select>
+                                             </div>
+                                         </div>
+                                         <div class="mb-3">
+                                             <button type="button" class="btn btn-warning btn-sm w-100" onclick="indirimUygula()">
+                                                 <i class="fas fa-calculator me-1"></i>
+                                                 İndirimi Uygula
+                                             </button>
+                                         </div>
+                                         <div class="text-center">
+                                             <small class="text-muted">Toplam fiyatı gördükten sonra indirim oranını belirleyebilirsiniz</small>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="col-md-4">
+                                 <div class="card">
+                                     <div class="card-header bg-success text-white">
+                                         <h6 class="mb-0">Fiyat Özeti</h6>
+                                     </div>
+                                     <div class="card-body">
+                                         <div class="row">
+                                             <div class="col-6">
+                                                 <strong>TOPLAM:</strong><br>
+                                                 <span id="ozetToplam">0.00 TL</span>
+                                             </div>
+                                             <div class="col-6">
+                                                 <strong>İNDİRİM:</strong><br>
+                                                 <span id="ozetIndirim">0.00 TL</span>
+                                             </div>
+                                         </div>
+                                         <hr>
+                                         <div class="row">
+                                             <div class="col-12">
+                                                 <strong>NET TOPLAM:</strong><br>
+                                                 <span id="ozetNetToplam" class="h5 text-success">0.00 TL</span>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <!-- Butonlar -->
+                         <div class="d-flex justify-content-between mt-3">
+                             <button type="button" class="btn btn-secondary" onclick="geriAsama1()">
+                                 <i class="fas fa-arrow-left me-1"></i>
+                                 Geri Dön
+                             </button>
+                             <div class="btn-group">
+                                 <button type="button" class="btn btn-success" onclick="console.log('3. Aşamaya Geç butonu tıklandı'); asama3eGec();">
+                                     <i class="fas fa-arrow-right me-1"></i>
+                                     3. Aşamaya Geç
+                                 </button>
+                                 <button type="button" class="btn btn-primary" onclick="teklifiYazdir()">
+                                     <i class="fas fa-print me-1"></i>
+                                     Yazdır
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Yeni Teklif Formu - Üçüncü Aşama - Genel Hükümler ve Ön Yazı -->
+                     <div id="teklifAsama3" class="p-3 bg-light border-bottom" style="display: none;">
+                         <h5 class="mb-3">
+                             <i class="fas fa-gavel me-2"></i>
+                             Yeni Teklif - 3. Aşama (Genel Hükümler ve Ön Yazı)
+                         </h5>
+                         
+                         <div class="row">
+                             <!-- Sol Sütun - Teklif Giriş Metni -->
+                             <div class="col-md-6">
+                                 <div class="card">
+                                     <div class="card-header bg-primary text-white">
+                                         <h6 class="mb-0">
+                                             <i class="fas fa-file-alt me-2"></i>
+                                             Teklif Giriş Metni
+                                         </h6>
+                                     </div>
+                                     <div class="card-body">
+                                         <div class="rich-text-toolbar mb-2">
+                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('teklifGirisMetni', 'bold')">
+                                                 <i class="fas fa-bold"></i>
+                                             </button>
+                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('teklifGirisMetni', 'italic')">
+                                                 <i class="fas fa-italic"></i>
+                                             </button>
+                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('teklifGirisMetni', 'underline')">
+                                                 <i class="fas fa-underline"></i>
+                                             </button>
+                                             <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontFamily('teklifGirisMetni', this.value)">
+                                                 <option value="Arial">Arial</option>
+                                                 <option value="Times New Roman">Times New Roman</option>
+                                                 <option value="Calibri">Calibri</option>
+                                                 <option value="Verdana">Verdana</option>
+                                                 <option value="Tahoma">Tahoma</option>
+                                                 <option value="Georgia">Georgia</option>
+                                             </select>
+                                             <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontSize('teklifGirisMetni', this.value)">
+                                                 <option value="10">10px</option>
+                                                 <option value="12">12px</option>
+                                                 <option value="14">14px</option>
+                                                 <option value="16">16px</option>
+                                                 <option value="18">18px</option>
+                                                 <option value="20">20px</option>
+                                             </select>
+                                         </div>
+                                         <div class="form-control rich-text-editor" id="teklifGirisMetni" contenteditable="true" style="min-height: 300px; max-height: 400px; overflow-y: auto;" placeholder="Teklif giriş metnini buraya yazın..."></div>
+                                         <div class="mt-2">
+                                             <button type="button" class="btn btn-outline-primary btn-sm" onclick="varsayilanGirisMetniYukle()">
+                                                 <i class="fas fa-download me-1"></i>
+                                                 Varsayılan Metni Yükle
+                                             </button>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                             
+                             <!-- Sağ Sütun - Genel Hükümler -->
+                             <div class="col-md-6">
+                                 <div class="card">
+                                     <div class="card-header bg-success text-white">
+                                         <h6 class="mb-0">
+                                             <i class="fas fa-gavel me-2"></i>
+                                             Genel Hükümler
+                                         </h6>
+                                     </div>
+                                     <div class="card-body">
+                                         <div class="rich-text-toolbar mb-2">
+                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('genelHukumler', 'bold')">
+                                                 <i class="fas fa-bold"></i>
+                                             </button>
+                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('genelHukumler', 'italic')">
+                                                 <i class="fas fa-italic"></i>
+                                             </button>
+                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('genelHukumler', 'underline')">
+                                                 <i class="fas fa-underline"></i>
+                                             </button>
+                                             <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontFamily('genelHukumler', this.value)">
+                                                 <option value="Arial">Arial</option>
+                                                 <option value="Times New Roman">Times New Roman</option>
+                                                 <option value="Calibri">Calibri</option>
+                                                 <option value="Verdana">Verdana</option>
+                                                 <option value="Tahoma">Tahoma</option>
+                                                 <option value="Georgia">Georgia</option>
+                                             </select>
+                                             <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontSize('genelHukumler', this.value)">
+                                                 <option value="10">10px</option>
+                                                 <option value="12">12px</option>
+                                                 <option value="14">14px</option>
+                                                 <option value="16">16px</option>
+                                                 <option value="18">18px</option>
+                                                 <option value="20">20px</option>
+                                             </select>
+                                         </div>
+                                         <div class="form-control rich-text-editor" id="genelHukumler" contenteditable="true" style="min-height: 300px; max-height: 400px; overflow-y: auto;" placeholder="Genel hükümler metnini buraya yazın..."></div>
+                                         <div class="mt-2">
+
+                                            <button type="button" class="btn btn-outline-primary btn-sm ms-2" onclick="maddeleriGuncelle()">
+                                                <i class="fas fa-save me-1"></i>
+                                                Maddeleri Güncelle
+                                            </button>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <!-- Butonlar -->
+                         <div class="d-flex justify-content-between mt-3">
+                             <button type="button" class="btn btn-secondary" onclick="geriAsama2Fiyat()">
+                                 <i class="fas fa-arrow-left me-1"></i>
+                                 2. Aşamaya Geri Dön
+                             </button>
+                             <div class="btn-group">
+                                                                 <button type="button" class="btn btn-success" onclick="saveFinalTeklif()">
+                                    <i class="fas fa-save me-1"></i>
+                                    Teklifi Kaydet
+                                </button>
+                                 <button type="button" class="btn btn-primary" onclick="teklifiYazdir()">
+                                     <i class="fas fa-print me-1"></i>
+                                     Yazdır
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Teklif Detay Modal -->
+<div class="modal fade" id="teklifDetayModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>
+                    Teklif Detayı
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="teklifDetayIcerik">
+                    <!-- Teklif detayları buraya yüklenecek -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                <button type="button" class="btn btn-primary" onclick="teklifiYazdir()">
+                    <i class="fas fa-print me-1"></i>
+                    Yazdır
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+ <!-- Teklif Düzenleme Modal -->
+ <div class="modal fade" id="teklifDuzenleModal" tabindex="-1" aria-labelledby="teklifDuzenleModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-xl">
+         <div class="modal-content">
+             <div class="modal-header bg-warning text-dark">
+                 <h5 class="modal-title" id="teklifDuzenleModalLabel">
+                     <i class="fas fa-edit me-2"></i>
+                     Teklif Düzenle
+                 </h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+             </div>
+             <div class="modal-body">
+                 <form id="teklifDuzenleForm">
+                     <input type="hidden" id="duzenleTeklifId">
+                     
+                     <!-- Genel Bilgiler -->
+                     <div class="card mb-3">
+                         <div class="card-header bg-info text-white">
+                             <h6 class="mb-0">Genel Bilgiler</h6>
+                         </div>
+                         <div class="card-body">
+                             <div class="row">
+                                 <div class="col-md-6">
+                                     <div class="mb-3">
+                                         <label for="duzenleTeklifTipi" class="form-label">Teklif Tipi *</label>
+                                         <select class="form-select" id="duzenleTeklifTipi" required>
+                                             <option value="">Seçiniz</option>
+                                             <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
+                                             <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
+                                         </select>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-6">
+                                     <div class="mb-3">
+                                         <label for="duzenleFirmaAdi" class="form-label">Firma Adı *</label>
+                                         <input type="text" class="form-control" id="duzenleFirmaAdi" required>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="row">
+                                 <div class="col-md-4">
+                                     <div class="mb-3">
+                                         <label for="duzenleTeklifTarihi" class="form-label">Teklif Tarihi *</label>
+                                         <input type="date" class="form-control" id="duzenleTeklifTarihi" required>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-4">
+                                     <div class="mb-3">
+                                         <label for="duzenleTeklifNo" class="form-label">Teklif No *</label>
+                                         <input type="text" class="form-control" id="duzenleTeklifNo" required>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-4">
+                                     <div class="mb-3">
+                                         <label for="duzenleIndirimOrani" class="form-label">İndirim Oranı</label>
+                                         <div class="input-group">
+                                             <input type="number" class="form-control" id="duzenleIndirimOrani" step="0.01" min="0">
+                                             <select class="form-select" id="duzenleIndirimTipi" style="max-width: 80px;">
+                                                 <option value="TL">TL</option>
+                                                 <option value="%">%</option>
+                                             </select>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Parametreler -->
+                     <div class="card mb-3">
+                         <div class="card-header bg-primary text-white">
+                             <h6 class="mb-0">Parametreler</h6>
+                         </div>
+                         <div class="card-body">
+                             <div class="table-responsive">
+                                 <table class="table table-striped table-hover">
+                                     <thead class="table-dark">
+                                         <tr>
+                                             <th class="text-center" width="50">SIRA</th>
+                                             <th>PARAMETRE ADI</th>
+                                             <th>METOT</th>
+                                             <th>BİRİM FİYAT (TL)</th>
+                                             <th>ADET</th>
+                                             <th class="text-end">TOP.FİYAT (TL)</th>
+                                             <th class="text-center" width="80">İŞLEM</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody id="duzenleParametrelerTablosu">
+                                         <!-- Parametreler JavaScript ile doldurulacak -->
+                                     </tbody>
+                                 </table>
+                             </div>
+                             <div class="text-center mt-3">
+                                 <button type="button" class="btn btn-success" onclick="duzenleParametreEkle()">
+                                     <i class="fas fa-plus me-1"></i>
+                                     Parametre Ekle
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- Özet -->
+                     <div class="card">
+                         <div class="card-header bg-success text-white">
+                             <h6 class="mb-0">Fiyat Özeti</h6>
+                         </div>
+                         <div class="card-body">
+                             <div class="row">
+                                 <div class="col-md-4">
+                                     <strong>TOPLAM:</strong> <span id="duzenleToplam">0.00 TL</span>
+                                 </div>
+                                 <div class="col-md-4">
+                                     <strong>İNDİRİM:</strong> <span id="duzenleIndirim">0.00 TL</span>
+                                 </div>
+                                 <div class="col-md-4">
+                                     <strong>NET TOPLAM:</strong> <span id="duzenleNetToplam" class="h5 text-success">0.00 TL</span>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </form>
+             </div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                 <button type="button" class="btn btn-primary" onclick="teklifiGuncelle()">
+                     <i class="fas fa-save me-1"></i>
+                     Güncelle
+                 </button>
+             </div>
+         </div>
+     </div>
+ </div>
+
+ <!-- Parametre Yönetimi Modal -->
+ <div class="modal fade" id="parametreYonetimiModal" tabindex="-1">
+     <div class="modal-dialog modal-lg">
+         <div class="modal-content">
+             <div class="modal-header bg-warning text-dark">
+                 <h5 class="modal-title">
+                     <i class="fas fa-cog me-2"></i>
+                     Parametre Yönetimi
+                 </h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+             </div>
+             <div class="modal-body">
+                 <!-- Yeni Parametre Ekleme Formu -->
+                 <div class="card mb-3">
+                     <div class="card-header">
+                         <h6 class="mb-0">Yeni Parametre Ekle</h6>
+                     </div>
+                     <div class="card-body">
+                         <form id="yeniParametreForm">
+                             <div class="row">
+                                 <div class="col-md-4">
+                                     <div class="mb-3">
+                                         <label for="yeniParametreAdi" class="form-label">Parametre Adı *</label>
+                                         <input type="text" class="form-control" id="yeniParametreAdi" required>
+                                     </div>
+                                 </div>
+                                 <div class="col-md-4">
+                                     <div class="mb-3">
+                                         <label for="yeniParametreMetot" class="form-label">Metot</label>
+                                         <input type="text" class="form-control" id="yeniParametreMetot">
+                                     </div>
+                                 </div>
+                                 <div class="col-md-4">
+                                     <div class="mb-3">
+                                         <label for="yeniParametreFiyat" class="form-label">Birim Fiyat (TL) *</label>
+                                         <input type="number" class="form-control" id="yeniParametreFiyat" step="0.01" min="0" required>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div class="text-end">
+                                 <button type="submit" class="btn btn-primary">
+                                     <i class="fas fa-plus me-1"></i>
+                                     Parametre Ekle
+                                 </button>
+                             </div>
+                         </form>
+                     </div>
+                 </div>
+
+                 <!-- Mevcut Parametreler Tablosu -->
+                 <div class="card">
+                     <div class="card-header">
+                         <h6 class="mb-0">Mevcut Parametreler</h6>
+                     </div>
+                     <div class="card-body">
+                         <div class="table-responsive">
+                             <table class="table table-striped table-hover">
+                                 <thead class="table-dark">
+                                     <tr>
+                                         <th class="text-center" width="50">SIRA</th>
+                                         <th>PARAMETRE ADI</th>
+                                         <th>METOT</th>
+                                         <th class="text-end">BİRİM FİYAT (TL)</th>
+                                         <th class="text-center" width="80">İŞLEM</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody id="parametreYonetimiTablosu">
+                                     <!-- Parametreler JavaScript ile doldurulacak -->
+                                 </tbody>
+                             </table>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+             </div>
+         </div>
+     </div>
+ </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingTeklifId = null;
+let asgariFiyatlar = [];
+let secilenParametreler = [];
+let teklifVerileri = {};
+let duzenleParametreler = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Teklif sayfası yüklendi');
+    
+    // Bugünün tarihini varsayılan olarak ayarla
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('teklifTarihi').value = today;
+    
+    // Otomatik teklif numarası al
+    getNextTeklifNo();
+    
+    // Asgari fiyatları yükle
+    loadAsgariFiyatlar();
+    
+    // Live filtering setup - Anlık süzme
+    setupLiveFiltering();
+});
+
+// Live filtering fonksiyonları
+function setupLiveFiltering() {
+    let filterTimeout;
+    
+    // Input alanları için debounced filtering (300ms gecikme)
+    const filterInputs = ['filterTeklifNo', 'filterFirma'];
+    filterInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('input', function() {
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(() => {
+                    filterTeklifler();
+                }, 300);
+            });
+        }
+    });
+    
+    // Select alanları için anında filtering
+    const filterSelects = ['filterTeklifTipi', 'filterDurum'];
+    filterSelects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.addEventListener('change', function() {
+                filterTeklifler();
+            });
+        }
+    });
+}
+
+function filterTeklifler() {
+    const filterTeklifNo = document.getElementById('filterTeklifNo').value.toLowerCase();
+    const filterFirma = document.getElementById('filterFirma').value.toLowerCase();
+    const filterTeklifTipi = document.getElementById('filterTeklifTipi').value;
+    const filterDurum = document.getElementById('filterDurum').value;
+    
+    const rows = document.querySelectorAll('#teklifTablosu tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const teklifNo = row.cells[1].textContent.toLowerCase();
+        const firmaAdi = row.cells[2].textContent.toLowerCase();
+        const teklifTipi = row.cells[3].textContent;
+        const durum = row.cells[8].textContent;
+        
+        let showRow = true;
+        
+        // Teklif No filtresi
+        if (filterTeklifNo && !teklifNo.includes(filterTeklifNo)) {
+            showRow = false;
+        }
+        
+        // Firma filtresi
+        if (filterFirma && !firmaAdi.includes(filterFirma)) {
+            showRow = false;
+        }
+        
+        // Teklif Tipi filtresi
+        if (filterTeklifTipi && teklifTipi !== filterTeklifTipi) {
+            showRow = false;
+        }
+        
+        // Durum filtresi
+        if (filterDurum && durum !== filterDurum) {
+            showRow = false;
+        }
+        
+        // Satırı göster/gizle
+        row.style.display = showRow ? '' : 'none';
+        if (showRow) visibleCount++;
+    });
+    
+    console.log(`${visibleCount} teklif gösteriliyor`);
+}
+
+// Yeni Teklif butonuna tıklandığında
+document.getElementById('btnYeniTeklif').addEventListener('click', function() {
+    showYeniTeklifForm();
+});
+
+// Teklif formu submit edildiğinde
+document.getElementById('teklifForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    saveAsama1();
+});
+
+function showYeniTeklifForm() {
+    document.getElementById('teklifListesi').style.display = 'none';
+    document.getElementById('yeniTeklifForm').style.display = 'block';
+    
+    // Formu temizle
+    document.getElementById('teklifForm').reset();
+    
+    // Bugünün tarihini ayarla
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('teklifTarihi').value = today;
+    
+    // Otomatik teklif numarası al
+    getNextTeklifNo();
+}
+
+function cancelTeklif() {
+    document.getElementById('yeniTeklifForm').style.display = 'none';
+    document.getElementById('teklifListesi').style.display = 'block';
+    
+    // Düzenleme modunu sıfırla
+    editingTeklifId = null;
+    secilenParametreler = [];
+    duzenleParametreler = [];
+    
+    // Başlığı geri al
+    document.querySelector('#yeniTeklifForm h4').innerHTML = '<i class="fas fa-plus me-2"></i>Yeni Teklif';
+}
+
+function getNextTeklifNo() {
+    fetch('/api/teklif/next_number')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('teklifNo').value = data.teklif_no;
+            } else {
+                console.error('Teklif numarası alınamadı:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+        });
+}
+
+function saveAsama1() {
+    const formData = {
+        teklif_tipi: document.getElementById('teklifTipi').value,
+        firma_adi: document.getElementById('firmaAdi').value,
+        teklif_tarihi: document.getElementById('teklifTarihi').value,
+        teklif_no: document.getElementById('teklifNo').value,
+        indirim_orani: '0', // 2. aşamada belirlenecek
+        indirim_tipi: '%'
+    };
+    
+    // Validasyon
+    if (!formData.teklif_tipi || !formData.firma_adi || !formData.teklif_tarihi || !formData.teklif_no) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Lütfen tüm zorunlu alanları doldurun.'
+        });
+        return;
+    }
+    
+    // Teklif verilerini sakla
+    teklifVerileri = formData;
+    
+    // Düzenleme modunda mı kontrol et
+    if (editingTeklifId) {
+        // Düzenleme modunda - mevcut parametreleri koru
+        secilenParametreler = [...duzenleParametreler];
+    }
+    
+    // 2. aşamaya geç
+    showAsama2();
+}
+
+function showAsama2() {
+    document.getElementById('yeniTeklifForm').style.display = 'none';
+    document.getElementById('teklifAsama2').style.display = 'block';
+    
+    // Başlığı güncelle
+    if (editingTeklifId) {
+        document.querySelector('#teklifAsama2 h5').innerHTML = '<i class="fas fa-list me-2"></i>Teklif Düzenle - 2. Aşama (Parametre Seçimi)';
+    }
+    
+    // Parametre seçim tablosunu oluştur
+    createParametreSecimTablosu();
+    
+    // Düzenleme modunda önceden seçili parametreleri işaretle
+    if (editingTeklifId && secilenParametreler.length > 0) {
+        setTimeout(() => {
+            secilenParametreler.forEach(parametre => {
+                const checkbox = document.querySelector(`.parametre-secim-checkbox[value="${parametre.parametre}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        }, 100);
+    }
+}
+
+function loadAsgariFiyatlar() {
+    return fetch('/api/asgari_fiyatlar')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                asgariFiyatlar = data.asgari_fiyatlar;
+                return asgariFiyatlar;
+            } else {
+                console.error('Asgari fiyatlar yüklenemedi:', data.message);
+                throw new Error(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            throw error;
+        });
+}
+
+function createParametreSecimTablosu() {
+    const tbody = document.getElementById('parametreSecimTablosu');
+    tbody.innerHTML = '';
+    
+    asgariFiyatlar.forEach((parametre, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input parametre-secim-checkbox" 
+                       value="${parametre.parametre}" data-fiyat="${parametre.fiyat}" data-metot="${parametre.metot}">
+            </td>
+            <td class="text-center">${index + 1}</td>
+            <td>${parametre.parametre}</td>
+            <td>${parametre.metot}</td>
+            <td class="text-end">${parametre.fiyat.toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function tumunuSec(checkbox) {
+    const checkboxes = document.querySelectorAll('.parametre-secim-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
+
+function secilenParametreleriEkle() {
+    const secilenCheckboxes = document.querySelectorAll('.parametre-secim-checkbox:checked');
+    
+    // Validasyonu kaldırdık - hiçbir seçim yapmadan da geçebilir
+    
+    // Hangi modda olduğumuzu kontrol et
+    const isDuzenlemeModu = editingTeklifId !== null;
+    
+    if (isDuzenlemeModu) {
+        // Düzenleme modunda - secilenParametreler'e ekle
+        secilenCheckboxes.forEach(checkbox => {
+            const parametreAdi = checkbox.value;
+            const birimFiyat = parseFloat(checkbox.dataset.fiyat);
+            const metot = checkbox.dataset.metot;
+            
+            // Eğer zaten eklenmemişse ekle
+            if (!secilenParametreler.find(p => p.parametre === parametreAdi)) {
+                secilenParametreler.push({
+                    parametre: parametreAdi,
+                    metot: metot,
+                    birimFiyat: birimFiyat,
+                    adet: 1, // Varsayılan olarak 1 adet
+                    topFiyat: birimFiyat
+                });
+            }
+        });
+        
+        // Fiyat giriş sayfasına geç
+        showFiyatGirisSayfasi();
+    } else {
+        // Yeni teklif modunda - secilenParametreler'e ekle
+        secilenCheckboxes.forEach(checkbox => {
+            const parametreAdi = checkbox.value;
+            const birimFiyat = parseFloat(checkbox.dataset.fiyat);
+            const metot = checkbox.dataset.metot;
+            
+            // Eğer zaten eklenmemişse ekle
+            if (!secilenParametreler.find(p => p.parametre === parametreAdi)) {
+                secilenParametreler.push({
+                    parametre: parametreAdi,
+                    metot: metot,
+                    birimFiyat: birimFiyat,
+                    adet: 0,
+                    topFiyat: 0
+                });
+            }
+        });
+        
+        // Fiyat giriş sayfasına geç
+        showFiyatGirisSayfasi();
+    }
+}
+
+function showFiyatGirisSayfasi() {
+    document.getElementById('teklifAsama2').style.display = 'none';
+    document.getElementById('teklifAsama2Fiyat').style.display = 'block';
+    
+    // Başlığı güncelle
+    if (editingTeklifId) {
+        document.querySelector('#teklifAsama2Fiyat h5').innerHTML = '<i class="fas fa-calculator me-2"></i>Teklif Düzenle - 2. Aşama (Fiyat Girişi)';
+    }
+    
+    // Özet bilgileri güncelle
+    document.getElementById('ozetTeklifNo').textContent = teklifVerileri.teklif_no;
+    document.getElementById('ozetFirmaAdi').textContent = teklifVerileri.firma_adi;
+    document.getElementById('ozetTeklifTipi').textContent = teklifVerileri.teklif_tipi;
+    document.getElementById('ozetTeklifTarihi').textContent = teklifVerileri.teklif_tarihi;
+    
+    // Düzenleme modunda indirim oranını doldur
+    if (editingTeklifId) {
+        document.getElementById('indirimOrani').value = document.getElementById('duzenleIndirimOrani').value;
+        document.getElementById('indirimTipi').value = document.getElementById('duzenleIndirimTipi').value;
+    }
+    
+    // Seçilen parametreler tablosunu oluştur
+    createSecilenParametrelerTablosu();
+}
+
+function createSecilenParametrelerTablosu() {
+    const tbody = document.getElementById('secilenParametrelerTablosu');
+    tbody.innerHTML = '';
+    
+    secilenParametreler.forEach((parametre, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td>${parametre.parametre}</td>
+            <td>${parametre.metot}</td>
+            <td>
+                <input type="number" class="form-control form-control-sm birim-fiyat" 
+                       value="${parametre.birimFiyat}" step="0.01" min="0"
+                       onchange="birimFiyatDegisti(this, '${parametre.parametre}')">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm adet-input" 
+                       value="${parametre.adet || 0}" min="0" step="1"
+                       onchange="adetDegisti(this, '${parametre.parametre}')">
+            </td>
+            <td class="text-end">
+                <span class="top-fiyat">${(parametre.topFiyat || 0).toFixed(2)}</span> TL
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" 
+                        onclick="parametreyiKaldir('${parametre.parametre}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Toplam fiyatları güncelle
+    updateOzet();
+}
+
+function parametreyiKaldir(parametreAdi) {
+    secilenParametreler = secilenParametreler.filter(p => p.parametre !== parametreAdi);
+    createSecilenParametrelerTablosu();
+    updateOzet();
+}
+
+function geriAsama1() {
+    // Hangi modda olduğumuzu kontrol et
+    const isDuzenlemeModu = editingTeklifId !== null;
+    
+    if (isDuzenlemeModu) {
+        // Düzenleme modunda - 1. aşamaya geri dön
+        if (document.getElementById('teklifAsama2Fiyat').style.display !== 'none') {
+            // Fiyat giriş sayfasından parametre seçim sayfasına dön
+            document.getElementById('teklifAsama2Fiyat').style.display = 'none';
+            document.getElementById('teklifAsama2').style.display = 'block';
+        } else {
+            // Parametre seçim sayfasından 1. aşamaya dön
+            document.getElementById('teklifAsama2').style.display = 'none';
+            document.getElementById('yeniTeklifForm').style.display = 'block';
+        }
+    } else {
+        // Yeni teklif modunda
+        if (document.getElementById('teklifAsama2Fiyat').style.display !== 'none') {
+            // Fiyat giriş sayfasından parametre seçim sayfasına dön
+            document.getElementById('teklifAsama2Fiyat').style.display = 'none';
+            document.getElementById('teklifAsama2').style.display = 'block';
+        } else {
+            // Parametre seçim sayfasından 1. aşamaya dön
+            document.getElementById('teklifAsama2').style.display = 'none';
+            document.getElementById('yeniTeklifForm').style.display = 'block';
+        }
+    }
+}
+
+function birimFiyatDegisti(input, parametreAdi) {
+    const yeniFiyat = parseFloat(input.value) || 0;
+    
+    // Seçilen parametrelerde güncelle
+    const parametre = secilenParametreler.find(p => p.parametre === parametreAdi);
+    if (parametre) {
+        parametre.birimFiyat = yeniFiyat;
+        parametre.topFiyat = yeniFiyat * parametre.adet;
+    }
+    
+    // Tablodaki toplam fiyatı güncelle
+    const row = input.closest('tr');
+    const adetInput = row.querySelector('.adet-input');
+    const adet = parseInt(adetInput.value) || 0;
+    const topFiyatSpan = row.querySelector('.top-fiyat');
+    topFiyatSpan.textContent = (yeniFiyat * adet).toFixed(2);
+    
+    updateOzet();
+}
+
+function adetDegisti(input, parametreAdi) {
+    const adet = parseInt(input.value) || 0;
+    const row = input.closest('tr');
+    const birimFiyatInput = row.querySelector('.birim-fiyat');
+    const birimFiyat = parseFloat(birimFiyatInput.value) || 0;
+    const topFiyatSpan = row.querySelector('.top-fiyat');
+    
+    const topFiyat = birimFiyat * adet;
+    topFiyatSpan.textContent = topFiyat.toFixed(2);
+    
+    // Seçilen parametrelerde güncelle
+    const parametre = secilenParametreler.find(p => p.parametre === parametreAdi);
+    if (parametre) {
+        parametre.adet = adet;
+        parametre.topFiyat = topFiyat;
+    }
+    
+    updateOzet();
+}
+
+function indirimUygula() {
+    // İndirim oranını teklifVerileri'ne kaydet
+    teklifVerileri.indirim_orani = document.getElementById('indirimOrani').value;
+    teklifVerileri.indirim_tipi = document.getElementById('indirimTipi').value;
+    
+    // Özeti güncelle
+    updateOzet();
+    
+    // Başarı mesajı göster
+    Swal.fire({
+        icon: 'success',
+        title: 'Başarılı!',
+        text: 'İndirim uygulandı ve fiyat özeti güncellendi.',
+        timer: 1500,
+        showConfirmButton: false
+    });
+}
+
+function updateOzet() {
+    // Toplam hesapla
+    const toplam = secilenParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+    
+    // İndirim hesapla
+    let indirim = 0;
+    if (teklifVerileri.indirim_orani && teklifVerileri.indirim_tipi) {
+        if (teklifVerileri.indirim_tipi === 'TL') {
+            indirim = parseFloat(teklifVerileri.indirim_orani) || 0;
+        } else if (teklifVerileri.indirim_tipi === '%') {
+            indirim = toplam * (parseFloat(teklifVerileri.indirim_orani) / 100) || 0;
+        }
+    }
+    
+    // Net toplam
+    const netToplam = toplam - indirim;
+    
+    // Özet güncelle
+    document.getElementById('ozetToplam').textContent = toplam.toFixed(2) + ' TL';
+    document.getElementById('ozetIndirim').textContent = indirim.toFixed(2) + ' TL';
+    document.getElementById('ozetNetToplam').textContent = netToplam.toFixed(2) + ' TL';
+}
+
+function geriAsama1() {
+    document.getElementById('teklifAsama2').style.display = 'none';
+    document.getElementById('yeniTeklifForm').style.display = 'block';
+}
+
+ function teklifiKaydet() {
+     // Hangi modda olduğumuzu kontrol et
+     const isDuzenlemeModu = editingTeklifId !== null;
+     
+     if (isDuzenlemeModu) {
+         // Düzenleme modunda - güncelle
+         const toplam = secilenParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+         
+         // İndirim hesapla
+         let indirim = 0;
+         if (teklifVerileri.indirim_orani && teklifVerileri.indirim_tipi) {
+             if (teklifVerileri.indirim_tipi === 'TL') {
+                 indirim = parseFloat(teklifVerileri.indirim_orani) || 0;
+             } else if (teklifVerileri.indirim_tipi === '%') {
+                 indirim = toplam * (parseFloat(teklifVerileri.indirim_orani) / 100) || 0;
+             }
+         }
+         
+         const netToplam = toplam - indirim;
+         
+         const tamTeklif = {
+             id: editingTeklifId,
+             ...teklifVerileri,
+             parametreler: secilenParametreler,
+             toplam: toplam,
+             indirim: indirim,
+             netToplam: netToplam,
+             teklif_durumu: 'BEKLEMEDE'
+         };
+         
+         console.log('Güncellenecek teklif:', tamTeklif);
+         
+         // API'ye gönder
+         fetch('/api/teklif/update', {
+             method: 'POST',
+             headers: {
+                 'Content-Type': 'application/json',
+             },
+             body: JSON.stringify(tamTeklif)
+         })
+         .then(response => response.json())
+         .then(data => {
+             if (data.success) {
+                 Swal.fire({
+                     icon: 'success',
+                     title: 'Başarılı!',
+                     text: 'Teklif başarıyla güncellendi.'
+                 }).then(() => {
+                     location.reload();
+                 });
+             } else {
+                 Swal.fire({
+                     icon: 'error',
+                     title: 'Hata!',
+                     text: data.message
+                 });
+             }
+         })
+         .catch(error => {
+             console.error('Hata:', error);
+             Swal.fire({
+                 icon: 'error',
+                 title: 'Hata!',
+                 text: 'Teklif güncellenirken bir hata oluştu.'
+             });
+         });
+     } else {
+         // Yeni teklif modunda - ekle
+         const toplam = secilenParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+         
+         // İndirim hesapla
+         let indirim = 0;
+         if (teklifVerileri.indirim_orani && teklifVerileri.indirim_tipi) {
+             if (teklifVerileri.indirim_tipi === 'TL') {
+                 indirim = parseFloat(teklifVerileri.indirim_orani) || 0;
+             } else if (teklifVerileri.indirim_tipi === '%') {
+                 indirim = toplam * (parseFloat(teklifVerileri.indirim_orani) / 100) || 0;
+             }
+         }
+         
+         const netToplam = toplam - indirim;
+         
+         const tamTeklif = {
+             ...teklifVerileri,
+             parametreler: secilenParametreler,
+             toplam: toplam,
+             indirim: indirim,
+             netToplam: netToplam,
+             teklif_durumu: 'BEKLEMEDE'
+         };
+         
+         console.log('Yeni teklif:', tamTeklif);
+         
+         // API'ye gönder
+         fetch('/api/teklif/add', {
+             method: 'POST',
+             headers: {
+                 'Content-Type': 'application/json',
+             },
+             body: JSON.stringify(tamTeklif)
+         })
+         .then(response => response.json())
+         .then(data => {
+             if (data.success) {
+                 Swal.fire({
+                     icon: 'success',
+                     title: 'Başarılı!',
+                     text: 'Teklif başarıyla kaydedildi.'
+                 }).then(() => {
+                     location.reload();
+                 });
+             } else {
+                 Swal.fire({
+                     icon: 'error',
+                     title: 'Hata!',
+                     text: data.message
+                 });
+             }
+         })
+         .catch(error => {
+             console.error('Hata:', error);
+             Swal.fire({
+                 icon: 'error',
+                 title: 'Hata!',
+                 text: 'Teklif kaydedilirken bir hata oluştu.'
+             });
+         });
+     }
+ }
+
+function teklifiYazdir(teklifId) {
+    // Format seçim modalını göster
+    Swal.fire({
+        title: 'Yazdırma Formatı Seçin',
+        html: `
+            <div class="text-center">
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-lg" onclick="yazdirFormatSec('word', '${teklifId}')">
+                        <i class="fas fa-file-word me-2"></i>Word (.docx)
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-danger btn-lg" onclick="yazdirFormatSec('pdf', '${teklifId}')">
+                        <i class="fas fa-file-pdf me-2"></i>PDF (.pdf)
+                    </button>
+                </div>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCloseButton: true,
+        width: '500px'
+    });
+}
+
+function yazdirFormatSec(format, teklifId) {
+    // Modal'ı kapat
+    Swal.close();
+    
+    // Loading göster
+    Swal.fire({
+        title: 'Dosya oluşturuluyor...',
+        text: 'Lütfen bekleyin',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // API'ye istek gönder
+    fetch(`/api/teklif/yazdir/${teklifId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            format: format
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Dosya oluşturma hatası');
+        }
+        
+        // Dosya adını response header'dan al
+        let filename = '';
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        
+        // Eğer header'dan alamadıysak, backend'den gelen dosya adını kullan
+        if (!filename) {
+            // Backend'den teklif bilgilerini al ve dosya adını oluştur
+            return fetch(`/api/teklif/detail/${teklifId}`)
+                .then(detailResponse => detailResponse.json())
+                .then(detailData => {
+                    if (detailData.success) {
+                        const teklif = detailData.teklif;
+                        const firma = detailData.firma;
+                        
+                        // Backend'deki aynı dosya adı oluşturma mantığını kullan
+                        let firma_adi = firma ? firma.firmaAdi || '' : '';
+                        if (!firma_adi) {
+                            // Eğer firma objesinden alamazsak, teklif verisinden al
+                            firma_adi = teklif.firma_adi || '';
+                        }
+                        
+                        // Firma adını temizle ve ilk 2 kelimeyi al
+                        const firma_adi_temiz = firma_adi.trim();
+                        console.log('DEBUG - Firma adı:', firma_adi);
+                        console.log('DEBUG - Firma adı temiz:', firma_adi_temiz);
+                        
+                        const firma_kelimeler = firma_adi_temiz.split(/\s+/).slice(0, 2);
+                        console.log('DEBUG - Firma kelimeler:', firma_kelimeler);
+                        
+                        const firma_kisa = firma_kelimeler.length > 0 ? firma_kelimeler.join('_') : 'Firma';
+                        console.log('DEBUG - Firma kısa:', firma_kisa);
+                        
+                        const teklif_tarihi = teklif.teklif_tarihi || '';
+                        let tarih_format = '';
+                        if (teklif_tarihi) {
+                            try {
+                                const tarih_obj = new Date(teklif_tarihi);
+                                const gun = tarih_obj.getDate().toString().padStart(2, '0');
+                                const ay = (tarih_obj.getMonth() + 1).toString().padStart(2, '0');
+                                const yil = tarih_obj.getFullYear().toString().slice(-2);
+                                tarih_format = gun + ay + yil;
+                            } catch {
+                                const now = new Date();
+                                tarih_format = now.getDate().toString().padStart(2, '0') + 
+                                             (now.getMonth() + 1).toString().padStart(2, '0') + 
+                                             now.getFullYear().toString().slice(-2);
+                            }
+                        } else {
+                            const now = new Date();
+                            tarih_format = now.getDate().toString().padStart(2, '0') + 
+                                         (now.getMonth() + 1).toString().padStart(2, '0') + 
+                                         now.getFullYear().toString().slice(-2);
+                        }
+                        
+                        const tutar_kdv_haric = teklif.netToplam || 0;
+                        filename = `${firma_kisa}_${teklif.teklif_no || ''}_${tarih_format}_${Math.round(tutar_kdv_haric)}TL.${format === 'pdf' ? 'html' : 'docx'}`;
+                    } else {
+                        // Fallback
+                        filename = `teklif_${teklifId}_${new Date().toISOString().slice(0,10)}.${format === 'pdf' ? 'html' : 'docx'}`;
+                    }
+                    
+                    return response.blob().then(blob => ({ blob, filename }));
+                });
+        }
+        
+        return response.blob().then(blob => ({ blob, filename }));
+    })
+    .then(({ blob, filename }) => {
+        // Dosyayı indir
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Başarılı!',
+            text: format.toUpperCase() + ' dosyası başarıyla indirildi.'
+        });
+    })
+    .catch(error => {
+        console.error('Yazdırma hatası:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Dosya oluşturulurken bir hata oluştu: ' + error.message
+        });
+    });
+}
+
+ function showTeklifDetail(teklifId) {
+     // Teklif detayını API'den al
+     fetch(`/api/teklif/detail/${teklifId}`)
+         .then(response => response.json())
+         .then(data => {
+             if (data.success) {
+                 const teklif = data.teklif;
+                 
+                 // Modal içeriğini oluştur
+                 const detayHTML = `
+                     <div class="row">
+                         <div class="col-md-6">
+                             <div class="card">
+                                 <div class="card-header bg-info text-white">
+                                     <h6 class="mb-0">Teklif Bilgileri</h6>
+                                 </div>
+                                 <div class="card-body">
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Teklif No:</strong></div>
+                                         <div class="col-6">${teklif.teklif_no}</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Firma:</strong></div>
+                                         <div class="col-6">${teklif.firma_adi}</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Teklif Tipi:</strong></div>
+                                         <div class="col-6">${teklif.teklif_tipi}</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Tarih:</strong></div>
+                                         <div class="col-6">${teklif.teklif_tarihi}</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>İndirim:</strong></div>
+                                         <div class="col-6">${teklif.indirim_orani || 0} ${teklif.indirim_tipi || 'TL'}</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Durum:</strong></div>
+                                         <div class="col-6">
+                                             <span class="badge bg-${getBadgeColor(teklif.teklif_durumu || 'BEKLEMEDE')}">
+${teklif.teklif_durumu || 'BEKLEMEDE'}
+                                             </span>
+                                         </div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Durum Tarihi:</strong></div>
+                                         <div class="col-6">${teklif.durum_tarihi || '-'}</div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-6">
+                             <div class="card">
+                                 <div class="card-header bg-success text-white">
+                                     <h6 class="mb-0">Fiyat Özeti</h6>
+                                 </div>
+                                 <div class="card-body">
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Toplam:</strong></div>
+                                         <div class="col-6">${(teklif.toplam || 0).toFixed(2)} TL</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>İndirim:</strong></div>
+                                         <div class="col-6">${(teklif.indirim || 0).toFixed(2)} TL</div>
+                                     </div>
+                                     <div class="row mb-2">
+                                         <div class="col-6"><strong>Net Toplam:</strong></div>
+                                         <div class="col-6 h5 text-success">${(teklif.netToplam || 0).toFixed(2)} TL</div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                     
+                     <div class="row mt-3">
+                         <div class="col-12">
+                             <div class="card">
+                                 <div class="card-header bg-primary text-white">
+                                     <h6 class="mb-0">Parametreler (${(teklif.parametreler || []).length} adet)</h6>
+                                 </div>
+                                 <div class="card-body">
+                                     ${(teklif.parametreler || []).length > 0 ? `
+                                         <div class="table-responsive">
+                                             <table class="table table-striped">
+                                                 <thead class="table-dark">
+                                                     <tr>
+                                                         <th>SIRA</th>
+                                                         <th>PARAMETRE ADI</th>
+                                                         <th>METOT</th>
+                                                         <th>BİRİM FİYAT (TL)</th>
+                                                         <th>ADET</th>
+                                                         <th class="text-end">TOP.FİYAT (TL)</th>
+                                                     </tr>
+                                                 </thead>
+                                                 <tbody>
+                                                     ${(teklif.parametreler || []).map((param, index) => `
+                                                         <tr>
+                                                             <td>${index + 1}</td>
+                                                             <td>${param.parametre || 'N/A'}</td>
+                                                             <td>${param.metot || 'N/A'}</td>
+                                                             <td>${(param.birimFiyat || 0).toFixed(2)}</td>
+                                                             <td>${param.adet || 0}</td>
+                                                             <td class="text-end">${(param.topFiyat || 0).toFixed(2)}</td>
+                                                         </tr>
+                                                     `).join('')}
+                                                 </tbody>
+                                             </table>
+                                         </div>
+                                     ` : `
+                                         <div class="alert alert-info">
+                                             <i class="fas fa-info-circle me-2"></i>
+                                             Bu teklif için henüz parametre eklenmemiş.
+                                         </div>
+                                     `}
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 `;
+                 
+                 document.getElementById('teklifDetayIcerik').innerHTML = detayHTML;
+                 
+                 // Modal'ı aç
+                 const modal = new bootstrap.Modal(document.getElementById('teklifDetayModal'));
+                 modal.show();
+             } else {
+                 Swal.fire({
+                     icon: 'error',
+                     title: 'Hata!',
+                     text: data.message
+                 });
+             }
+         })
+         .catch(error => {
+             console.error('Hata:', error);
+             Swal.fire({
+                 icon: 'error',
+                 title: 'Hata!',
+                 text: 'Teklif detayı yüklenirken bir hata oluştu.'
+             });
+         });
+ }
+
+function editTeklif(teklifId) {
+    // Teklif verilerini al ve düzenleme modalını aç
+    fetch(`/api/teklif/detail/${teklifId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const teklif = data.teklif;
+                
+                // Modal alanlarını doldur
+                document.getElementById('duzenleTeklifId').value = teklif.id;
+                document.getElementById('duzenleTeklifTipi').value = teklif.teklif_tipi;
+                document.getElementById('duzenleFirmaAdi').value = teklif.firma_adi;
+                document.getElementById('duzenleTeklifTarihi').value = teklif.teklif_tarihi;
+                document.getElementById('duzenleTeklifNo').value = teklif.teklif_no;
+                document.getElementById('duzenleIndirimOrani').value = teklif.indirim_orani || '';
+                document.getElementById('duzenleIndirimTipi').value = teklif.indirim_tipi || 'TL';
+                
+                                 // Parametreleri yükle
+                 duzenleParametreler = teklif.parametreler || [];
+                 createDuzenleParametrelerTablosu();
+                 updateDuzenleOzet();
+                 
+                 // İndirim oranı değişikliklerini dinle
+                 document.getElementById('duzenleIndirimOrani').addEventListener('input', updateDuzenleOzet);
+                 document.getElementById('duzenleIndirimTipi').addEventListener('change', updateDuzenleOzet);
+                
+                // Modal'ı aç
+                const modal = new bootstrap.Modal(document.getElementById('teklifDuzenleModal'));
+                modal.show();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Teklif bilgileri yüklenirken bir hata oluştu.'
+            });
+        });
+}
+
+function deleteTeklif(teklifId) {
+    Swal.fire({
+        title: 'Emin misiniz?',
+        text: "Bu teklifi silmek istediğinizden emin misiniz?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Evet, sil!',
+        cancelButtonText: 'İptal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // API'ye silme isteği gönder
+            fetch('/api/teklif/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    teklif_id: teklifId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Başarılı!',
+                        text: 'Teklif başarıyla silindi.'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Hata!',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: 'Teklif silinirken bir hata oluştu.'
+                });
+            });
+        }
+    });
+}
+
+function exportTeklifler() {
+    // Seçili teklifleri kontrol et
+    const selectedCheckboxes = document.querySelectorAll('input[name="selected_teklifler"]:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Uyarı!',
+            text: 'Lütfen dışa aktarmak istediğiniz teklifleri seçin.'
+        });
+        return;
+    }
+    
+    // Seçili teklif ID'lerini topla
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    // Kullanıcıya onay sor
+    Swal.fire({
+        title: 'Teklifleri Dışa Aktar',
+        text: `${selectedIds.length} teklif Word formatında dışa aktarılacak. Devam etmek istiyor musunuz?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Evet, Dışa Aktar',
+        cancelButtonText: 'İptal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Her teklif için Word export yap
+            exportSelectedTeklifler(selectedIds);
+        }
+    });
+}
+
+function exportSelectedTeklifler(teklifIds) {
+    // Loading göster
+    Swal.fire({
+        title: 'Dışa Aktarılıyor...',
+        text: 'Teklifler Word formatında hazırlanıyor...',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        willOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // İlk teklifi export et (şimdilik tek tek)
+    if (teklifIds.length > 0) {
+        const teklifId = teklifIds[0];
+        
+        fetch(`/api/teklif/yazdir/${teklifId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                format: 'word'
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                throw new Error('Export hatası');
+            }
+        })
+        .then(blob => {
+            // Dosyayı indir
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `teklif_${teklifId}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Başarı mesajı
+            Swal.fire({
+                icon: 'success',
+                title: 'Başarılı!',
+                text: 'Teklif Word formatında dışa aktarıldı.'
+            });
+        })
+        .catch(error => {
+            console.error('Export hatası:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Teklif dışa aktarılırken bir hata oluştu.'
+            });
+        });
+    }
+}
+
+function importTeklifler() {
+    // İçe aktarma fonksiyonu
+    console.log('Teklifler içe aktarılacak');
+}
+
+// Parametre Yönetimi Fonksiyonları
+function showParametreYonetimi() {
+    // Önce asgari fiyatları yükle, sonra modal'ı aç
+    fetch('/api/asgari_fiyatlar')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                asgariFiyatlar = data.asgari_fiyatlar;
+                console.log('Parametre yönetimi için asgari fiyatlar yüklendi:', asgariFiyatlar);
+                
+                // Modal'ı aç
+                const modal = new bootstrap.Modal(document.getElementById('parametreYonetimiModal'));
+                modal.show();
+                
+                // Parametre tablosunu doldur
+                createParametreYonetimiTablosu();
+            } else {
+                console.error('Asgari fiyatlar yüklenemedi:', data.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: 'Parametreler yüklenirken hata oluştu.'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Parametreler yüklenirken hata oluştu.'
+            });
+        });
+}
+
+function createParametreYonetimiTablosu() {
+    const tbody = document.getElementById('parametreYonetimiTablosu');
+    if (!tbody) {
+        console.error('Parametre yönetimi tablosu bulunamadı!');
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    if (!asgariFiyatlar || asgariFiyatlar.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                    <br>Henüz parametre bulunmuyor
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    asgariFiyatlar.forEach((parametre, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td>${parametre.parametre || 'N/A'}</td>
+            <td>${parametre.metot || 'N/A'}</td>
+            <td class="text-end">${(parametre.fiyat || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" 
+                        onclick="parametreyiSil('${parametre.parametre}')" 
+                        ${parametre.parametre === 'TABAN FİYAT' || parametre.parametre === 'YOL' ? 'disabled' : ''}>
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    console.log(`${asgariFiyatlar.length} parametre tabloya eklendi`);
+}
+
+function parametreyiSil(parametreAdi) {
+    Swal.fire({
+        title: 'Parametre Sil',
+        text: `"${parametreAdi}" parametresini silmek istediğinizden emin misiniz?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Evet, sil!',
+        cancelButtonText: 'İptal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/api/asgari_fiyatlar/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    parametre: parametreAdi
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Başarılı!',
+                        text: 'Parametre başarıyla silindi.'
+                    }).then(() => {
+                        // Asgari fiyatları yeniden yükle
+                        loadAsgariFiyatlar();
+                        
+                        // Tabloyu güncelle
+                        createParametreYonetimiTablosu();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Hata!',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: 'Parametre silinirken bir hata oluştu.'
+                });
+            });
+        }
+    });
+}
+
+// Yeni parametre ekleme formu
+document.addEventListener('DOMContentLoaded', function() {
+    const yeniParametreForm = document.getElementById('yeniParametreForm');
+    if (yeniParametreForm) {
+        yeniParametreForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            yeniParametreEkle();
+        });
+    }
+});
+
+function yeniParametreEkle() {
+    const parametreAdi = document.getElementById('yeniParametreAdi').value.trim();
+    const metot = document.getElementById('yeniParametreMetot').value.trim();
+    const fiyat = parseFloat(document.getElementById('yeniParametreFiyat').value) || 0;
+    
+    if (!parametreAdi) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Parametre adı gerekli.'
+        });
+        return;
+    }
+    
+    // API'ye gönder
+    fetch('/api/asgari_fiyatlar/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            parametre: parametreAdi,
+            metot: metot,
+            fiyat: fiyat
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Başarılı!',
+                text: 'Parametre başarıyla eklendi.'
+            }).then(() => {
+                // Formu temizle
+                document.getElementById('yeniParametreForm').reset();
+                
+                // Asgari fiyatları yeniden yükle
+                loadAsgariFiyatlar();
+                
+                // Tabloyu güncelle
+                createParametreYonetimiTablosu();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Parametre eklenirken bir hata oluştu.'
+        });
+    });
+}
+
+ function parametreyiSil(parametreAdi) {
+     Swal.fire({
+         title: 'Emin misiniz?',
+         text: `"${parametreAdi}" parametresini silmek istediğinizden emin misiniz?`,
+         icon: 'warning',
+         showCancelButton: true,
+         confirmButtonColor: '#d33',
+         cancelButtonColor: '#3085d6',
+         confirmButtonText: 'Evet, sil!',
+         cancelButtonText: 'İptal'
+     }).then((result) => {
+         if (result.isConfirmed) {
+             // API'ye gönder
+             fetch('/api/asgari_fiyatlar/delete', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify({
+                     parametre: parametreAdi
+                 })
+             })
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success) {
+                     Swal.fire({
+                         icon: 'success',
+                         title: 'Başarılı!',
+                         text: 'Parametre başarıyla silindi.'
+                     }).then(() => {
+                         // Asgari fiyatları yeniden yükle
+                         loadAsgariFiyatlar();
+                         
+                         // Tabloyu güncelle
+                         createParametreYonetimiTablosu();
+                     });
+                 } else {
+                     Swal.fire({
+                         icon: 'error',
+                         title: 'Hata!',
+                         text: data.message
+                     });
+                 }
+             })
+             .catch(error => {
+                 console.error('Hata:', error);
+                 Swal.fire({
+                     icon: 'error',
+                     title: 'Hata!',
+                     text: 'Parametre silinirken bir hata oluştu.'
+                 });
+             });
+         }
+     });
+ }
+
+// Teklif Listesi Filtreleme Fonksiyonları
+function tumunuSecTeklif(checkbox) {
+    const checkboxes = document.querySelectorAll('.teklif-secim-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
+
+ function filterTeklifler() {
+     const teklifNo = document.getElementById('filterTeklifNo').value.toLowerCase();
+     const firma = document.getElementById('filterFirma').value.toLowerCase();
+     const teklifTipi = document.getElementById('filterTeklifTipi').value;
+     const durum = document.getElementById('filterDurum').value;
+     
+     const rows = document.querySelectorAll('#teklifTablosu tr');
+     
+     rows.forEach((row, index) => {
+         const teklifNoCell = row.cells[2].textContent.toLowerCase();
+         const firmaCell = row.cells[3].textContent.toLowerCase();
+         const teklifTipiCell = row.cells[4].textContent;
+         const durumSelect = row.cells[9].querySelector('select');
+         const durumCell = durumSelect ? durumSelect.value : row.cells[9].textContent.trim();
+         
+         const teklifNoMatch = teklifNo === '' || teklifNoCell.includes(teklifNo);
+         const firmaMatch = firma === '' || firmaCell.includes(firma);
+         const teklifTipiMatch = teklifTipi === '' || teklifTipiCell === teklifTipi;
+         const durumMatch = durum === '' || durumCell === durum;
+         
+         if (teklifNoMatch && firmaMatch && teklifTipiMatch && durumMatch) {
+             row.style.display = '';
+             // Sıra numarasını güncelle
+             row.cells[1].textContent = index + 1;
+         } else {
+             row.style.display = 'none';
+         }
+     });
+     
+     // Filtreleme sonrası sıra numaralarını yeniden düzenle
+     let visibleIndex = 1;
+     rows.forEach(row => {
+         if (row.style.display !== 'none') {
+             row.cells[1].textContent = visibleIndex++;
+         }
+     });
+ }
+
+ // Badge renklerini belirleyen fonksiyon
+function getBadgeColor(durum) {
+    switch(durum) {
+        case 'BEKLEMEDE':
+            return 'warning';
+        case 'KABUL':
+            return 'success';
+        case 'RED':
+            return 'danger';
+        default:
+            return 'secondary';
+    }
+}
+
+// Durum tarihini güncelleyen fonksiyon
+function updateDurumTarihi(teklifId, yeniTarih) {
+    Swal.fire({
+        title: 'Tarih Güncelle',
+        text: `Durum tarihini "${yeniTarih}" olarak değiştirmek istediğinizden emin misiniz?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Evet, güncelle!',
+        cancelButtonText: 'İptal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/api/teklif/update_durum_tarihi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    teklif_id: teklifId,
+                    durum_tarihi: yeniTarih
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Başarılı!',
+                        text: 'Durum tarihi başarıyla güncellendi.'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Hata!',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: 'Durum tarihi güncellenirken bir hata oluştu.'
+                });
+            });
+        }
+    });
+}
+
+function updateTeklifDurum(teklifId, yeniDurum) {
+    Swal.fire({
+        title: 'Durum Güncelle',
+        text: `Teklif durumunu "${yeniDurum}" olarak değiştirmek istediğinizden emin misiniz?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Evet, güncelle!',
+        cancelButtonText: 'İptal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/api/teklif/update_status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    teklif_id: teklifId,
+                    teklif_durumu: yeniDurum,
+                    durum_tarihi: new Date().toISOString().split('T')[0]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Başarılı!',
+                        text: 'Teklif durumu başarıyla güncellendi.'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Hata!',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: 'Teklif durumu güncellenirken bir hata oluştu.'
+                });
+            });
+        }
+    });
+}
+
+// Teklif Düzenleme Fonksiyonları
+function createDuzenleParametrelerTablosu() {
+    const tbody = document.getElementById('duzenleParametrelerTablosu');
+    tbody.innerHTML = '';
+    
+    duzenleParametreler.forEach((parametre, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td>${parametre.parametre}</td>
+            <td>${parametre.metot}</td>
+            <td>
+                <input type="number" class="form-control form-control-sm duzenle-birim-fiyat" 
+                       value="${parametre.birimFiyat}" step="0.01" min="0"
+                       onchange="duzenleBirimFiyatDegisti(this, ${index})">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm duzenle-adet-input" 
+                       value="${parametre.adet}" min="0" step="1"
+                       onchange="duzenleAdetDegisti(this, ${index})">
+            </td>
+            <td class="text-end">
+                <span class="duzenle-top-fiyat">${parametre.topFiyat.toFixed(2)}</span> TL
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" 
+                        onclick="duzenleParametreyiKaldir(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function duzenleBirimFiyatDegisti(input, index) {
+    const yeniFiyat = parseFloat(input.value) || 0;
+    const adet = duzenleParametreler[index].adet || 0;
+    
+    duzenleParametreler[index].birimFiyat = yeniFiyat;
+    duzenleParametreler[index].topFiyat = yeniFiyat * adet;
+    
+    // Tablodaki toplam fiyatı güncelle
+    const row = input.closest('tr');
+    const topFiyatSpan = row.querySelector('.duzenle-top-fiyat');
+    topFiyatSpan.textContent = (yeniFiyat * adet).toFixed(2);
+    
+    updateDuzenleOzet();
+}
+
+function duzenleAdetDegisti(input, index) {
+    const adet = parseInt(input.value) || 0;
+    const birimFiyat = duzenleParametreler[index].birimFiyat || 0;
+    
+    duzenleParametreler[index].adet = adet;
+    duzenleParametreler[index].topFiyat = birimFiyat * adet;
+    
+    // Tablodaki toplam fiyatı güncelle
+    const row = input.closest('tr');
+    const topFiyatSpan = row.querySelector('.duzenle-top-fiyat');
+    topFiyatSpan.textContent = (birimFiyat * adet).toFixed(2);
+    
+    updateDuzenleOzet();
+}
+
+function duzenleParametreyiKaldir(index) {
+    duzenleParametreler.splice(index, 1);
+    createDuzenleParametrelerTablosu();
+    updateDuzenleOzet();
+}
+
+function duzenleParametreEkle() {
+    // Teklif düzenleme modalını kapat ve 1. aşamaya geç
+    const modal = bootstrap.Modal.getInstance(document.getElementById('teklifDuzenleModal'));
+    modal.hide();
+    
+    // 1. aşamayı göster ve mevcut verileri doldur
+    showDuzenleAsama1();
+}
+
+function showDuzenleAsama1() {
+    // Teklif listesini gizle
+    document.getElementById('teklifListesi').style.display = 'none';
+    
+    // Yeni teklif formunu göster
+    document.getElementById('yeniTeklifForm').style.display = 'block';
+    
+    // Mevcut teklif verilerini forma doldur
+    document.getElementById('teklifTipi').value = document.getElementById('duzenleTeklifTipi').value;
+    document.getElementById('firmaAdi').value = document.getElementById('duzenleFirmaAdi').value;
+    document.getElementById('teklifTarihi').value = document.getElementById('duzenleTeklifTarihi').value;
+    document.getElementById('teklifNo').value = document.getElementById('duzenleTeklifNo').value;
+    // İndirim oranı 2. aşamada doldurulacak
+    
+    // Düzenleme modunda olduğumuzu işaretle
+    editingTeklifId = document.getElementById('duzenleTeklifId').value;
+    
+    // Seçilen parametreleri düzenleme parametrelerine kopyala
+    secilenParametreler = [...duzenleParametreler];
+    
+    // Başlığı güncelle
+    document.querySelector('#yeniTeklifForm h4').innerHTML = '<i class="fas fa-edit me-2"></i>Teklif Düzenle - 1. Aşama';
+}
+
+function showDuzenleParametreSecimAsamasi() {
+    // duzenleParametreler'i sıfırla
+    duzenleParametreler = [];
+    
+    // Önce parametreleri yükle, sonra 2. aşamayı göster
+    loadAsgariFiyatlar()
+        .then(() => {
+            // Teklif düzenleme modalını gizle
+            const modal = bootstrap.Modal.getInstance(document.getElementById('teklifDuzenleModal'));
+            modal.hide();
+            
+            // 2. aşamayı göster
+            document.getElementById('teklifAsama2').style.display = 'block';
+            
+            // Parametre tablosunu doldur
+            createParametreSecimTablosu();
+            
+            // Arama fonksiyonunu ekle
+            const aramaInput = document.getElementById('parametreArama');
+            if (aramaInput) {
+                aramaInput.addEventListener('input', function() {
+                    filterParametreSecim(this.value);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Parametreler yüklenirken hata:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Parametreler yüklenirken hata oluştu.'
+            });
+        });
+}
+
+function showParametreSecimModal() {
+    // duzenleParametreler'i sıfırla
+    duzenleParametreler = [];
+    
+    // Önce parametreleri yükle, sonra modal'ı aç
+    loadAsgariFiyatlar()
+        .then(() => {
+            // Parametre seçim modalını oluştur
+            const modalHTML = `
+                <div class="modal fade" id="parametreSecimModal" tabindex="-1" aria-labelledby="parametreSecimModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title" id="parametreSecimModalLabel">
+                                    <i class="fas fa-list me-2"></i>
+                                    Parametre Seç
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                            </div>
+                            <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+                                <div class="mb-3">
+                                    <label for="parametreArama" class="form-label">Parametre Ara:</label>
+                                    <input type="text" class="form-control" id="parametreArama" placeholder="Parametre adı yazın...">
+                                </div>
+                                <div style="max-height: 600px; min-height: 400px; overflow-y: auto;">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th class="text-center" width="50">
+                                                    <input type="checkbox" id="tumunuSecParametre" class="form-check-input" onchange="tumunuSecParametre(this)">
+                                                </th>
+                                                <th class="text-center" width="50">SIRA</th>
+                                                <th>PARAMETRE ADI</th>
+                                                <th>METOT</th>
+                                                <th class="text-end">BİRİM FİYAT (TL)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="parametreSecimTablosu">
+                                            <!-- Parametreler JavaScript ile doldurulacak -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                                <button type="button" class="btn btn-success" onclick="secilenParametreleriDuzeltmeyeEkle()">
+                                    <i class="fas fa-plus me-1"></i>
+                                    Seçilenleri Ekle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Modal'ı body'ye ekle
+            if (!document.getElementById('parametreSecimModal')) {
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+            }
+            
+            // Parametre tablosunu doldur
+            createParametreSecimTablosu();
+            
+            // Arama fonksiyonunu ekle
+            const aramaInput = document.getElementById('parametreArama');
+            if (aramaInput) {
+                aramaInput.addEventListener('input', function() {
+                    filterParametreSecim(this.value);
+                });
+            }
+            
+            // Modal'ı aç
+            const modal = new bootstrap.Modal(document.getElementById('parametreSecimModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Parametreler yüklenirken hata:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Parametreler yüklenirken hata oluştu.'
+            });
+        });
+}
+
+function createParametreSecimTablosu() {
+    const tbody = document.getElementById('parametreSecimTablosu');
+    if (!tbody) {
+        console.error('Parametre seçim tablosu bulunamadı!');
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    if (!asgariFiyatlar || asgariFiyatlar.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                    <br>Parametreler yükleniyor...
+                </td>
+            </tr>
+        `;
+        
+        // Parametreleri yeniden yükle
+        loadAsgariFiyatlar().then(() => {
+            createParametreSecimTablosu();
+        });
+        return;
+    }
+    
+    let filteredParametreler = asgariFiyatlar.filter(parametre => {
+        // Eğer bu parametre zaten düzenleme listesinde varsa gösterme
+        return !duzenleParametreler.find(p => p.parametre === parametre.parametre);
+    });
+    
+    if (filteredParametreler.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                    <br>Eklenebilecek parametre kalmadı
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    filteredParametreler.forEach((parametre, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input parametre-secim-checkbox" 
+                       value="${parametre.parametre}" data-fiyat="${parametre.fiyat}" data-metot="${parametre.metot}">
+            </td>
+            <td class="text-center">${index + 1}</td>
+            <td>${parametre.parametre}</td>
+            <td>${parametre.metot}</td>
+            <td class="text-end">${(parametre.fiyat || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function filterParametreSecim(aramaMetni) {
+    const rows = document.querySelectorAll('#parametreSecimTablosu tr');
+    const arama = aramaMetni.toLowerCase();
+    
+    rows.forEach(row => {
+        const parametreAdi = row.cells[1].textContent.toLowerCase();
+        const metot = row.cells[2].textContent.toLowerCase();
+        
+        if (parametreAdi.includes(arama) || metot.includes(arama)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function secilenParametreleriDuzeltmeyeEkle() {
+    const secilenCheckboxes = document.querySelectorAll('.parametre-secim-checkbox:checked');
+    
+    if (secilenCheckboxes.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Uyarı!',
+            text: 'Lütfen en az bir parametre seçin.'
+        });
+        return;
+    }
+    
+    // Seçilen parametreleri düzenleme listesine ekle
+    secilenCheckboxes.forEach(checkbox => {
+        const parametreAdi = checkbox.value;
+        const birimFiyat = parseFloat(checkbox.dataset.fiyat);
+        const metot = checkbox.dataset.metot;
+        
+        // Yeni parametreyi düzenleme listesine ekle
+        const yeniParametre = {
+            parametre: parametreAdi,
+            metot: metot,
+            birimFiyat: birimFiyat,
+            adet: 1, // Varsayılan olarak 1 adet
+            topFiyat: birimFiyat
+        };
+        
+        duzenleParametreler.push(yeniParametre);
+    });
+    
+    createDuzenleParametrelerTablosu();
+    updateDuzenleOzet();
+    
+    // Modal'ı kapat
+    const modal = bootstrap.Modal.getInstance(document.getElementById('parametreSecimModal'));
+    modal.hide();
+    
+    // Başarı mesajı göster
+    Swal.fire({
+        icon: 'success',
+        title: 'Başarılı!',
+        text: `${secilenCheckboxes.length} parametre eklendi.`,
+        timer: 1500,
+        showConfirmButton: false
+    });
+}
+
+function tumunuSecParametre(checkbox) {
+    const checkboxes = document.querySelectorAll('.parametre-secim-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+}
+
+function updateDuzenleOzet() {
+    const toplam = duzenleParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+    const indirimOrani = parseFloat(document.getElementById('duzenleIndirimOrani').value) || 0;
+    const indirimTipi = document.getElementById('duzenleIndirimTipi').value;
+    
+    let indirim = 0;
+    if (indirimOrani > 0) {
+        if (indirimTipi === 'TL') {
+            indirim = indirimOrani;
+        } else if (indirimTipi === '%') {
+            indirim = toplam * (indirimOrani / 100);
+        }
+    }
+    
+    const netToplam = toplam - indirim;
+    
+    document.getElementById('duzenleToplam').textContent = toplam.toFixed(2) + ' TL';
+    document.getElementById('duzenleIndirim').textContent = indirim.toFixed(2) + ' TL';
+    document.getElementById('duzenleNetToplam').textContent = netToplam.toFixed(2) + ' TL';
+}
+
+function teklifiGuncelle() {
+    const teklifId = document.getElementById('duzenleTeklifId').value;
+    const teklifTipi = document.getElementById('duzenleTeklifTipi').value;
+    const firmaAdi = document.getElementById('duzenleFirmaAdi').value;
+    const teklifTarihi = document.getElementById('duzenleTeklifTarihi').value;
+    const teklifNo = document.getElementById('duzenleTeklifNo').value;
+    const indirimOrani = document.getElementById('duzenleIndirimOrani').value;
+    const indirimTipi = document.getElementById('duzenleIndirimTipi').value;
+    
+    // Validasyon
+    if (!teklifTipi || !firmaAdi || !teklifTarihi || !teklifNo) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Lütfen tüm zorunlu alanları doldurun.'
+        });
+        return;
+    }
+    
+    const toplam = duzenleParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+    let indirim = 0;
+    if (indirimOrani && indirimTipi) {
+        if (indirimTipi === 'TL') {
+            indirim = parseFloat(indirimOrani) || 0;
+        } else if (indirimTipi === '%') {
+            indirim = toplam * (parseFloat(indirimOrani) / 100) || 0;
+        }
+    }
+    const netToplam = toplam - indirim;
+    
+    const guncelTeklif = {
+        id: teklifId,
+        teklif_tipi: teklifTipi,
+        firma_adi: firmaAdi,
+        teklif_tarihi: teklifTarihi,
+        teklif_no: teklifNo,
+        indirim_orani: indirimOrani,
+        indirim_tipi: indirimTipi,
+        parametreler: duzenleParametreler,
+        toplam: toplam,
+        indirim: indirim,
+        netToplam: netToplam
+    };
+    
+    fetch('/api/teklif/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(guncelTeklif)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Başarılı!',
+                text: 'Teklif başarıyla güncellendi.'
+            }).then(() => {
+                // Modal'ı kapat
+                const modal = bootstrap.Modal.getInstance(document.getElementById('teklifDuzenleModal'));
+                modal.hide();
+                // Sayfayı yenile
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Teklif güncellenirken bir hata oluştu.'
+        });
+    });
+}
+
+// 3. Aşama Fonksiyonları
+function asama3eGec() {
+    console.log('asama3eGec() fonksiyonu çağrıldı');
+    
+    try {
+        // 2. aşamayı gizle
+        const asama2Element = document.getElementById('teklifAsama2Fiyat');
+        if (asama2Element) {
+            asama2Element.style.display = 'none';
+            console.log('2. aşama gizlendi');
+        } else {
+            console.error('teklifAsama2Fiyat elementi bulunamadı');
+        }
+        
+        // 3. aşamayı göster
+        const asama3Element = document.getElementById('teklifAsama3');
+        if (asama3Element) {
+            asama3Element.style.display = 'block';
+            console.log('3. aşama gösterildi');
+        } else {
+            console.error('teklifAsama3 elementi bulunamadı');
+        }
+        
+        // Başlığı güncelle
+        if (editingTeklifId) {
+            const baslikElement = document.querySelector('#teklifAsama3 h5');
+            if (baslikElement) {
+                baslikElement.innerHTML = '<i class="fas fa-gavel me-2"></i>Teklif Düzenle - 3. Aşama (Genel Hükümler ve Ön Yazı)';
+                console.log('Başlık güncellendi');
+            }
+        }
+        
+        // Düzenleme modunda önceden kaydedilmiş metinleri yükle
+        if (editingTeklifId) {
+            loadTeklifMetinleri();
+            console.log('Teklif metinleri yüklendi');
+        }
+        
+        // Her durumda metin alanlarını kontrol et ve boşsa varsayılan metinleri yükle
+        const teklifGirisMetni = document.getElementById('teklifGirisMetni');
+        const genelHukumler = document.getElementById('genelHukumler');
+        
+        // Eğer metin alanları boşsa varsayılan metinleri yükle
+        if (!teklifGirisMetni || !teklifGirisMetni.innerHTML.trim()) {
+            varsayilanGirisMetniYukle();
+            console.log('Varsayılan giriş metni yüklendi');
+        }
+        
+        // Genel hükümler her zaman varsayılan metinle yüklensin
+        varsayilanHukumlerYukle();
+        console.log('Varsayılan hükümler metni otomatik yüklendi');
+        
+        console.log('asama3eGec() fonksiyonu başarıyla tamamlandı');
+    } catch (error) {
+        console.error('asama3eGec() fonksiyonunda hata:', error);
+    }
+}
+
+function geriAsama2Fiyat() {
+    // 3. aşamayı gizle
+    document.getElementById('teklifAsama3').style.display = 'none';
+    // 2. aşamayı göster
+    document.getElementById('teklifAsama2Fiyat').style.display = 'block';
+}
+
+function varsayilanGirisMetniYukle() {
+    console.log('varsayilanGirisMetniYukle() fonksiyonu çağrıldı');
+    
+    const varsayilanMetin = `<p><strong>Sayın Yetkili;</strong></p>
+<p>Talebiniz doğrultusunda hazırlanan fiyat teklifimiz bilginize sunulmuştur.</p>
+<p>Laboratuvarımız çalışmalarını <strong>"TÜRKAK Akreditasyon Belgesi"</strong> ve <strong>"Çevre Analizleri Yeterlilik Belgesi"</strong> kapsamında gerçekleştirmektedir.</p>
+<p>Teklifimizi uygun bulacağınızı umar, iyi çalışmalar dilerim.</p>
+<p><strong>Saygılarımızla</strong></p>
+<p><strong>Teklifi Hazırlayan</strong><br>
+<em>Hafize Demet Fazli</em></p>`;
+    
+    document.getElementById('teklifGirisMetni').innerHTML = varsayilanMetin;
+    console.log('Varsayılan giriş metni yüklendi');
+}
+
+function varsayilanHukumlerYukle() {
+    console.log('varsayilanHukumlerYukle() fonksiyonu çağrıldı');
+    
+    // Formlar sayfasındaki genel hükümler metnini localStorage'dan al
+    const savedHukumler = localStorage.getItem('genelHukumlerText');
+    console.log('localStorage genelHukumlerText:', savedHukumler ? 'Var' : 'Yok');
+    
+    if (savedHukumler && savedHukumler.trim() && savedHukumler !== '<div><br></div>' && savedHukumler !== '<br>') {
+        // Formlar sayfasında kaydedilmiş geçerli metin varsa onu kullan
+        document.getElementById('genelHukumler').innerHTML = savedHukumler;
+        console.log('Formlar sayfasından kaydedilmiş metin yüklendi');
+    } else {
+        // Kaydedilmiş metin yoksa varsayılan metni kullan
+        const varsayilanHukumler = `<strong>GENEL HÜKÜMLER</strong>
+<ul>
+    <li><strong>Fiyatlara KDV dahil değildir.</strong></li>
+    <li><strong>Teklifimizin geçerlilik süresi 30 gündür.</strong></li>
+    <li><strong>(*) işaretli parametrelerin ölçümü ve analizleri yetkili taşeron işbirliği laboratuvarı tarafından yapılacaktır.</strong></li>
+    <li><strong>Fiyat tarifemiz; Çevre, Şehircilik ve İklim Değişikliği Bakanlığı'nın 27.12.2024 tarihinde yayınlanan duyurusu itibarıyla, 01.01.2025 tarihi itibariyle geçerli olacak şekil tarifi öz sınırları kaynaklamıştır.</strong></li>
+    <li><strong>Yetkili Ölçüm ve Analiz Laboratuvarlarından 02.12.2024 tarihinden sonra Fiyat Tarifesi 13. Maddesi gereği, ödeme rapor tesliminden önce para yapılacaktır.</strong></li>
+    <li><strong>Ölçüm esnasında firmanızdan kaynaklanan bir hangi bir sebepten dolayı ölçüm yapılamaması durumunda ücret iadeisi yapılmayacaktır.</strong></li>
+    <li><strong>Teklif onaylandıktan sonra karşılıklı anlaşmalık en kısa sürede hizmet gerçekleştirilerek olup, ölçümler esnasında personelimize yardımcı olmak amacı ile sizin tarafınızdan en az bir personel görevlendirilecektir.</strong></li>
+    <li><strong>Teklifin onaylanmasından doğacak anlaşmazlıklarda yönetmelikte Kocaeli Mahkemeleri ve İcra Daireleri yetkili olacaktır.</strong></li>
+    <li><strong>Ölçümler esnasında iş sağlığı ve güvenliği tedbirlerinin uygulanması, yönetmek üyesinin sorumluluğundadır.</strong></li>
+    <li><strong>Numunelerin saklanma süresi rapor tesliminden itibaren 10 gündür.</strong></li>
+    <li><strong>Raporlara itiraz süresi rapor tesliminden itibaren 10 gündür.</strong></li>
+    <li><strong>Rapor teslimat süresi gerekli evraklar alındıktan sonra maksimum 30 gündür.</strong></li>
+    <li><strong>TS EN ISO/IEC 17025 standardına göre olarak AKARE ile teklifin onaylanmasını ardından yapılacak işlemin sonucu ortaya çıkacak veri ve bilgilerin formatını açık hale getirmeden önce müşterinin çıkarlarını alır. Müşteri onayı alınmadan hiçbir bilgi 3. Şahıslar ile paylaşılmaz. Ancak yasal öükümlülük müşterinin hakları olmadığı müşteriler ile bilgilerine paylaştığı bilmesi müşteriye bilgi verilmesi.</strong></li>
+    <li><strong>Deneyi için uygulanık beyani talep edildiğinde AK.T.17 Karar Kuralı talimatına göre karar kuralı açıkça tanımlanır. Laboratuvar ürünü tarafından talep edilmesi halinde olmadığı sürece Basit Kabul (Paylaşılan Risk) Karar Kuralını kullanmaktadır</strong></li>
+</ul>`;
+        
+        temizGenelHukumlerYukle();
+    }
+}
+
+function maddeleriGuncelle() {
+    const genelHukumlerElement = document.getElementById('genelHukumler');
+    if (!genelHukumlerElement) {
+        alert('Genel hükümler alanı bulunamadı!');
+        return;
+    }
+    
+    const hukumlerIcerigi = genelHukumlerElement.innerHTML;
+    
+    if (!hukumlerIcerigi || hukumlerIcerigi.trim() === '') {
+        alert('Güncellenecek içerik bulunamadı!');
+        return;
+    }
+    
+    // localStorage'a kaydet
+    localStorage.setItem('guncelGenelHukumler', hukumlerIcerigi);
+    
+    // Başarı mesajı
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check me-1"></i>Kaydedildi!';
+    button.classList.remove('btn-outline-primary');
+    button.classList.add('btn-success');
+    
+    // 2 saniye sonra orijinal haline döndür
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.classList.remove('btn-success');
+        button.classList.add('btn-outline-primary');
+    }, 2000);
+    
+    console.log('Genel hükümler localStorage\'a kaydedildi');
+}
+
+function temizGenelHukumlerYukle() {
+    const temizHukumler = `<p><strong>1. GENEL HÜKÜMLER</strong></p>
+
+<p><strong>•</strong> Fiyatlara KDV dahil değildir.</p>
+
+<p><strong>•</strong> Teklifimizin geçerlilik süresi 30 gündür.</p>
+
+<p><strong>•</strong> (*) işaretli parametrelerin ölçüm ve analizleri yetkili taşeron/işbirliği laboratuvarı tarafından yapılacaktır.</p>
+
+<p><strong>•</strong> Fiyat teklifimiz, Çevre, Şehircilik ve İklim Değişikliği Bakanlığı'nın 27.12.2024 tarihinde yayımlanan duyurusuna istinaden, 01.01.2025 tarihi itibariyle geçerli olacak asgari fiyat tarifesi baz alınarak hazırlanmıştır.</p>
+
+<p><strong>•</strong> Yetkili Ölçüm ve Analiz Laboratuvarları 2025 Yılı Asgari Fiyat Tarifesi 13. Maddesi gereği, ödeme, rapor tesliminden önce peşin yapılacaktır.</p>
+
+<p><strong>•</strong> Ölçüm esnasında firmanızdan kaynaklanan her hangi bir sebepten dolayı ölçüm yapılmaması durumunda ücret iadesi yapılmamaktadır.</p>
+
+<p><strong>•</strong> Teklif onaylandıktan sonra karşılıklı anlaşılarak en kısa sürede hizmet gerçekleştirilecek olup, ölçümler esnasında personelimize yardımcı olmak amacı ile sizin tarafınızdan en az bir personel görevlendirilecektir.</p>
+
+<p><strong>•</strong> Teklifin uygulanmasından doğacak anlaşmazlıkların çözümlenmesinde Körfez Mahkemeleri ve İcra Daireleri yetkili olacaktır.</p>
+
+<p><strong>•</strong> Ölçümler esnasında iş sağlığı ve iş güvenliği önlemlerini uygulamak/uygulatmak işverenin sorumluluğundadır.</p>
+
+<p><strong>•</strong> Numunenin saklanma süresi rapor tesliminden itibaren 10 gündür.</p>
+
+<p><strong>•</strong> Raporlara itiraz süresi rapor tesliminden itibaren 10 gündür.</p>
+
+<p><strong>•</strong> Rapor teslimat süresi gerekli evraklar ulaştıktan sonra maksimum 30 gündür.</p>
+
+<p><strong>•</strong> TS EN ISO/IEC 17025 standardının gereği olarak AKARE iş bu teklifin onaylanmasının ardından yapılacak işlerin sonucu ortaya çıkacak veri ve bilgileri kamuya açık hale getirmeden önce müşterinin onayını alır. Müşteri onayı alınmadan hiçbir bilgi 3. Şahıslar ile paylaşılmaz. Ancak yasal otoriteler müşterinin haberi olmadan müşteriye ait bilgilere ulaşmak isterse bilgilerin paylaşıldığı hususta müşteriye bilgi verilmez.</p>
+
+<p><strong>•</strong> Deney için uygunluk beyanı talep edildiğinde AÇ.T.17 Karar Kuralı talimatına göre karar kuralı açıkça tanımlanır. Laboratuvarımız müşteri tarafından aksi bir talep olmadığı sürece Basit Kabul (Paylaşılan Risk) Karar Kuralını kullanmaktadır.</p>
+
+<p><strong>•</strong> Basit Kabul Karar Kuralı; Eğer mevzuat, ürün veya deney standardı, laboratuvar raporunda uygunluk bildirimi zorunlu kılar ancak ilgili standartlarda veya mevzuatta uygunluğun değerlendirilmesinde güven düzeyinin ve ölçme belirsizliğinin etkilerine ilişkin herhangi bir bilgi yok ise laboratuvar güven düzeyi ve ölçüm belirsizliğini göz önünde bulundurmaksızın elde edilen deney sonucunu yalnızca belirtilmiş sınırlar içinde olup olmadığını uygun veya uygun değildir şeklinde değerlendirmesini yapabilir.</p>
+
+<p><strong>2. HİZMET KONULARINA GÖRE ÖZEL ŞARTLAR</strong></p>
+
+<p><strong>•</strong> İşveren tarafından verilecek bilgi, belgeler ve hazırlanan sonuç raporu 3. şahıslar ile kesinlikle paylaşılamaz. Firmamız gizliliklerin korunacağını taahhüt eder.</p>
+
+<p><strong>•</strong> T.C Çevre ve Şehircilik Bakanlığının tebliği gereği çevresel ölçüm programı en az 5 gün öncesinden T.C Çevre ve Şehircilik Bakanlığı'na bildirilecektir. Bu tarihten itibaren program revizyonu mümkün değildir.</p>
+
+<p><strong>•</strong> Numune tarafınızdan gönderilmesi durumunda uygun olmayan numune olarak değerlendirilecek ve 'ŞARTLI KABUL' yapılacaktır.</p>
+
+<p><strong>3. İŞİN SÜRESİ</strong></p>
+
+<p><strong>•</strong> Numune alımı sonrası laboratuvarda numune kabulü yapıldıktan sonra analiz süresi 5 ile 10 iş günüdür.</p>
+
+<p><strong>•</strong> Ölçümleri aksatması muhtemel herhangi bir aksilik olması durumunda ölçümden en az 7 gün önce haber verilmelidir. Haber verilmediği durumda firmamız ölçüm programımızı aksattığı için 8000 TL ekip/gün tutarında ek ücret talebinde bulunacaktır.</p>
+
+<p><strong>•</strong> Raporlama için gerek duyulan tesise ait belge ve bilgiler (Kapasite Raporu, Tesis yerleşim planı, Malzeme güvenlik bilgi formları, İş akış şeması vb.) tarafınızca temin edilecektir.</p>
+
+<p><strong>•</strong> Çalışma ve Sosyal Güvenlik Bakanlık'ı duyurusu gereği ölçüm programı, çalışanların SGK noları ile birlikte ölçüm tarihinden en az 3 gün önce Çalışma ve Sosyal Güvenlik Bakanlık'ına bildirilecektir. SGK Numaraları tarafımıza iletilmediği takdirde ölçümler hizmet planına alınmayacaktır.</p>
+
+<p><strong>•</strong> Çevre, Şehircilik ve İklim Değişikliği Bakanlığımızın 17.03.2021 tarihli duyurusuna istinaden Ölçüm işlemleri; prosesin çalıştığı ve karşılıklı belirlenecek bir zamanda yapılacak olup, ölçüm süresince ölçüm ekibimize yardımcı olmak amacı ile bir personel tarafınızca tahsis edilecektir. Bu sözleşmenin onaylanmasıyla, firmanız ölçümler esnasında, ölçüm yapılan kaynağa ait prosesin tam verimle çalışacağını kabul ve taahhüt eder. Çalışmaması durumunda sorumluluk firmamıza ait değildir. Laboratuvar atama tarihinden itibaren tesis ile görüşerek mutabakata varılan sözleşmede, ilgili tesis tarafından daha geç bir tarih belirtilmediği sürece, en geç 20 gün içerisinde ölçümlere başlamış olacak ve tesisle yapılan sözleşme çerçevesinde hareket edilerek işin tamamlanması sağlanacaktır.</p>
+
+<p><strong>•</strong> Ölçümler esnasında, parametrelerin değişmesi halinde birim fiyat üzerinden hesaplanarak fiyat teklifi revize edilecektir. MELBES görevlendirmelerinde, MELBES başvuru güncellenecektir.</p>
+
+<p><strong>•</strong> Müşteri tarafından alınıp laboratuvara getirilen numune ile ilgili, laboratuvarımızın numune alma aşamasına dair sorumluluğu bulunmamaktadır. Sonuçların numunenin teslim alındığı hali için geçerli olduğu sonuçlarındaki sapmalardan laboratuvar sorumlu değildir ve müşteri, laboratuvarın sözleşmede belirtilen yükümlülükleri konusunda feragat etmiş sayılır.</p>
+
+<p><strong>4. TEKLİF ONAYI</strong></p>
+
+<p><strong>•</strong> Teklif onaylandıktan sonra sözleşme yerine geçecektir.</p>
+
+<p><strong>5. HESAP NUMARASI</strong></p>
+
+<p><strong>•</strong> Kuveyt Türk Gebze Şube 19068682 IBAN: TR10 0020 5000 0190 6868 2000 01</p>`;
+    
+    document.getElementById('genelHukumler').innerHTML = temizHukumler;
+    console.log('Güncel genel hükümler yüklendi');
+}
+
+function loadTeklifMetinleri() {
+    // Düzenleme modunda önceden kaydedilmiş metinleri yükle
+    if (editingTeklifId && teklifVerileri) {
+        if (teklifVerileri.teklif_giris_metni) {
+            document.getElementById('teklifGirisMetni').innerHTML = teklifVerileri.teklif_giris_metni;
+        }
+        if (teklifVerileri.genel_hukumler) {
+            document.getElementById('genelHukumler').innerHTML = teklifVerileri.genel_hukumler;
+        }
+    }
+}
+
+// Zengin Metin Editörü Fonksiyonları
+function formatText(elementId, command) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.focus();
+        document.execCommand(command, false, null);
+    }
+}
+
+function changeFontSize(elementId, size) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.focus();
+        
+        // Seçili metin var mı kontrol et
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0 && !selection.isCollapsed) {
+            // Seçili metne uygula
+            const range = selection.getRangeAt(0);
+            const selectedText = range.toString();
+            
+            // Seçili metni sil ve yeni span ile değiştir
+            range.deleteContents();
+            const span = document.createElement('span');
+            span.style.fontSize = size + 'px';
+            span.textContent = selectedText;
+            range.insertNode(span);
+        } else {
+            // Seçili metin yoksa, tüm editöre uygula
+            element.style.fontSize = size + 'px';
+        }
+    }
+}
+
+function changeFontFamily(elementId, fontFamily) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.focus();
+        
+        // Önce styleWithCSS'yi etkinleştir
+        document.execCommand('styleWithCSS', false, true);
+        
+        // Seçili metin var mı kontrol et
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0 && !selection.isCollapsed) {
+            // Seçili metne uygula
+            document.execCommand('fontName', false, fontFamily);
+        } else {
+            // Seçili metin yoksa, tüm editöre uygula
+            element.style.fontFamily = fontFamily;
+        }
+    }
+}
+
+// Teklif kaydetme fonksiyonunu güncelle - 3. aşama verilerini dahil et
+function saveFinalTeklif() {
+    // Hangi modda olduğumuzu kontrol et
+    const isDuzenlemeModu = editingTeklifId !== null;
+    
+    // 3. aşama verilerini al
+    const teklifGirisMetni = document.getElementById('teklifGirisMetni').innerHTML;
+    const genelHukumler = document.getElementById('genelHukumler').innerHTML;
+    
+    if (isDuzenlemeModu) {
+        // Düzenleme modunda - güncelle
+        const toplam = secilenParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+        
+        // İndirim hesapla
+        let indirim = 0;
+        if (teklifVerileri.indirim_orani && teklifVerileri.indirim_tipi) {
+            if (teklifVerileri.indirim_tipi === 'TL') {
+                indirim = parseFloat(teklifVerileri.indirim_orani) || 0;
+            } else if (teklifVerileri.indirim_tipi === '%') {
+                indirim = toplam * (parseFloat(teklifVerileri.indirim_orani) / 100) || 0;
+            }
+        }
+        
+        const netToplam = toplam - indirim;
+        
+        const tamTeklif = {
+            id: editingTeklifId,
+            ...teklifVerileri,
+            parametreler: secilenParametreler,
+            toplam: toplam,
+            indirim: indirim,
+            netToplam: netToplam,
+            teklif_giris_metni: teklifGirisMetni,
+            genel_hukumler: genelHukumler,
+            teklif_durumu: 'BEKLEMEDE'
+        };
+        
+        console.log('Güncellenecek teklif:', tamTeklif);
+        
+        // API'ye gönder
+        fetch('/api/teklif/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(tamTeklif)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Başarılı!',
+                    text: 'Teklif başarıyla güncellendi.'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Teklif güncellenirken bir hata oluştu.'
+            });
+        });
+    } else {
+        // Yeni teklif modunda - ekle
+        const toplam = secilenParametreler.reduce((sum, p) => sum + p.topFiyat, 0);
+        
+        // İndirim hesapla
+        let indirim = 0;
+        if (teklifVerileri.indirim_orani && teklifVerileri.indirim_tipi) {
+            if (teklifVerileri.indirim_tipi === 'TL') {
+                indirim = parseFloat(teklifVerileri.indirim_orani) || 0;
+            } else if (teklifVerileri.indirim_tipi === '%') {
+                indirim = toplam * (parseFloat(teklifVerileri.indirim_orani) / 100) || 0;
+            }
+        }
+        
+        const netToplam = toplam - indirim;
+        
+        const tamTeklif = {
+            ...teklifVerileri,
+            parametreler: secilenParametreler,
+            toplam: toplam,
+            indirim: indirim,
+            netToplam: netToplam,
+            teklif_giris_metni: teklifGirisMetni,
+            genel_hukumler: genelHukumler,
+            teklif_durumu: 'BEKLEMEDE'
+        };
+        
+        console.log('Yeni teklif:', tamTeklif);
+        
+        // API'ye gönder
+        fetch('/api/teklif/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(tamTeklif)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Başarılı!',
+                    text: 'Teklif başarıyla kaydedildi.'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: 'Teklif kaydedilirken bir hata oluştu.'
+            });
+        });
+    }
+}
+</script>
+{% endblock %}

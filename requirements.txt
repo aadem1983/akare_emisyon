@@ -1,0 +1,12 @@
+Flask==2.3.3
+gunicorn==21.2.0
+requests==2.31.0
+pandas>=2.2.2
+openpyxl==3.1.2
+WeasyPrint==60.1
+python-docx==0.8.11
+docx2pdf==0.1.8
+reportlab==4.0.7
+matplotlib==3.8.0
+numpy==1.26.0
+beautifulsoup4==4.12.3

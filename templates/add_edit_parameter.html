@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ 'Parametre Düzenle' if parameter else 'Yeni Parametre Ekle' }} - Emisyon Saha Programı
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="card-title mb-4">{{ 'Parametre Düzenle' if parameter else 'Yeni Parametre Ekle' }}</h3>
+                    <form method="post" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="parametre_adi" class="form-label">Parametre Adı</label>
+                                <input type="text" class="form-control" id="parametre_adi" name="Parametre Adı" value="{{ parameter['Parametre Adı'] if parameter else '' }}" required>
+                                <div class="invalid-feedback">Bu alan zorunludur.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="metot" class="form-label">Metot</label>
+                                <input type="text" class="form-control" id="metot" name="Metot" value="{{ parameter['Metot'] if parameter else '' }}" required>
+                                <div class="invalid-feedback">Bu alan zorunludur.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="izo_oran" class="form-label">İzo Oran</label>
+                                <input type="text" class="form-control numeric-input" id="izo_oran" name="İzo Oran" 
+                                       value="{{ parameter['İzo Oran']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 15,5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="nozzle" class="form-label">Nozzle</label>
+                                <input type="text" class="form-control" id="nozzle" name="Nozzle" value="{{ parameter['Nozzle'] if parameter else '' }}" placeholder="Nozzle">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="imp1" class="form-label">1. İmp</label>
+                                <input type="text" class="form-control" id="imp1" name="1. İmp" 
+                                       value="{{ parameter['1. İmp'] if parameter else '' }}" 
+                                       placeholder="Örn: 1,2 veya A1">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="imp2" class="form-label">2. İmp</label>
+                                <input type="text" class="form-control" id="imp2" name="2. İmp" 
+                                       value="{{ parameter['2. İmp'] if parameter else '' }}" 
+                                       placeholder="Örn: 1,2 veya A2">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="imp3" class="form-label">3. İmp</label>
+                                <input type="text" class="form-control" id="imp3" name="3. İmp" 
+                                       value="{{ parameter['3. İmp'] if parameter else '' }}" 
+                                       placeholder="Örn: 1,2 veya A3">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="imp4" class="form-label">4. İmp</label>
+                                <input type="text" class="form-control" id="imp4" name="4. İmp" 
+                                       value="{{ parameter['4. İmp'] if parameter else '' }}" 
+                                       placeholder="Örn: 1,2 veya A4">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ldak" class="form-label">L/DAK</label>
+                                <input type="text" class="form-control" id="ldak" name="L/DAK" 
+                                       value="{{ parameter['L/DAK'] if parameter else '' }}" 
+                                       placeholder="Örn: 30,5 veya Test123">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="t_hac" class="form-label">T.HAC</label>
+                                <input type="text" class="form-control numeric-input" id="t_hac" name="T.HAC" value="{{ parameter['T.HAC']|replace('.', ',') if parameter else '' }}" pattern="[0-9,]+" placeholder="Örn: 100,0">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="loq" class="form-label">LOQ</label>
+                                <input type="text" class="form-control numeric-input" id="loq" name="LOQ" 
+                                       value="{{ parameter['LOQ']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 0,5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="kk" class="form-label">KK</label>
+                                <input type="text" class="form-control numeric-input" id="kk" name="KK" 
+                                       value="{{ parameter['KK']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 0,5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="minus3s" class="form-label">-3S</label>
+                                <input type="text" class="form-control numeric-input" id="minus3s" name="-3S" 
+                                       value="{{ parameter['-3S']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 0,5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="minus2s" class="form-label">-2S</label>
+                                <input type="text" class="form-control numeric-input" id="minus2s" name="-2S" 
+                                       value="{{ parameter['-2S']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 0,5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="plus2s" class="form-label">+2S</label>
+                                <input type="text" class="form-control numeric-input" id="plus2s" name="+2S" 
+                                       value="{{ parameter['+2S']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 0,5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="plus3s" class="form-label">+3S</label>
+                                <input type="text" class="form-control numeric-input" id="plus3s" name="+3S" 
+                                       value="{{ parameter['+3S']|replace('.', ',') if parameter else '' }}" 
+                                       pattern="[0-9,]+" placeholder="Örn: 0,5">
+                            </div>
+                        </div>
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('parametre') }}" class="btn btn-secondary me-2">İptal</a>
+                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+    var forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Sayısal alanlar için virgül desteği
+    var numericInputs = document.querySelectorAll('.numeric-input');
+    numericInputs.forEach(function(input) {
+        input.addEventListener('input', function(e) {
+            var value = e.target.value;
+            // Sadece sayı ve virgül karakterlerine izin ver
+            value = value.replace(/[^0-9,]/g, '');
+            // Birden fazla virgül varsa sadece ilkini tut
+            var commaCount = (value.match(/,/g) || []).length;
+            if (commaCount > 1) {
+                var parts = value.split(',');
+                value = parts[0] + ',' + parts.slice(1).join('');
+            }
+            e.target.value = value;
+        });
+    });
+
+
+
+    // Form gönderilmeden önce virgülü nokta ile değiştir
+    var form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            numericInputs.forEach(function(input) {
+                var value = input.value;
+                if (value.includes(',')) {
+                    input.value = value.replace(',', '.');
+                }
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

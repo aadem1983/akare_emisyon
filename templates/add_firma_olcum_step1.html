@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Firma Ölçüm Ekle - 1. Aşama{% endblock %}
+
+
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <h2 class="mb-0 me-4">Firma Ölçüm Ekle - 1. Aşama</h2>
+                    <div class="progress" style="width: 200px;">
+                        <div class="progress-bar" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">1/2</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST" id="step1Form">
+                        <!-- İlk Satır: Firma Bilgileri -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="firma_adi" class="form-label">Firma Adı <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="firma_adi" name="firma_adi" list="firma_listesi" placeholder="Firma adı yazın" required>
+                                <datalist id="firma_listesi">
+                                    {% for firma in firmalar %}
+                                    <option value="{{ firma.firma_adi }}">
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="olcum_kodu" class="form-label">Ölçüm Kodu <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="olcum_kodu" name="olcum_kodu" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="baslangic_tarihi" class="form-label">Başlangıç Tarihi</label>
+                                <input type="date" class="form-control" id="baslangic_tarihi" name="baslangic_tarihi">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="bitis_tarihi" class="form-label">Bitiş Tarihi</label>
+                                <input type="date" class="form-control" id="bitis_tarihi" name="bitis_tarihi">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="il" class="form-label">İl</label>
+                                <select class="form-control" id="il" name="il">
+                                    <option value="">İl Seçiniz</option>
+                                    {% for il in cities %}
+                                    <option value="{{ il.il_adi }}">{{ il.il_adi }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="ilce" class="form-label">İlçe</label>
+                                <select class="form-control" id="ilce" name="ilce">
+                                    <option value="">Önce İl Seçiniz</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="yetkili" class="form-label">Yetkili</label>
+                                <input type="text" class="form-control" id="yetkili" name="yetkili">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="telefon" class="form-label">Telefon</label>
+                                <input type="tel" class="form-control" id="telefon" name="telefon">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="durum" class="form-label">Durum</label>
+                                <select class="form-control" id="durum" name="durum">
+                                    <option value="Aktif">Aktif</option>
+                                    <option value="Pasif">Pasif</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Ölçüm Personeli</label>
+                                <div class="d-flex flex-wrap">
+                                    {% for person in saha_personeli %}
+                                    <div class="me-3 mb-1">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="personel" value="{{ person.username }}" id="person_{{ person.username }}">
+                                            <label class="form-check-label small" for="person_{{ person.username }}">
+                                                {{ person.username }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if not saha_personeli %}
+                                <div class="alert alert-warning small">
+                                    Henüz saha personeli tanımlanmamış. Admin panelinden görevi "Saha" olan personel ekleyebilirsiniz.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Butonlar -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('firma_olcum') }}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Geri
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-arrow-right"></i> 2. Aşamaya Geç
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Firma seçimi ve otomatik doldurma
+    const firmaInput = document.getElementById('firma_adi');
+    const yetkiliInput = document.getElementById('yetkili');
+    const telefonInput = document.getElementById('telefon');
+    const ilSelect = document.getElementById('il');
+    const ilceSelect = document.getElementById('ilce');
+    
+    // Firma verilerini JavaScript'e aktar
+    const firmaVerileri = {{ firmalar | tojson | safe }};
+    
+    // Firma input'unda değişiklik olduğunda
+    firmaInput.addEventListener('input', function() {
+        const yazilanFirma = this.value;
+        console.log('Yazılan firma:', yazilanFirma);
+        
+        const secilenFirma = firmaVerileri.find(firma => firma.firma_adi === yazilanFirma);
+        console.log('Seçilen firma:', secilenFirma);
+        
+        if (secilenFirma) {
+            console.log('Firma bulundu, bilgiler dolduruluyor...');
+            
+            // Mevcut firmadan seçildiğinde bilgileri doldur
+            if (secilenFirma.yetkili_adi) {
+                yetkiliInput.value = secilenFirma.yetkili_adi;
+                console.log('Yetkili adı dolduruldu:', secilenFirma.yetkili_adi);
+            }
+            
+            if (secilenFirma.yetkili_tel) {
+                telefonInput.value = secilenFirma.yetkili_tel;
+                console.log('Telefon dolduruldu:', secilenFirma.yetkili_tel);
+            }
+            
+            if (secilenFirma.il) {
+                ilSelect.value = secilenFirma.il;
+                console.log('İl seçildi:', secilenFirma.il);
+                ilSelect.dispatchEvent(new Event('change'));
+                
+                setTimeout(() => {
+                    if (secilenFirma.ilce) {
+                        ilceSelect.value = secilenFirma.ilce;
+                        console.log('İlçe seçildi:', secilenFirma.ilce);
+                    }
+                }, 500);
+            }
+        } else {
+            console.log('Firma bulunamadı, alanlar temizleniyor...');
+            // Yeni firma yazıldığında alanları temizle
+            yetkiliInput.value = '';
+            telefonInput.value = '';
+            ilSelect.value = '';
+            ilceSelect.innerHTML = '<option value="">Önce İl Seçiniz</option>';
+        }
+    });
+    
+    // Firma input'unda değişiklik bittiğinde (datalist seçimi için)
+    firmaInput.addEventListener('change', function() {
+        const yazilanFirma = this.value;
+        console.log('Firma değişti:', yazilanFirma);
+        
+        const secilenFirma = firmaVerileri.find(firma => firma.firma_adi === yazilanFirma);
+        console.log('Seçilen firma (change):', secilenFirma);
+        
+        if (secilenFirma) {
+            console.log('Firma bulundu (change), bilgiler dolduruluyor...');
+            
+            // Mevcut firmadan seçildiğinde bilgileri doldur
+            if (secilenFirma.yetkili_adi) {
+                yetkiliInput.value = secilenFirma.yetkili_adi;
+                console.log('Yetkili adı dolduruldu (change):', secilenFirma.yetkili_adi);
+            }
+            
+            if (secilenFirma.yetkili_tel) {
+                telefonInput.value = secilenFirma.yetkili_tel;
+                console.log('Telefon dolduruldu (change):', secilenFirma.yetkili_tel);
+            }
+            
+            if (secilenFirma.il) {
+                ilSelect.value = secilenFirma.il;
+                console.log('İl seçildi (change):', secilenFirma.il);
+                ilSelect.dispatchEvent(new Event('change'));
+                
+                setTimeout(() => {
+                    if (secilenFirma.ilce) {
+                        ilceSelect.value = secilenFirma.ilce;
+                        console.log('İlçe seçildi (change):', secilenFirma.ilce);
+                    }
+                }, 500);
+            }
+        }
+    });
+    
+    // İl-İlçe bağlantısı
+    
+    ilSelect.addEventListener('change', function() {
+        const selectedIl = this.value;
+        console.log('İl seçildi:', selectedIl);
+        ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
+        
+        if (selectedIl) {
+            console.log('İlçeler yükleniyor...');
+            fetch(`/api/ilceler/${encodeURIComponent(selectedIl)}`)
+                .then(response => response.json())
+                .then(ilceler => {
+                    console.log('Gelen ilçeler:', ilceler);
+                    ilceler.forEach(ilce => {
+                        const option = document.createElement('option');
+                        option.value = ilce;
+                        option.textContent = ilce;
+                        ilceSelect.appendChild(option);
+                    });
+                    console.log('İlçeler yüklendi');
+                })
+                .catch(error => {
+                    console.error('İlçe verileri yüklenemedi:', error);
+                });
+        }
+    });
+    
+    // Form gönderildiğinde
+    const form = document.getElementById('step1Form');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Form verilerini topla
+        const formData = new FormData(form);
+        
+        // Loading göster
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+        
+        // Formu gönder
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                return response.text();
+            }
+        })
+        .then(html => {
+            if (html) {
+                // Hata durumunda sayfayı yenile
+                document.documentElement.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('Bir hata oluştu!');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-arrow-right"></i> 2. Aşamaya Geç';
+        });
+    });
+});
+</script>
+{% endblock %} 

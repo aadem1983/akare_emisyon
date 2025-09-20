@@ -1,0 +1,1396 @@
+{% extends "base.html" %}
+
+{% block title %}Kalite Kontrol Eğrisi{% endblock %}
+
+{% block content %}
+<style>
+/* Kalite kontrol eğrisi sayfası için özel stiller */
+ .chart-container {
+     background: white;
+     border-radius: 8px;
+     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+     padding: 10px;
+     margin-bottom: 20px;
+ }
+
+.control-panel {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.parameter-card {
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.parameter-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+ .chart-area {
+     min-height: 400px;
+     background: #f8f9fa;
+     border: 2px dashed #dee2e6;
+     border-radius: 8px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     margin: 10px 0;
+ }
+
+.chart-placeholder {
+    text-align: center;
+    color: #6c757d;
+}
+
+.chart-placeholder i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+/* Checkbox stilleri */
+.veri-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+.veri-checkbox:hover {
+    transform: scale(1.3);
+}
+
+/* Seçili satır vurgulama */
+.table tbody tr:hover {
+    background-color: #f8f9fa !important;
+}
+
+.table tbody tr.selected {
+    background-color: #e3f2fd !important;
+}
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+                         <!-- Sayfa Başlığı -->
+             <div class="card mb-0">
+                 <div class="card-header bg-primary text-white">
+                     <h4 class="mb-0">
+                         <i class="fas fa-chart-line me-2"></i>
+                         Kalite Kontrol Eğrisi (KK_EGRI)
+                     </h4>
+                 </div>
+             </div>
+
+                         <!-- Kontrol Paneli -->
+             <div class="control-panel" style="margin-top: -10px;">
+                 <div class="row align-items-end">
+                    <div class="col-md-2">
+                        <label for="parametreSelect" class="form-label">Parametre Seçin</label>
+                        <select class="form-select" id="parametreSelect">
+                            <option value="">Tüm Parametreler</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="tarihBaslangic" class="form-label">Başlangıç Tarihi</label>
+                        <input type="date" class="form-control" id="tarihBaslangic">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="tarihBitis" class="form-label">Bitiş Tarihi</label>
+                        <input type="date" class="form-control" id="tarihBitis">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-primary w-100" onclick="grafikOlustur()">
+                            <i class="fas fa-chart-line me-2"></i>Grafik Oluştur
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-success w-100" onclick="kkOlustur()">
+                            <i class="fas fa-plus-circle me-2"></i>KK Oluştur
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-info w-100" onclick="raporOlustur()">
+                            <i class="fas fa-file-alt me-2"></i>Rapor Oluştur
+                        </button>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-warning btn-sm" onclick="localStorageTemizle()" title="localStorage Temizle">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="localStorageDuzenle()" title="localStorage Düzenle">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-info btn-sm" onclick="testVerileriEkle()" title="Test Verileri Ekle">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Grafik ve Tablo Alanı -->
+            <div class="row">
+                <div class="col-md-7">
+                    <div class="chart-container" style="margin-top: -20px;">
+                        <div class="chart-area" id="chartArea">
+                            <div class="chart-placeholder">
+                                <i class="fas fa-chart-line"></i>
+                                <h5>Grafik Alanı</h5>
+                                <p>Grafik oluşturmak için yukarıdaki kontrolleri kullanın</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="card" style="margin-top: -20px;">
+                        <div class="card-header bg-success text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-table me-2"></i>
+                                    Ölçüm Verileri
+                                </h6>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="seciliVerileriSil()">
+                                    <i class="fas fa-trash me-1"></i>Seçilenleri Sil
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm table-striped table-hover mb-0" style="font-size: 11px;">
+                                    <thead class="table-dark sticky-top">
+                                        <tr>
+                                            <th style="width: 4%;">
+                                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                            </th>
+                                            <th style="width: 4%;">Sıra</th>
+                                            <th style="width: 8%;">Tarih</th>
+                                            <th style="width: 10%;">Firma</th>
+                                            <th style="width: 12%; text-align: left;">Kod</th>
+                                            <th style="width: 10%;">Baca</th>
+                                            <th style="width: 8%;">Personel</th>
+                                            <th style="width: 8%;">Cihaz</th>
+                                            <th style="width: 8%; text-align: left;">Değer</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="olcumTablosu">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                Grafik oluşturulduktan sonra veriler burada görünecek
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+</div>
+
+<!-- KK Oluştur Modal -->
+<div class="modal fade" id="kkOlusturModal" tabindex="-1" aria-labelledby="kkOlusturModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="kkOlusturModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>KK Değerleri Oluştur
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="kkOlusturForm">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Firma</th>
+                                    <th>Kod</th>
+                                    <th>Baca</th>
+                                    <th>Personel</th>
+                                    <th>Cihaz</th>
+                                    <th>CO</th>
+                                    <th>NO</th>
+                                    <th>SO2</th>
+                                    <th>O2</th>
+                                    <th>TOC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <input type="date" class="form-control form-control-sm" id="kkTarih" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkFirma" placeholder="Firma" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkKod" placeholder="Kod" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkBaca" placeholder="Baca" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkPersonel" placeholder="Personel" value="Admin">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkCihaz" placeholder="Cihaz" value="-">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkCO" placeholder="CO (örn: 500,5)">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkNO" placeholder="NO (örn: 500,5)">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkSO2" placeholder="SO2 (örn: 500,5)">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkO2" placeholder="O2 (örn: 6,95)">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" id="kkTOC" placeholder="TOC (örn: 100,5)">
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-success" onclick="kkEkle()">
+                    <i class="fas fa-plus me-2"></i>Ekle
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+
+
+// Grafik oluştur (localStorage ve API verilerini ayrı işle)
+function grafikOlustur() {
+    const parametre = document.getElementById('parametreSelect').value;
+    
+    if (!parametre) {
+        alert('Lütfen parametre seçin!');
+        return;
+    }
+    
+    // localStorage'dan verileri al
+    const localStorageVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    
+    // API verilerini de kontrol et
+    const mevcutAPIVerileri = JSON.parse(localStorage.getItem('mevcutAPIVerileri') || '[]');
+    
+    if (localStorageVerileri.length === 0 && mevcutAPIVerileri.length === 0) {
+        // Grafik alanını güncelle
+        const chartArea = document.getElementById('chartArea');
+        chartArea.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-chart-line fa-2x mb-3"></i>
+                <h5>Veri Yok</h5>
+                <p>Grafik oluşturmak için önce "KK Oluştur" ile veri ekleyin veya "Grafik Oluştur" butonuna tıklayın</p>
+            </div>
+        `;
+        
+        // Tabloyu temizle
+        const tbody = document.getElementById('olcumTablosu');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Bu tarih aralığında ölçüm verisi bulunamadı
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // Grafik alanını güncelle
+    const chartArea = document.getElementById('chartArea');
+    chartArea.innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+            <h5>Grafik Oluşturuluyor...</h5>
+            <p>${parametre} parametresi için kalite kontrol grafiği hazırlanıyor</p>
+        </div>
+    `;
+    
+    // Kullanıcının seçtiği tarihleri al
+    const tarihBaslangic = document.getElementById('tarihBaslangic').value;
+    const tarihBitis = document.getElementById('tarihBitis').value;
+    
+    // Tarih formatını dönüştür (DD.MM.YYYY -> YYYY-MM-DD)
+    const baslangicTarih = tarihBaslangic ? tarihBaslangic.split('.').reverse().join('-') : '2025-01-01';
+    const bitisTarih = tarihBitis ? tarihBitis.split('.').reverse().join('-') : '2025-12-31';
+    
+    // API'ye istek gönder
+    fetch('/api/kk_grafik_olustur', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            parametre: parametre,
+            baslangic_tarih: baslangicTarih,
+            bitis_tarih: bitisTarih,
+            localStorage_verileri: localStorageVerileri // localStorage verilerini gönder
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            chartArea.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <h5>Hata Oluştu!</h5>
+                    <p>${data.error}</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Grafiği göster
+        chartArea.innerHTML = `
+            <div class="text-center">
+                <img src="data:image/png;base64,${data.grafik}" 
+                     alt="Kalite Kontrol Grafiği" 
+                     class="img-fluid" 
+                     style="max-width: 100%; height: auto;">
+            </div>
+        `;
+        
+        // API verilerini localStorage'a kaydet
+        if (data.istatistikler && data.istatistikler.gercek_veriler) {
+            localStorage.setItem('mevcutAPIVerileri', JSON.stringify(data.istatistikler.gercek_veriler));
+        }
+        
+        // Tabloyu güncelle (API verilerini de gönder)
+        updateOlcumTablosu(parametre, data.istatistikler);
+    })
+    .catch(error => {
+        console.error('Grafik oluşturma hatası:', error);
+        chartArea.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h5>Bağlantı Hatası!</h5>
+                <p>Grafik oluşturulurken bir hata oluştu.</p>
+            </div>
+        `;
+    });
+}
+
+// Veri dışa aktar
+function veriDisaAktar() {
+    alert('Veri dışa aktarma özelliği yakında eklenecek!');
+}
+
+// localStorage'ı temizle (test için)
+function localStorageTemizle() {
+    if (confirm('localStorage\'daki tüm KK verilerini silmek istediğinizden emin misiniz?')) {
+        localStorage.removeItem('kkOlcumVerileri');
+        localStorage.removeItem('mevcutAPIVerileri');
+        alert('localStorage temizlendi! Sayfayı yenileyin.');
+        location.reload();
+    }
+}
+
+// Test verileri ekle (checkbox'ları görmek için)
+function testVerileriEkle() {
+    const testVerileri = [
+        {
+            tarih: '2025-08-16',
+            firma: 'Test Firma 1',
+            kod: 'TEST-001',
+            baca: 'Test Baca 1',
+            personel: 'Admin',
+            cihaz: 'Test Cihaz',
+            co: 500.5,
+            no: 450.2,
+            so2: 480.8,
+            o2: 6.95,
+            toc: 100.5
+        },
+        {
+            tarih: '2025-08-17',
+            firma: 'Test Firma 2',
+            kod: 'TEST-002',
+            baca: 'Test Baca 2',
+            personel: 'Admin',
+            cihaz: 'Test Cihaz',
+            co: 520.3,
+            no: 470.1,
+            so2: 490.2,
+            o2: 7.1,
+            toc: 105.8
+        },
+        {
+            tarih: '2025-08-18',
+            firma: 'Test Firma 3',
+            kod: 'TEST-003',
+            baca: 'Test Baca 3',
+            personel: 'Admin',
+            cihaz: 'Test Cihaz',
+            co: 480.7,
+            no: 430.9,
+            so2: 460.5,
+            o2: 6.8,
+            toc: 95.2
+        }
+    ];
+    
+    const mevcutVeriler = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    testVerileri.forEach(veri => mevcutVeriler.push(veri));
+    localStorage.setItem('kkOlcumVerileri', JSON.stringify(mevcutVeriler));
+    
+    alert('Test verileri eklendi! Şimdi checkbox\'ları görebilirsiniz.');
+    
+    // Tabloyu güncelle
+    const seciliParametre = document.getElementById('parametreSelect').value;
+    const mevcutAPIVerileri = JSON.parse(localStorage.getItem('mevcutAPIVerileri') || '[]');
+    updateOlcumTablosu(seciliParametre, { gercek_veriler: mevcutAPIVerileri });
+}
+
+// localStorage'ı düzenle
+function localStorageDuzenle() {
+    // localStorage verilerini al
+    const kkVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    const apiVerileri = JSON.parse(localStorage.getItem('mevcutAPIVerileri') || '[]');
+    
+    // Modal HTML'i oluştur
+    const modalHTML = `
+        <div class="modal fade" id="localStorageModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-database me-2"></i>localStorage Düzenle
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="text-primary mb-0">
+                                        <i class="fas fa-list me-2"></i>KK Ölçüm Verileri (${kkVerileri.length} kayıt)
+                                    </h6>
+                                    <div>
+                                        <button class="btn btn-success btn-sm me-1" onclick="localStorageVeriEkle()" title="Yeni Veri Ekle">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        <button class="btn btn-info btn-sm" onclick="localStorageSeçiliVeriDuzenle()" title="Seçili Veriyi Düzenle">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="table-dark sticky-top">
+                                            <tr>
+                                                <th style="width: 30px;">
+                                                    <input type="checkbox" id="selectAllKK" onchange="toggleSelectAllKK()">
+                                                </th>
+                                                <th>#</th>
+                                                <th>Tarih</th>
+                                                <th>Firma</th>
+                                                <th>Kod</th>
+                                                <th>Baca</th>
+                                                <th>CO</th>
+                                                <th>NO</th>
+                                                <th>SO2</th>
+                                                <th>O2</th>
+                                                <th>TOC</th>
+                                                <th>İşlem</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="kkVerileriTablosu">
+                                            ${kkVerileri.map((veri, index) => `
+                                                <tr>
+                                                    <td>
+                                                        <input type="checkbox" class="kk-checkbox" value="${index}" onchange="updateSelectAllKK()">
+                                                    </td>
+                                                    <td>${index + 1}</td>
+                                                    <td>${veri.tarih || '-'}</td>
+                                                    <td>${veri.firma || '-'}</td>
+                                                    <td>${veri.kod || '-'}</td>
+                                                    <td>${veri.baca || '-'}</td>
+                                                    <td>${veri.co ? veri.co.toString().replace('.', ',') : '-'}</td>
+                                                    <td>${veri.no ? veri.no.toString().replace('.', ',') : '-'}</td>
+                                                    <td>${veri.so2 ? veri.so2.toString().replace('.', ',') : '-'}</td>
+                                                    <td>${veri.o2 ? veri.o2.toString().replace('.', ',') : '-'}</td>
+                                                    <td>${veri.toc ? veri.toc.toString().replace('.', ',') : '-'}</td>
+                                                    <td>
+                                                        <button class="btn btn-warning btn-sm me-1" onclick="localStorageVeriDuzenle(${index})" title="Düzenle">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm" onclick="localStorageVeriSil(${index})" title="Sil">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-success">
+                                    <i class="fas fa-server me-2"></i>API Verileri (${apiVerileri.length} kayıt)
+                                </h6>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="table-dark sticky-top">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Tarih</th>
+                                                <th>Firma</th>
+                                                <th>Kod</th>
+                                                <th>Baca</th>
+                                                <th>Değer</th>
+                                                <th>Personel</th>
+                                                <th>Cihaz</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="apiVerileriTablosu">
+                                            ${apiVerileri.map((veri, index) => `
+                                                <tr>
+                                                    <td>${index + 1}</td>
+                                                    <td>${veri.tarih || '-'}</td>
+                                                    <td>${veri.firma || '-'}</td>
+                                                    <td>${veri.kod || '-'}</td>
+                                                    <td>${veri.baca || '-'}</td>
+                                                    <td>${veri.deger || '-'}</td>
+                                                    <td>${veri.personel || '-'}</td>
+                                                    <td>${veri.cihaz || '-'}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                        <button type="button" class="btn btn-primary" onclick="localStorageKaydet()">
+                            <i class="fas fa-save me-2"></i>Değişiklikleri Kaydet
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Modal'ı sayfaya ekle ve göster
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modalElement = document.getElementById('localStorageModal');
+    const modalInstance = new bootstrap.Modal(modalElement);
+    modalInstance.show();
+    
+    // Modal kapandığında DOM'dan kaldır
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        modalElement.remove();
+    });
+}
+
+// localStorage'dan veri sil
+function localStorageVeriSil(index) {
+    if (confirm(`Bu veriyi silmek istediğinizden emin misiniz? (Kayıt #${index + 1})`)) {
+        const kkVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+        kkVerileri.splice(index, 1);
+        localStorage.setItem('kkOlcumVerileri', JSON.stringify(kkVerileri));
+        
+        // Tabloyu güncelle
+        const row = document.querySelector(`#kkVerileriTablosu tr:nth-child(${index + 1})`);
+        if (row) {
+            row.remove();
+        }
+        
+        // Kayıt sayısını güncelle
+        const header = document.querySelector('.text-primary');
+        if (header) {
+            header.innerHTML = `<i class="fas fa-list me-2"></i>KK Ölçüm Verileri (${kkVerileri.length} kayıt)`;
+        }
+        
+        alert('Veri silindi!');
+    }
+}
+
+// localStorage değişikliklerini kaydet
+function localStorageKaydet() {
+    alert('localStorage güncellendi! Sayfayı yenileyin.');
+    location.reload();
+}
+
+// KK verileri için select all toggle
+function toggleSelectAllKK() {
+    const selectAll = document.getElementById('selectAllKK');
+    const checkboxes = document.querySelectorAll('.kk-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+// KK verileri için select all update
+function updateSelectAllKK() {
+    const selectAll = document.getElementById('selectAllKK');
+    const checkboxes = document.querySelectorAll('.kk-checkbox');
+    const checkedBoxes = document.querySelectorAll('.kk-checkbox:checked');
+    
+    selectAll.checked = checkboxes.length > 0 && checkboxes.length === checkedBoxes.length;
+    selectAll.indeterminate = checkedBoxes.length > 0 && checkboxes.length !== checkedBoxes.length;
+}
+
+// Seçili veriyi düzenle
+function localStorageSeçiliVeriDuzenle() {
+    const checkedBoxes = document.querySelectorAll('.kk-checkbox:checked');
+    
+    if (checkedBoxes.length === 0) {
+        alert('Lütfen düzenlemek istediğiniz veriyi seçin!');
+        return;
+    }
+    
+    if (checkedBoxes.length > 1) {
+        alert('Lütfen sadece bir veri seçin!');
+        return;
+    }
+    
+    const selectedIndex = parseInt(checkedBoxes[0].value);
+    localStorageVeriDuzenle(selectedIndex);
+}
+
+// localStorage'a yeni veri ekle
+function localStorageVeriEkle() {
+    const yeniVeri = {
+        tarih: '2025-08-16',
+        firma: 'Yeni Firma',
+        kod: 'YENI-001',
+        baca: 'Yeni Baca',
+        personel: 'Admin',
+        cihaz: '-',
+        co: '',
+        no: '',
+        so2: '',
+        o2: '',
+        toc: ''
+    };
+    
+    const kkVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    kkVerileri.push(yeniVeri);
+    localStorage.setItem('kkOlcumVerileri', JSON.stringify(kkVerileri));
+    
+    alert('Yeni veri eklendi! Sayfayı yenileyin.');
+    location.reload();
+}
+
+// localStorage'dan veri düzenle
+function localStorageVeriDuzenle(index) {
+    console.log('Düzenleme index:', index);
+    
+    const kkVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    console.log('Mevcut veriler:', kkVerileri);
+    
+    // Index kontrolü
+    if (index === undefined || index === null || isNaN(index)) {
+        alert('Geçersiz veri indeksi!');
+        return;
+    }
+    
+    const veri = kkVerileri[index];
+    console.log('Düzenlenecek veri:', veri);
+    
+    if (!veri) {
+        alert(`Veri bulunamadı! (Index: ${index}, Toplam veri: ${kkVerileri.length})`);
+        return;
+    }
+    
+    // Güzel düzenleme modal'ı oluştur
+    const modalHTML = `
+        <div class="modal fade" id="duzenleModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title">
+                            <i class="fas fa-edit me-2"></i>Veri Düzenle (Kayıt #${index + 1})
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="duzenleForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tarih</label>
+                                        <input type="date" class="form-control" id="duzenleTarih" value="${veri.tarih || ''}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Firma</label>
+                                        <input type="text" class="form-control" id="duzenleFirma" value="${veri.firma || ''}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kod</label>
+                                        <input type="text" class="form-control" id="duzenleKod" value="${veri.kod || ''}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Baca</label>
+                                        <input type="text" class="form-control" id="duzenleBaca" value="${veri.baca || ''}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Personel</label>
+                                        <input type="text" class="form-control" id="duzenlePersonel" value="${veri.personel || 'Admin'}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Cihaz</label>
+                                        <input type="text" class="form-control" id="duzenleCihaz" value="${veri.cihaz || '-'}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">CO</label>
+                                                                                 <input type="text" class="form-control" id="duzenleCO" value="${veri.co ? veri.co.toString().replace('.', ',') : ''}" placeholder="örn: 500,5">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label class="form-label">NO</label>
+                                         <input type="text" class="form-control" id="duzenleNO" value="${veri.no ? veri.no.toString().replace('.', ',') : ''}" placeholder="örn: 450,2">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label class="form-label">SO2</label>
+                                         <input type="text" class="form-control" id="duzenleSO2" value="${veri.so2 ? veri.so2.toString().replace('.', ',') : ''}" placeholder="örn: 480,8">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label class="form-label">O2</label>
+                                         <input type="text" class="form-control" id="duzenleO2" value="${veri.o2 ? veri.o2.toString().replace('.', ',') : ''}" placeholder="örn: 6,95">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label class="form-label">TOC</label>
+                                         <input type="text" class="form-control" id="duzenleTOC" value="${veri.toc ? veri.toc.toString().replace('.', ',') : ''}" placeholder="örn: 100,5">
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                        <button type="button" class="btn btn-warning" onclick="localStorageVeriKaydet(${index})">
+                            <i class="fas fa-save me-2"></i>Kaydet
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Modal'ı sayfaya ekle ve göster
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modalElement = document.getElementById('duzenleModal');
+    const modalInstance = new bootstrap.Modal(modalElement);
+    modalInstance.show();
+    
+    // Modal kapandığında DOM'dan kaldır
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        modalElement.remove();
+    });
+}
+
+// localStorage veri kaydet
+function localStorageVeriKaydet(index) {
+    const kkVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    const veri = kkVerileri[index];
+    
+    if (!veri) {
+        alert('Veri bulunamadı!');
+        return;
+    }
+    
+    // Form değerlerini al
+    const yeniVeri = {
+        ...veri,
+        tarih: document.getElementById('duzenleTarih').value,
+        firma: document.getElementById('duzenleFirma').value,
+        kod: document.getElementById('duzenleKod').value,
+        baca: document.getElementById('duzenleBaca').value,
+        personel: document.getElementById('duzenlePersonel').value,
+        cihaz: document.getElementById('duzenleCihaz').value,
+        co: document.getElementById('duzenleCO').value.replace(',', '.'),
+        no: document.getElementById('duzenleNO').value.replace(',', '.'),
+        so2: document.getElementById('duzenleSO2').value.replace(',', '.'),
+        o2: document.getElementById('duzenleO2').value.replace(',', '.'),
+        toc: document.getElementById('duzenleTOC').value.replace(',', '.')
+    };
+    
+    // Validasyon
+    if (!yeniVeri.tarih || !yeniVeri.firma || !yeniVeri.kod || !yeniVeri.baca) {
+        alert('Lütfen zorunlu alanları doldurun!');
+        return;
+    }
+    
+    // Veriyi güncelle
+    kkVerileri[index] = yeniVeri;
+    localStorage.setItem('kkOlcumVerileri', JSON.stringify(kkVerileri));
+    
+    // Modal'ı kapat
+    const modalElement = document.getElementById('duzenleModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalElement);
+    modalInstance.hide();
+    
+    alert('Veri başarıyla güncellendi!');
+    location.reload();
+}
+
+// Rapor oluştur
+function raporOlustur() {
+    // Format seçimi için modal göster
+    const modal = `
+        <div class="modal fade" id="raporModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Rapor Formatı Seçin</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success" onclick="raporOlusturFormat('excel')">
+                                <i class="fas fa-file-excel me-2"></i>Excel Raporu
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="raporOlusturFormat('word')">
+                                <i class="fas fa-file-word me-2"></i>Word Raporu
+                            </button>
+                            <button type="button" class="btn btn-danger" onclick="raporOlusturFormat('pdf')">
+                                <i class="fas fa-file-pdf me-2"></i>PDF Raporu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Modal'ı sayfaya ekle ve göster
+    document.body.insertAdjacentHTML('beforeend', modal);
+    const modalElement = document.getElementById('raporModal');
+    const modalInstance = new bootstrap.Modal(modalElement);
+    modalInstance.show();
+    
+    // Modal kapandığında DOM'dan kaldır
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        modalElement.remove();
+    });
+}
+
+// Format seçimine göre rapor oluştur
+function raporOlusturFormat(format) {
+    const parametre = document.getElementById('parametreSelect').value;
+    const tarihBaslangic = document.getElementById('tarihBaslangic').value;
+    const tarihBitis = document.getElementById('tarihBitis').value;
+    
+    if (!parametre) {
+        alert('Lütfen önce bir parametre seçin!');
+        return;
+    }
+    
+    // Modal'ı kapat
+    const modal = bootstrap.Modal.getInstance(document.getElementById('raporModal'));
+    modal.hide();
+    
+    // Loading göster
+    const loadingDiv = document.createElement('div');
+    loadingDiv.innerHTML = `
+        <div class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" 
+             style="background: rgba(0,0,0,0.5); z-index: 9999;">
+            <div class="text-center text-white">
+                <div class="spinner-border mb-3" role="status"></div>
+                <div>Rapor oluşturuluyor...</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    // localStorage verilerini al
+    const localStorageVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    
+    // API'ye istek gönder
+    fetch('/api/kk_rapor_olustur', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            parametre: parametre,
+            tarih_baslangic: tarihBaslangic,
+            tarih_bitis: tarihBitis,
+            format: format,
+            localStorage_verileri: localStorageVerileri
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Rapor oluşturulamadı');
+    })
+    .then(blob => {
+        // Dosyayı indir
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Format'a göre doğru uzantıyı belirle
+        let fileExtension;
+        if (format === 'excel') {
+            fileExtension = 'xlsx';
+        } else if (format === 'word') {
+            fileExtension = 'docx';
+        } else if (format === 'pdf') {
+            fileExtension = 'pdf';
+        } else {
+            fileExtension = format;
+        }
+        
+        a.download = `KK_Rapor_${parametre}_${tarihBaslangic}_${tarihBitis}.${fileExtension}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    })
+    .catch(error => {
+        console.error('Rapor oluşturma hatası:', error);
+        alert('Rapor oluşturulurken bir hata oluştu!');
+    })
+    .finally(() => {
+        // Loading'i kaldır
+        document.body.removeChild(loadingDiv);
+    });
+}
+
+// Excel raporu oluştururken grafiği de ekle
+function excelExportWithGraph() {
+    const chartArea = document.getElementById('chartArea');
+    html2canvas(chartArea).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const parametre = document.getElementById('parametreSelect').value;
+        const tarihBaslangic = document.getElementById('tarihBaslangic').value;
+        const tarihBitis = document.getElementById('tarihBitis').value;
+        const localStorageVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+        fetch('/api/kk_excel_with_graph', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                parametre: parametre,
+                tarih_baslangic: tarihBaslangic,
+                tarih_bitis: tarihBitis,
+                localStorage_verileri: localStorageVerileri,
+                graph_png: imgData
+            })
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `KK_Rapor_${parametre}_${tarihBaslangic}_${tarihBitis}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+    });
+}
+
+// Sayfa yüklendiğinde
+document.addEventListener('DOMContentLoaded', function() {
+    // KK parametrelerini yükle
+    loadKKParametreler();
+    
+    // Bugünün tarihini varsayılan olarak ayarla
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tarihBitis').value = today;
+    
+    // 30 gün öncesini başlangıç tarihi olarak ayarla
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    document.getElementById('tarihBaslangic').value = thirtyDaysAgo.toISOString().split('T')[0];
+});
+
+ // Tablo güncelleme fonksiyonu (yeniden yazıldı)
+ function updateOlcumTablosu(parametre, istatistikler) {
+     const tbody = document.getElementById('olcumTablosu');
+     
+     // Tüm verileri topla
+     let tumVeriler = [];
+     
+     // 1. API'den gelen veriler (sadece bir kere ekle)
+     if (istatistikler && istatistikler.gercek_veriler && istatistikler.gercek_veriler.length > 0) {
+         istatistikler.gercek_veriler.forEach(veri => {
+             tumVeriler.push({
+                 ...veri,
+                 kaynak: 'API',
+                 localStorageIndex: null
+             });
+         });
+     }
+     
+     // 2. localStorage'dan gelen veriler (sadece bir kere ekle)
+     const localStorageVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+     localStorageVerileri.forEach((veri, localStorageIndex) => {
+         // Parametreye göre filtrele
+         let parametreDegeri = null;
+         let eklenebilir = false;
+         
+         switch(parametre) {
+             case 'CO':
+                 if (veri.co !== null && veri.co !== undefined) {
+                     parametreDegeri = veri.co;
+                     eklenebilir = true;
+                 }
+                 break;
+             case 'NO':
+                 if (veri.no !== null && veri.no !== undefined) {
+                     parametreDegeri = veri.no;
+                     eklenebilir = true;
+                 }
+                 break;
+             case 'SO2':
+                 if (veri.so2 !== null && veri.so2 !== undefined) {
+                     parametreDegeri = veri.so2;
+                     eklenebilir = true;
+                 }
+                 break;
+             case 'O2':
+                 if (veri.o2 !== null && veri.o2 !== undefined) {
+                     parametreDegeri = veri.o2;
+                     eklenebilir = true;
+                 }
+                 break;
+             case 'TOC':
+                 if (veri.toc !== null && veri.toc !== undefined) {
+                     parametreDegeri = veri.toc;
+                     eklenebilir = true;
+                 }
+                 break;
+         }
+         
+         if (eklenebilir) {
+             tumVeriler.push({
+                 tarih: veri.tarih,
+                 firma: veri.firma,
+                 kod: veri.kod,
+                 baca: veri.baca,
+                 personel: veri.personel,
+                 cihaz: veri.cihaz,
+                 deger: parametreDegeri,
+                 localStorageIndex: localStorageIndex,
+                 kaynak: 'localStorage'
+             });
+         }
+     });
+     
+     // 3. Tarihe göre sırala
+     tumVeriler.sort((a, b) => new Date(a.tarih) - new Date(b.tarih));
+     
+     // 4. Mükerrer verileri filtrele (çok daha sıkı kontrol)
+     const benzersizVeriler = [];
+     const kullanilanKombinasyonlar = new Set();
+     
+     tumVeriler.forEach(veri => {
+         // Çok daha detaylı benzersiz kombinasyon oluştur
+         // Tarih, firma, kod, baca, değer, personel, cihaz ve kaynak tipini dahil et
+         const kombinasyon = `${veri.tarih}_${veri.firma || ''}_${veri.kod || ''}_${veri.baca || ''}_${veri.deger}_${veri.personel || ''}_${veri.cihaz || ''}_${veri.kaynak || ''}`;
+         
+         // Eğer bu kombinasyon daha önce kullanılmamışsa ekle
+         if (!kullanilanKombinasyonlar.has(kombinasyon)) {
+             kullanilanKombinasyonlar.add(kombinasyon);
+             benzersizVeriler.push(veri);
+         } else {
+             console.log('Mükerrer veri filtrelendi:', kombinasyon);
+         }
+     });
+     
+     // Ayrıca aynı tarih ve değere sahip verileri de filtrele (farklı kaynaklardan gelen)
+     const sonFiltreleme = [];
+     const tarihDegerKombinasyonlari = new Set();
+     
+     benzersizVeriler.forEach(veri => {
+         const tarihDegerKombinasyonu = `${veri.tarih}_${veri.deger}`;
+         
+         if (!tarihDegerKombinasyonlari.has(tarihDegerKombinasyonu)) {
+             tarihDegerKombinasyonlari.add(tarihDegerKombinasyonu);
+             sonFiltreleme.push(veri);
+         } else {
+             console.log('Aynı tarih-değer kombinasyonu filtrelendi:', tarihDegerKombinasyonu);
+         }
+     });
+     
+     // Son filtrelenmiş verileri kullan
+     tumVeriler = sonFiltreleme;
+     
+     // 4. Tabloyu güncelle
+     if (tumVeriler.length > 0) {
+         let html = '';
+         tumVeriler.forEach((veri, index) => {
+             const tarih = new Date(veri.tarih).toLocaleDateString('tr-TR', {
+                 day: '2-digit',
+                 month: '2-digit',
+                 year: '2-digit'
+             });
+             const firmaAdi = veri.firma ? veri.firma.split(' ').slice(0, 2).join(' ') : '';
+             
+             html += `
+                 <tr>
+                     <td class="text-center">
+                         ${veri.kaynak === 'localStorage' ? 
+                             `<input type="checkbox" class="veri-checkbox" value="${veri.localStorageIndex}" data-index="${index}" onchange="updateSelectAll()">` : 
+                             `<span class="text-muted">-</span>`
+                         }
+                     </td>
+                     <td class="text-center">${index + 1}</td>
+                     <td>${tarih}</td>
+                     <td>${firmaAdi}</td>
+                     <td style="text-align: left !important; word-wrap: break-word; white-space: normal;">${veri.kod || ''}</td>
+                     <td>${veri.baca || ''}</td>
+                     <td class="text-center">${veri.personel || 'Admin'}</td>
+                     <td class="text-center">${veri.cihaz || '-'}</td>
+                     <td style="text-align: left !important; font-weight: bold;">${veri.deger ? veri.deger.toString().replace('.', ',') : '-'}</td>
+                 </tr>
+             `;
+         });
+         tbody.innerHTML = html;
+     } else {
+         tbody.innerHTML = `
+             <tr>
+                 <td colspan="8" class="text-center text-muted">
+                     <i class="fas fa-info-circle me-2"></i>
+                     Bu tarih aralığında ölçüm verisi bulunamadı
+                 </td>
+             </tr>
+         `;
+     }
+ }
+
+// KK Oluştur fonksiyonu
+function kkOlustur() {
+    // Bugünün tarihini varsayılan olarak ayarla
+    document.getElementById('kkTarih').value = new Date().toISOString().split('T')[0];
+    // Modal aç
+    const modal = new bootstrap.Modal(document.getElementById('kkOlusturModal'));
+    modal.show();
+}
+
+// Tümünü seç/kaldır
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.veri-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    // Satır vurgulamasını güncelle
+    updateRowHighlighting();
+}
+
+// Select All checkbox'ını güncelle
+function updateSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.veri-checkbox');
+    const checkedBoxes = document.querySelectorAll('.veri-checkbox:checked');
+    
+    if (checkedBoxes.length === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    } else if (checkedBoxes.length === checkboxes.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    }
+    
+    // Satır vurgulamasını güncelle
+    updateRowHighlighting();
+}
+
+// Satır vurgulamasını güncelle
+function updateRowHighlighting() {
+    const checkboxes = document.querySelectorAll('.veri-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        if (checkbox.checked) {
+            row.classList.add('selected');
+        } else {
+            row.classList.remove('selected');
+        }
+    });
+}
+
+// Seçili verileri sil
+function seciliVerileriSil() {
+    console.log('Silme işlemi başladı');
+    
+    const checkboxes = document.querySelectorAll('.veri-checkbox:checked');
+    console.log('Seçili checkbox sayısı:', checkboxes.length);
+    
+    if (checkboxes.length === 0) {
+        alert('Lütfen silmek istediğiniz verileri seçin!');
+        return;
+    }
+    
+    if (!confirm(`${checkboxes.length} adet veriyi silmek istediğinizden emin misiniz?`)) {
+        return;
+    }
+    
+    try {
+        // localStorage'dan verileri al
+        const localStorageVerileri = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+        console.log('Mevcut veri sayısı:', localStorageVerileri.length);
+        
+        // Seçili localStorage indekslerini al
+        const seciliLocalStorageIndeksler = Array.from(checkboxes).map(checkbox => parseInt(checkbox.value)).filter(index => !isNaN(index));
+        console.log('Silinecek localStorage indeksler:', seciliLocalStorageIndeksler);
+        
+        // Verileri kopyala ve seçili localStorage indekslerden sil (büyükten küçüğe sırala)
+        const yeniVeriler = [...localStorageVerileri];
+        seciliLocalStorageIndeksler.sort((a, b) => b - a).forEach(index => {
+            if (index >= 0 && index < yeniVeriler.length) {
+                yeniVeriler.splice(index, 1);
+                console.log(`${index} localStorage indeksindeki veri silindi`);
+            }
+        });
+        
+        console.log('Yeni veri sayısı:', yeniVeriler.length);
+        
+        // localStorage'ı güncelle
+        localStorage.setItem('kkOlcumVerileri', JSON.stringify(yeniVeriler));
+        
+        // Tabloyu güncelle (sadece localStorage verilerini güncelle, API verilerini koru)
+        const seciliParametre = document.getElementById('parametreSelect').value;
+        // Mevcut API verilerini koru, sadece localStorage verilerini güncelle
+        const mevcutAPIVerileri = JSON.parse(localStorage.getItem('mevcutAPIVerileri') || '[]');
+        updateOlcumTablosu(seciliParametre, { gercek_veriler: mevcutAPIVerileri });
+        
+        alert(`${checkboxes.length} adet veri başarıyla silindi!`);
+        
+    } catch (error) {
+        console.error('Silme hatası:', error);
+        alert('Silme işlemi sırasında bir hata oluştu!');
+    }
+}
+
+// KK Verilerini Ekle
+function kkEkle() {
+    const tarih = document.getElementById('kkTarih').value;
+    const firma = document.getElementById('kkFirma').value;
+    const kod = document.getElementById('kkKod').value;
+    const baca = document.getElementById('kkBaca').value;
+    const personel = document.getElementById('kkPersonel').value;
+    const cihaz = document.getElementById('kkCihaz').value;
+    const co = document.getElementById('kkCO').value;
+    const no = document.getElementById('kkNO').value;
+    const so2 = document.getElementById('kkSO2').value;
+    const o2 = document.getElementById('kkO2').value;
+    const toc = document.getElementById('kkTOC').value;
+    
+    if (!tarih || !firma || !kod || !baca) {
+        alert('Lütfen zorunlu alanları doldurun! (Tarih, Firma, Kod, Baca)');
+        return;
+    }
+    
+    // Ondalık sayıları doğru şekilde işle
+    function parseDecimal(value) {
+        if (!value) return null;
+        // Virgülü noktaya çevir ve parse et
+        const cleanValue = value.toString().replace(',', '.');
+        return parseFloat(cleanValue);
+    }
+    
+    // Yeni veriyi oluştur
+    const yeniVeri = {
+        tarih: tarih,
+        firma: firma,
+        kod: kod,
+        baca: baca,
+        personel: personel || 'Admin',
+        cihaz: cihaz || '-',
+        co: parseDecimal(co),
+        no: parseDecimal(no),
+        so2: parseDecimal(so2),
+        o2: parseDecimal(o2),
+        toc: parseDecimal(toc)
+    };
+    
+    // Mevcut verileri al
+    const mevcutVeriler = JSON.parse(localStorage.getItem('kkOlcumVerileri') || '[]');
+    mevcutVeriler.push(yeniVeri);
+    localStorage.setItem('kkOlcumVerileri', JSON.stringify(mevcutVeriler));
+    
+    // Modal'ı kapat
+    const modal = bootstrap.Modal.getInstance(document.getElementById('kkOlusturModal'));
+    modal.hide();
+    
+    // Başarı mesajı göster
+    alert('Veri başarıyla eklendi!');
+    
+    // Formu temizle
+    document.getElementById('kkOlusturForm').reset();
+    
+    // Sadece tabloyu güncelle (grafik güncellemesini kaldırdım)
+    const seciliParametre = document.getElementById('parametreSelect').value;
+    updateOlcumTablosu(seciliParametre, null);
+}
+
+// KK parametrelerini yükle
+function loadKKParametreler() {
+    fetch('/api/kk_parametreler')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('parametreSelect');
+            
+            // Mevcut seçenekleri temizle
+            select.innerHTML = '<option value="">Tüm Parametreler</option>';
+            
+            // Sabit parametreleri ekle (sadece TOC)
+            const sabitParametreler = ['TOC'];
+            sabitParametreler.forEach(parametre => {
+                const option = document.createElement('option');
+                option.value = parametre;
+                option.textContent = parametre;
+                select.appendChild(option);
+            });
+            
+            // KK sütunu dolu olan parametreleri ekle (eğer zaten eklenmemişse)
+            data.forEach(parametre => {
+                const parametreAdi = parametre.parametre_adi;
+                // Eğer bu parametre zaten eklenmemişse ekle
+                if (!sabitParametreler.includes(parametreAdi)) {
+                    const option = document.createElement('option');
+                    option.value = parametreAdi;
+                    option.textContent = parametreAdi;
+                    select.appendChild(option);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('KK parametreleri yüklenirken hata:', error);
+        });
+}
+</script>
+{% endblock %}

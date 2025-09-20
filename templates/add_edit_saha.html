@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ 'Saha Düzenle' if saha else 'Yeni Saha Ekle' }} - Emisyon Saha Programı
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="card-title mb-4">{{ 'Saha Düzenle' if saha else 'Yeni Saha Ekle' }}</h3>
+                    <form method="post" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="saha_adi" class="form-label">Saha Adı</label>
+                                <input type="text" class="form-control" id="saha_adi" name="Saha Adı" value="{{ saha['Saha Adı'] if saha else '' }}" required>
+                                <div class="invalid-feedback">Bu alan zorunludur.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="saha_kodu" class="form-label">Saha Kodu</label>
+                                <input type="text" class="form-control" id="saha_kodu" name="Saha Kodu" value="{{ saha['Saha Kodu'] if saha else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sorumlu" class="form-label">Sorumlu Kişi</label>
+                                <input type="text" class="form-control" id="sorumlu" name="Sorumlu" value="{{ saha['Sorumlu'] if saha else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="aciklama" class="form-label">Açıklama</label>
+                                <textarea class="form-control" id="aciklama" name="Açıklama" rows="2">{{ saha['Açıklama'] if saha else '' }}</textarea>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('saha_list') }}" class="btn btn-secondary me-2">İptal</a>
+                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+    var forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+</script>
+{% endblock %} 

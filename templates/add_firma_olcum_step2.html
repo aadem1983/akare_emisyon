@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}Firma Ölçüm Ekle - 2. Aşama{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <h2 class="mb-0 me-4">Firma Ölçüm Ekle - 2. Aşama</h2>
+                    <div class="progress" style="width: 200px;">
+                        <div class="progress-bar" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">2/2</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. Aşama Özeti -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">1. Aşama Bilgileri</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Firma Adı:</strong><br>
+                            {{ temp_data.firma_adi }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Ölçüm Kodu:</strong><br>
+                            {{ temp_data.olcum_kodu }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Başlangıç:</strong><br>
+                            {{ temp_data.baslangic_tarihi or 'Belirtilmemiş' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Bitiş:</strong><br>
+                            {{ temp_data.bitis_tarihi or 'Belirtilmemiş' }}
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-3">
+                            <strong>İl-İlçe:</strong><br>
+                            {{ temp_data.il or 'Belirtilmemiş' }} - {{ temp_data.ilce or 'Belirtilmemiş' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Yetkili:</strong><br>
+                            {{ temp_data.yetkili or 'Belirtilmemiş' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Telefon:</strong><br>
+                            {{ temp_data.telefon or 'Belirtilmemiş' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Durum:</strong><br>
+                            <span class="badge bg-{{ 'success' if temp_data.durum == 'Aktif' else 'danger' }}">
+                                {{ temp_data.durum }}
+                            </span>
+                        </div>
+                    </div>
+                    {% if temp_data.secilen_personel %}
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <strong>Seçilen Personel:</strong><br>
+                            {% for person in temp_data.secilen_personel %}
+                            <span class="badge bg-info me-1">{{ person }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST" id="bacaForm">
+                        <!-- Baca Sayısı Girişi -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="baca_sayisi" class="form-label">Baca Sayısı</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="baca_sayisi" name="baca_sayisi" min="1" max="20" value="1">
+                                    <button type="button" class="btn btn-primary" id="bacaEkleBtn">
+                                        <i class="fas fa-plus"></i> Ekle
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">Baca sayısını girin ve "Ekle" butonuna tıklayın</small>
+                            </div>
+                        </div>
+
+                        <!-- Dinamik Baca-Parametre Tablosu -->
+                        <div id="bacaTabloContainer" style="display: none;">
+                            <h5 class="mb-3">Baca-Parametre Matrisi</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm" id="bacaTablo">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 150px;">Baca İsimleri</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Notlar -->
+                        <div class="row mt-4">
+                            <div class="col-12 mb-3">
+                                <label for="notlar" class="form-label">Notlar</label>
+                                <textarea class="form-control" id="notlar" name="notlar" rows="4" placeholder="Ek notlarınızı buraya yazabilirsiniz..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Butonlar -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('add_firma_olcum_step1') }}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> 1. Aşamaya Geri Dön
+                                    </a>
+                                    <button type="submit" class="btn btn-success" id="kaydetBtn" disabled>
+                                        <i class="fas fa-save"></i> Kaydet
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Parametre listesini JavaScript'e aktar
+    const parametreler = [
+        {% for param in parameters %}
+        {
+            id: "{{ param.get('id', loop.index) }}",
+            ad: "{{ param.get('Parametre Adı', param.get('ad', param.get('isim', ''))) }}",
+            metot: "{{ param.get('Metot', '') }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const bacaSayisiInput = document.getElementById('baca_sayisi');
+    const bacaEkleBtn = document.getElementById('bacaEkleBtn');
+    const bacaTabloContainer = document.getElementById('bacaTabloContainer');
+    const bacaTablo = document.getElementById('bacaTablo');
+    const kaydetBtn = document.getElementById('kaydetBtn');
+    
+    // Baca Ekle butonuna tıklandığında
+    bacaEkleBtn.addEventListener('click', function() {
+        const bacaSayisi = parseInt(bacaSayisiInput.value);
+        if (bacaSayisi < 1 || bacaSayisi > 20) {
+            alert('Baca sayısı 1-20 arasında olmalıdır!');
+            return;
+        }
+        
+        tabloOlustur(bacaSayisi);
+        bacaTabloContainer.style.display = 'block';
+        kaydetBtn.disabled = false;
+    });
+    
+    // Tablo oluştur
+    function tabloOlustur(bacaSayisi) {
+        // Tablo başlığını temizle ve yeniden oluştur
+        const thead = bacaTablo.querySelector('thead');
+        thead.innerHTML = `
+            <tr>
+                <th style="width: 300px;">Baca İsimleri</th>
+            </tr>
+            <tr>
+                <th style="width: 300px;"></th>
+            </tr>
+        `;
+        
+        // Tekrarlayan parametreleri filtrele ve benzersiz parametreleri al
+        const benzersizParametreler = [];
+        const parametreAdlari = new Set();
+        
+        parametreler.forEach(param => {
+            if (!parametreAdlari.has(param.ad)) {
+                parametreAdlari.add(param.ad);
+                benzersizParametreler.push(param);
+            }
+        });
+        
+        // Parametre başlıklarını ekle (sayı göstergesi ile)
+        benzersizParametreler.forEach(param => {
+            const th = document.createElement('th');
+            th.innerHTML = `
+                <div class="text-center">
+                    <div class="fw-bold">${param.ad}</div>
+                    <div class="text-muted small" id="sayac_${param.ad.replace(/\s+/g, '_')}">0</div>
+                </div>
+            `;
+            th.style.minWidth = '60px';
+            th.style.maxWidth = '80px';
+            th.style.fontSize = '11px';
+            th.className = 'text-center';
+            thead.querySelector('tr:last-child').appendChild(th);
+        });
+        
+        // Tablo gövdesini temizle ve yeniden oluştur
+        const tbody = bacaTablo.querySelector('tbody');
+        tbody.innerHTML = '';
+        
+        // Baca satırlarını ekle
+        for (let i = 1; i <= bacaSayisi; i++) {
+            const tr = document.createElement('tr');
+            
+            // Baca adı hücresi
+            const bacaAdiTd = document.createElement('td');
+            bacaAdiTd.innerHTML = `
+                <input type="text" class="form-control form-control-sm" 
+                       name="baca_adi_${i}" value="" 
+                       placeholder="Baca ${i} ismini yazın..."
+                       style="border: none; background: transparent; box-shadow: none;">
+            `;
+            tr.appendChild(bacaAdiTd);
+            
+            // Parametre checkbox'ları
+            benzersizParametreler.forEach(param => {
+                const td = document.createElement('td');
+                td.className = 'text-center';
+                td.innerHTML = `
+                    <div class="form-check d-flex justify-content-center">
+                        <input class="form-check-input parametre-checkbox" type="checkbox" 
+                               name="parametre_${i}_${param.ad.replace(/\s+/g, '_')}" 
+                               value="${param.ad}" 
+                               id="param_${i}_${param.ad.replace(/\s+/g, '_')}"
+                               data-parametre="${param.ad}">
+                    </div>
+                `;
+                tr.appendChild(td);
+            });
+            
+            tbody.appendChild(tr);
+        }
+        
+        // Checkbox event listener'larını ekle
+        document.querySelectorAll('.parametre-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                sayacGuncelle();
+            });
+        });
+    }
+    
+    // Sayaç güncelleme fonksiyonu
+    function sayacGuncelle() {
+        const benzersizParametreler = [];
+        const parametreAdlari = new Set();
+        
+        parametreler.forEach(param => {
+            if (!parametreAdlari.has(param.ad)) {
+                parametreAdlari.add(param.ad);
+                benzersizParametreler.push(param);
+            }
+        });
+        
+        benzersizParametreler.forEach(param => {
+            const parametreAdi = param.ad;
+            const sayacElement = document.getElementById(`sayac_${parametreAdi.replace(/\s+/g, '_')}`);
+            if (sayacElement) {
+                const seciliSayisi = document.querySelectorAll(`input[data-parametre="${parametreAdi}"]:checked`).length;
+                sayacElement.textContent = seciliSayisi;
+            }
+        });
+    }
+    
+    // Form gönderildiğinde
+    const form = document.getElementById('bacaForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Seçilen parametreleri topla
+        const secilenParametreler = {};
+        const bacaSayisi = parseInt(bacaSayisiInput.value);
+        
+        for (let i = 1; i <= bacaSayisi; i++) {
+            const bacaAdi = document.querySelector(`input[name="baca_adi_${i}"]`).value;
+            const bacaParametreleri = [];
+            
+            // Benzersiz parametreleri al
+            const benzersizParametreler = [];
+            const parametreAdlari = new Set();
+            
+            parametreler.forEach(param => {
+                if (!parametreAdlari.has(param.ad)) {
+                    parametreAdlari.add(param.ad);
+                    benzersizParametreler.push(param);
+                }
+            });
+            
+            benzersizParametreler.forEach(param => {
+                const checkbox = document.querySelector(`input[name="parametre_${i}_${param.ad.replace(/\s+/g, '_')}"]`);
+                if (checkbox && checkbox.checked) {
+                    bacaParametreleri.push(param.ad);
+                }
+            });
+            
+            secilenParametreler[bacaAdi] = bacaParametreleri;
+        }
+        
+        // Form verilerini hazırla
+        const formData = new FormData(form);
+        formData.append('baca_parametreleri', JSON.stringify(secilenParametreler));
+        
+        // Loading göster
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
+        
+        // Formu gönder
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/firma_olcum';
+            } else {
+                alert('Hata: ' + data.error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Kaydet';
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('Bir hata oluştu! Lütfen tekrar deneyin.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Kaydet';
+        });
+    });
+});
+</script>
+{% endblock %} 

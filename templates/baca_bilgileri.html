@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+
+{% block title %}Baca Bilgileri - Emisyon Saha Programı{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center">
+                    <h2 class="mb-0 me-4">Baca Bilgileri</h2>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#yeniBacaModal">
+                        <i class="fas fa-plus me-2"></i>Yeni Baca Ekle
+                    </button>
+                </div>
+            </div>
+
+            <!-- Arama ve Filtreleme -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="searchInput" class="form-label">Genel Arama</label>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Baca bilgilerinde ara...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="firmaFilter" class="form-label">Firma Filtrele</label>
+                            <select class="form-control" id="firmaFilter">
+                                <option value="">Tüm Firmalar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="olcumKoduFilter" class="form-label">Ölçüm Kodu Filtrele</label>
+                            <select class="form-control" id="olcumKoduFilter">
+                                <option value="">Tüm Ölçüm Kodları</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="bacaFilter" class="form-label">Baca Filtrele</label>
+                            <select class="form-control" id="bacaFilter">
+                                <option value="">Tüm Bacalar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="yakitFilter" class="form-label">Yakıt Türü Filtrele</label>
+                            <select class="form-control" id="yakitFilter">
+                                <option value="">Tümü</option>
+                                <option value="BİOKÜTLE">BİOKÜTLE</option>
+                                <option value="DOĞAL GAZ">DOĞAL GAZ</option>
+                                <option value="KÖMÜR">KÖMÜR</option>
+                                <option value="SIVI YAKIT">SIVI YAKIT</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="kaynakFilter" class="form-label">Kaynak Türü Filtrele</label>
+                            <select class="form-control" id="kaynakFilter">
+                                <option value="">Tümü</option>
+                                <option value="YAKMA">YAKMA</option>
+                                <option value="PROSES">PROSES</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary" id="clearFilters">
+                                    <i class="fas fa-times me-1"></i>Filtreleri Temizle
+                                </button>
+                                <button type="button" class="btn btn-outline-info" id="exportFiltered">
+                                    <i class="fas fa-download me-1"></i>Filtrelenmiş Verileri İndir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Baca Bilgileri Listesi -->
+            <div id="bacaListesi">
+                {% if baca_bilgileri %}
+                    {% for baca in baca_bilgileri %}
+                    <div class="card border-0 shadow-sm mb-3 baca-kart" data-baca="{{ baca.id }}" 
+                         data-firma="{{ baca.firma_adi or '' }}" 
+                         data-olcum-kodu="{{ baca.olcum_kodu or '' }}" 
+                         data-baca-no="{{ baca.baca_no or '' }}">
+                        <div class="card-header bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary me-3">#{{ loop.index }}</span>
+                                    <div>
+                                        <h5 class="mb-0">Baca No: {{ baca.baca_no }}</h5>
+                                        <small class="text-muted">
+                                            {% if baca.firma_adi %}
+                                                <span class="badge bg-info me-2">{{ baca.firma_adi }}</span>
+                                            {% endif %}
+                                            {% if baca.olcum_kodu %}
+                                                <span class="badge bg-success me-2">{{ baca.olcum_kodu }}</span>
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-warning btn-sm duzenle-btn" data-id="{{ baca.id }}" title="Düzenle">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm sil-btn" data-id="{{ baca.id }}" title="Sil">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">YAKIT TÜRÜ</label>
+                                    <p class="mb-0" data-field="yakit_turu">{{ baca.yakit_turu or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">ISIL GÜÇ (MW)</label>
+                                    <p class="mb-0">{{ baca.isil_guc or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">ÇATI ŞEKLİ</label>
+                                    <p class="mb-0">{{ baca.cati_sekli or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">KAYNAK TÜRÜ</label>
+                                    <p class="mb-0" data-field="kaynak_turu">{{ baca.kaynak_turu or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">BACA ŞEKLİ</label>
+                                    <p class="mb-0">{{ baca.baca_sekli or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">BACA ÖLÇÜSÜ</label>
+                                    <p class="mb-0">{{ baca.baca_olcusu or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">YERDEN YÜK.</label>
+                                    <p class="mb-0">{{ baca.yerden_yuk or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">ÇATI YÜK</label>
+                                    <p class="mb-0">{{ baca.cati_yuk or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">RÜZGAR HIZ (M/S)</label>
+                                    <p class="mb-0">{{ baca.ruzgar_hiz or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">ORT SIC</label>
+                                    <p class="mb-0">{{ baca.ort_sic or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">ORT NEM</label>
+                                    <p class="mb-0">{{ baca.ort_nem or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">ORT BAS.</label>
+                                    <p class="mb-0">{{ baca.ort_bas or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">A-BACA</label>
+                                    <p class="mb-0">{{ baca.a_baca or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">B-BACA</label>
+                                    <p class="mb-0">{{ baca.b_baca or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">C-DELİK</label>
+                                    <p class="mb-0">{{ baca.c_delik or '-' }}</p>
+                                </div>
+                                <div class="col-md-6 col-lg-3">
+                                    <label class="form-label fw-bold text-muted">FOTO</label>
+                                    <div>
+                                        {% if baca.foto %}
+                                            <a href="{{ baca.foto }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-image me-1"></i>Görüntüle
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Fotoğraf yok</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-info-circle text-muted mb-3" style="font-size: 3rem;"></i>
+                            <h5 class="text-muted">Henüz baca bilgisi bulunmuyor</h5>
+                            <p class="text-muted">Yeni baca bilgisi eklemek için yukarıdaki "Yeni Baca Ekle" butonunu kullanın.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Baca Ekleme Modal -->
+<div class="modal fade" id="yeniBacaModal" tabindex="-1" aria-labelledby="yeniBacaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="yeniBacaModalLabel">Yeni Baca Bilgisi Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="yeniBacaForm" method="POST" action="{{ url_for('add_baca_bilgisi') }}" enctype="multipart/form-data">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="firma_adi" class="form-label">FİRMA ADI</label>
+                            <select class="form-control" id="firma_adi" name="firma_adi">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="olcum_kodu" class="form-label">ÖLÇÜM KODU</label>
+                            <select class="form-control" id="olcum_kodu" name="olcum_kodu">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="baca_no" class="form-label">BACA NO <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="baca_no" name="baca_no" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="yakit_turu" class="form-label">YAKIT TÜRÜ</label>
+                            <select class="form-control" id="yakit_turu" name="yakit_turu">
+                                <option value="">Seçiniz</option>
+                                <option value="BİOKÜTLE">BİOKÜTLE</option>
+                                <option value="DOĞAL GAZ">DOĞAL GAZ</option>
+                                <option value="KÖMÜR">KÖMÜR</option>
+                                <option value="SIVI YAKIT">SIVI YAKIT</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="isil_guc" class="form-label">ISIL GÜÇ (MW)</label>
+                            <input type="number" step="0.01" class="form-control" id="isil_guc" name="isil_guc">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cati_sekli" class="form-label">ÇATI ŞEKLİ</label>
+                            <select class="form-control" id="cati_sekli" name="cati_sekli">
+                                <option value="">Seçiniz</option>
+                                <option value="BAĞIMSIZ">BAĞIMSIZ</option>
+                                <option value="DÜZ">DÜZ</option>
+                                <option value="EĞİK">EĞİK</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="kaynak_turu" class="form-label">KAYNAK TÜRÜ</label>
+                            <select class="form-control" id="kaynak_turu" name="kaynak_turu">
+                                <option value="">Seçiniz</option>
+                                <option value="YAKMA">YAKMA</option>
+                                <option value="PROSES">PROSES</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="baca_sekli" class="form-label">BACA ŞEKLİ</label>
+                            <select class="form-control" id="baca_sekli" name="baca_sekli">
+                                <option value="">Seçiniz</option>
+                                <option value="DÖRTGEN">DÖRTGEN</option>
+                                <option value="DAİRESEL">DAİRESEL</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="baca_olcusu" class="form-label">BACA ÖLÇÜSÜ</label>
+                            <input type="text" class="form-control" id="baca_olcusu" name="baca_olcusu">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="yerden_yuk" class="form-label">YERDEN YÜK.</label>
+                            <input type="number" step="0.01" class="form-control" id="yerden_yuk" name="yerden_yuk">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cati_yuk" class="form-label">ÇATI YÜK</label>
+                            <input type="number" step="0.01" class="form-control" id="cati_yuk" name="cati_yuk">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ruzgar_hiz" class="form-label">RÜZGAR HIZ (M/S)</label>
+                            <input type="number" step="0.01" class="form-control" id="ruzgar_hiz" name="ruzgar_hiz">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ort_sic" class="form-label">ORT SIC (Ortam Sıcaklığı)</label>
+                            <input type="number" step="0.01" class="form-control" id="ort_sic" name="ort_sic">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ort_nem" class="form-label">ORT NEM (Ortam Nemi)</label>
+                            <input type="number" step="0.01" class="form-control" id="ort_nem" name="ort_nem">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ort_bas" class="form-label">ORT BAS. (Ortam Basıncı)</label>
+                            <input type="number" step="0.01" class="form-control" id="ort_bas" name="ort_bas">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="a_baca" class="form-label">A-BACA</label>
+                            <input type="text" class="form-control" id="a_baca" name="a_baca">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="b_baca" class="form-label">B-BACA</label>
+                            <input type="text" class="form-control" id="b_baca" name="b_baca">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="c_delik" class="form-label">C-DELİK</label>
+                            <input type="text" class="form-control" id="c_delik" name="c_delik">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="foto" class="form-label">FOTO</label>
+                            <input type="file" class="form-control" id="foto" name="foto" accept="image/*">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="submit" form="yeniBacaForm" class="btn btn-primary">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Düzenleme Modal -->
+<div class="modal fade" id="duzenleBacaModal" tabindex="-1" aria-labelledby="duzenleBacaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="duzenleBacaModalLabel">Baca Bilgisi Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duzenleBacaForm" method="POST" action="{{ url_for('edit_baca_bilgisi', baca_id='') }}" enctype="multipart/form-data">
+                    <input type="hidden" id="duzenle_baca_id" name="baca_id">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="duzenle_firma_adi" class="form-label">FİRMA ADI</label>
+                            <select class="form-control" id="duzenle_firma_adi" name="firma_adi">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="duzenle_olcum_kodu" class="form-label">ÖLÇÜM KODU</label>
+                            <select class="form-control" id="duzenle_olcum_kodu" name="olcum_kodu">
+                                <option value="">Seçiniz</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="duzenle_baca_no" class="form-label">BACA NO <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="duzenle_baca_no" name="baca_no" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_yakit_turu" class="form-label">YAKIT TÜRÜ</label>
+                            <select class="form-control" id="duzenle_yakit_turu" name="yakit_turu">
+                                <option value="">Seçiniz</option>
+                                <option value="BİOKÜTLE">BİOKÜTLE</option>
+                                <option value="DOĞAL GAZ">DOĞAL GAZ</option>
+                                <option value="KÖMÜR">KÖMÜR</option>
+                                <option value="SIVI YAKIT">SIVI YAKIT</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_isil_guc" class="form-label">ISIL GÜÇ (MW)</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_isil_guc" name="isil_guc">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_cati_sekli" class="form-label">ÇATI ŞEKLİ</label>
+                            <select class="form-control" id="duzenle_cati_sekli" name="cati_sekli">
+                                <option value="">Seçiniz</option>
+                                <option value="BAĞIMSIZ">BAĞIMSIZ</option>
+                                <option value="DÜZ">DÜZ</option>
+                                <option value="EĞİK">EĞİK</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_kaynak_turu" class="form-label">KAYNAK TÜRÜ</label>
+                            <select class="form-control" id="duzenle_kaynak_turu" name="kaynak_turu">
+                                <option value="">Seçiniz</option>
+                                <option value="YAKMA">YAKMA</option>
+                                <option value="PROSES">PROSES</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_baca_sekli" class="form-label">BACA ŞEKLİ</label>
+                            <select class="form-control" id="duzenle_baca_sekli" name="baca_sekli">
+                                <option value="">Seçiniz</option>
+                                <option value="DÖRTGEN">DÖRTGEN</option>
+                                <option value="DAİRESEL">DAİRESEL</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_baca_olcusu" class="form-label">BACA ÖLÇÜSÜ</label>
+                            <input type="text" class="form-control" id="duzenle_baca_olcusu" name="baca_olcusu">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_yerden_yuk" class="form-label">YERDEN YÜK.</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_yerden_yuk" name="yerden_yuk">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_cati_yuk" class="form-label">ÇATI YÜK</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_cati_yuk" name="cati_yuk">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_ruzgar_hiz" class="form-label">RÜZGAR HIZ (M/S)</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_ruzgar_hiz" name="ruzgar_hiz">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_ort_sic" class="form-label">ORT SIC (Ortam Sıcaklığı)</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_ort_sic" name="ort_sic">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_ort_nem" class="form-label">ORT NEM (Ortam Nemi)</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_ort_nem" name="ort_nem">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_ort_bas" class="form-label">ORT BAS. (Ortam Basıncı)</label>
+                            <input type="number" step="0.01" class="form-control" id="duzenle_ort_bas" name="ort_bas">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_a_baca" class="form-label">A-BACA</label>
+                            <input type="text" class="form-control" id="duzenle_a_baca" name="a_baca">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_b_baca" class="form-label">B-BACA</label>
+                            <input type="text" class="form-control" id="duzenle_b_baca" name="b_baca">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_c_delik" class="form-label">C-DELİK</label>
+                            <input type="text" class="form-control" id="duzenle_c_delik" name="c_delik">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="duzenle_foto" class="form-label">FOTO</label>
+                            <input type="file" class="form-control" id="duzenle_foto" name="foto" accept="image/*">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="submit" form="duzenleBacaForm" class="btn btn-primary">Güncelle</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Filtreleme fonksiyonu
+function filterBacaKartlari() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const firmaFilter = document.getElementById('firmaFilter').value;
+    const olcumKoduFilter = document.getElementById('olcumKoduFilter').value;
+    const bacaFilter = document.getElementById('bacaFilter').value;
+    const yakitFilter = document.getElementById('yakitFilter').value;
+    const kaynakFilter = document.getElementById('kaynakFilter').value;
+    
+    const kartlar = document.querySelectorAll('.baca-kart');
+    
+    kartlar.forEach(kart => {
+        const bacaNo = kart.querySelector('h5').textContent.toLowerCase();
+        const firmaAdi = kart.getAttribute('data-firma').toLowerCase();
+        const olcumKodu = kart.getAttribute('data-olcum-kodu').toLowerCase();
+        const bacaNoData = kart.getAttribute('data-baca-no').toLowerCase();
+        
+        // Yakıt türü ve kaynak türü için mevcut alanları kullan
+        const yakitTuru = kart.querySelector('[data-field="yakit_turu"]')?.textContent.trim() || '';
+        const kaynakTuru = kart.querySelector('[data-field="kaynak_turu"]')?.textContent.trim() || '';
+        
+        const searchMatch = bacaNo.includes(searchTerm) || firmaAdi.includes(searchTerm) || olcumKodu.includes(searchTerm);
+        const firmaMatch = !firmaFilter || firmaAdi === firmaFilter.toLowerCase();
+        const olcumKoduMatch = !olcumKoduFilter || olcumKodu === olcumKoduFilter.toLowerCase();
+        const bacaMatch = !bacaFilter || bacaNoData === bacaFilter.toLowerCase();
+        const yakitMatch = !yakitFilter || yakitTuru === yakitFilter;
+        const kaynakMatch = !kaynakFilter || kaynakTuru === kaynakFilter;
+        
+        if (searchMatch && firmaMatch && olcumKoduMatch && bacaMatch && yakitMatch && kaynakMatch) {
+            kart.style.display = '';
+        } else {
+            kart.style.display = 'none';
+        }
+    });
+}
+
+// Filtreleri temizle
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('firmaFilter').value = '';
+    document.getElementById('olcumKoduFilter').value = '';
+    document.getElementById('bacaFilter').value = '';
+    document.getElementById('yakitFilter').value = '';
+    document.getElementById('kaynakFilter').value = '';
+    filterBacaKartlari();
+}
+
+// Filtreleme seçeneklerini yükle
+function loadFilterOptions() {
+    const kartlar = document.querySelectorAll('.baca-kart');
+    const firmalar = new Set();
+    const olcumKodlari = new Set();
+    const bacalar = new Set();
+    
+    kartlar.forEach(kart => {
+        const firma = kart.getAttribute('data-firma');
+        const olcumKodu = kart.getAttribute('data-olcum-kodu');
+        const bacaNo = kart.getAttribute('data-baca-no');
+        
+        if (firma) firmalar.add(firma);
+        if (olcumKodu) olcumKodlari.add(olcumKodu);
+        if (bacaNo) bacalar.add(bacaNo);
+    });
+    
+    // Firma filtresini doldur
+    const firmaSelect = document.getElementById('firmaFilter');
+    firmalar.forEach(firma => {
+        const option = document.createElement('option');
+        option.value = firma;
+        option.textContent = firma;
+        firmaSelect.appendChild(option);
+    });
+    
+    // Ölçüm kodu filtresini doldur
+    const olcumKoduSelect = document.getElementById('olcumKoduFilter');
+    olcumKodlari.forEach(olcumKodu => {
+        const option = document.createElement('option');
+        option.value = olcumKodu;
+        option.textContent = olcumKodu;
+        olcumKoduSelect.appendChild(option);
+    });
+    
+    // Baca filtresini doldur
+    const bacaSelect = document.getElementById('bacaFilter');
+    bacalar.forEach(bacaNo => {
+        const option = document.createElement('option');
+        option.value = bacaNo;
+        option.textContent = bacaNo;
+        bacaSelect.appendChild(option);
+    });
+}
+
+// Firma ve ölçüm kodu seçeneklerini yükle
+async function loadFirmaOlcumOptions() {
+    try {
+        // Firmaları yükle
+        const firmaResponse = await fetch('/api/firmalar');
+        const firmalar = await firmaResponse.json();
+        
+        const firmaSelects = ['firma_adi', 'duzenle_firma_adi'];
+        firmaSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                select.innerHTML = '<option value="">Seçiniz</option>';
+                firmalar.forEach(firma => {
+                    const option = document.createElement('option');
+                    option.value = firma;
+                    option.textContent = firma;
+                    select.appendChild(option);
+                });
+            }
+        });
+        
+        // Firma seçildiğinde ölçüm kodlarını yükle
+        document.getElementById('firma_adi').addEventListener('change', function() {
+            loadOlcumKodlari(this.value, 'olcum_kodu');
+        });
+        
+        document.getElementById('duzenle_firma_adi').addEventListener('change', function() {
+            loadOlcumKodlari(this.value, 'duzenle_olcum_kodu');
+        });
+        
+    } catch (error) {
+        console.error('Firma seçenekleri yüklenirken hata:', error);
+    }
+}
+
+// Ölçüm kodlarını yükle
+async function loadOlcumKodlari(firmaAdi, selectId) {
+    if (!firmaAdi) {
+        document.getElementById(selectId).innerHTML = '<option value="">Seçiniz</option>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/olcum_kodlari/${encodeURIComponent(firmaAdi)}`);
+        const olcumKodlari = await response.json();
+        
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="">Seçiniz</option>';
+        olcumKodlari.forEach(kod => {
+            const option = document.createElement('option');
+            option.value = kod;
+            option.textContent = kod;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Ölçüm kodları yüklenirken hata:', error);
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadFilterOptions();
+    loadFirmaOlcumOptions();
+    
+    document.getElementById('searchInput').addEventListener('input', filterBacaKartlari);
+    document.getElementById('firmaFilter').addEventListener('change', filterBacaKartlari);
+    document.getElementById('olcumKoduFilter').addEventListener('change', filterBacaKartlari);
+    document.getElementById('bacaFilter').addEventListener('change', filterBacaKartlari);
+    document.getElementById('yakitFilter').addEventListener('change', filterBacaKartlari);
+    document.getElementById('kaynakFilter').addEventListener('change', filterBacaKartlari);
+    document.getElementById('clearFilters').addEventListener('click', clearFilters);
+    
+    // Filtrelenmiş verileri indir
+    document.getElementById('exportFiltered').addEventListener('click', function() {
+        const visibleKartlar = document.querySelectorAll('.baca-kart:not([style*="display: none"])');
+        if (visibleKartlar.length === 0) {
+            alert('İndirilecek veri bulunamadı!');
+            return;
+        }
+        
+        // Filtrelenmiş verileri indirme işlemi burada yapılacak
+        alert(`${visibleKartlar.length} adet baca bilgisi indirilecek.`);
+    });
+});
+
+// Düzenleme butonları
+document.querySelectorAll('.duzenle-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const bacaId = this.getAttribute('data-id');
+        const kart = this.closest('.baca-kart');
+        
+        // Form action'ını güncelle
+        document.getElementById('duzenleBacaForm').action = `/baca_bilgileri/edit/${bacaId}`;
+        
+        // Verileri form'a yükle
+        document.getElementById('duzenle_baca_id').value = bacaId;
+        document.getElementById('duzenle_baca_no').value = kart.querySelector('h5').textContent.replace('Baca No: ', '').trim();
+        
+        // Firma ve ölçüm kodu bilgilerini yükle
+        const firmaAdi = kart.getAttribute('data-firma');
+        const olcumKodu = kart.getAttribute('data-olcum-kodu');
+        
+        if (firmaAdi) {
+            document.getElementById('duzenle_firma_adi').value = firmaAdi;
+            // Ölçüm kodlarını yükle
+            loadOlcumKodlari(firmaAdi, 'duzenle_olcum_kodu').then(() => {
+                if (olcumKodu) {
+                    document.getElementById('duzenle_olcum_kodu').value = olcumKodu;
+                }
+            });
+        }
+        
+        // Diğer alanları doldur
+        const alanlar = ['yakit_turu', 'isil_guc', 'cati_sekli', 'kaynak_turu', 'baca_sekli', 'baca_olcusu', 
+                         'yerden_yuk', 'cati_yuk', 'ruzgar_hiz', 'ort_sic', 'ort_nem', 'ort_bas', 
+                         'a_baca', 'b_baca', 'c_delik'];
+        
+        alanlar.forEach((alan, index) => {
+            const deger = kart.querySelectorAll('.col-md-6 p')[index]?.textContent.trim() || '';
+            const input = document.getElementById(`duzenle_${alan}`);
+            if (input) {
+                input.value = deger === '-' ? '' : deger;
+            }
+        });
+        
+        const modal = new bootstrap.Modal(document.getElementById('duzenleBacaModal'));
+        modal.show();
+    });
+});
+
+// Silme butonları
+document.querySelectorAll('.sil-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const bacaId = this.getAttribute('data-id');
+        if (confirm('Bu baca bilgisini silmek istediğinizden emin misiniz?')) {
+            // Form oluştur ve gönder
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/baca_bilgileri/delete/${bacaId}`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+});
+</script>
+{% endblock %} 

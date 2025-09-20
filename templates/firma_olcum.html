@@ -1,0 +1,548 @@
+{% extends "base.html" %}
+
+{% block title %}Firma Ölçüm - Emisyon Saha Programı{% endblock %}
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 10px !important;
+    }
+    
+    .card {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .table-responsive {
+        width: 100% !important;
+        overflow-x: auto !important;
+    }
+    
+    #firmaOlcumTablo {
+        width: 100% !important;
+        min-width: 1400px !important;
+        table-layout: fixed;
+    }
+    
+    #firmaOlcumTablo th,
+    #firmaOlcumTablo td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .btn-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    
+    .btn-group {
+        flex-shrink: 0;
+    }
+</style>
+
+
+
+{% block content %}
+<div class="container-fluid mt-4" style="max-width: 100%; padding: 0 15px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <div class="btn-toolbar">
+                <div class="btn-group me-2">
+                    <a href="{{ url_for('add_firma_olcum_step1') }}" class="btn btn-primary shadow-sm">
+                        <i class="fas fa-plus me-2"></i>Ölçüm Ekle
+                    </a>
+                    <a href="#" class="btn btn-secondary shadow-sm" id="detayBtn">
+                        <i class="fas fa-eye me-2"></i>Detay
+                    </a>
+                    {% if role in ['3', 'admin'] %}
+                    <button type="button" class="btn btn-danger" id="secilenleriSil" disabled>
+                        <i class="fas fa-trash me-2"></i>Sil
+                    </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal">
+                        <i class="fas fa-file-upload me-2"></i>İçe Aktar
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-info dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-download me-2"></i>Dışa Aktar
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li><a class="dropdown-item" href="#" id="exportExcelBtn">
+                                <i class="fas fa-file-excel me-2"></i>Excel (.xlsx)
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" id="exportWordBtn">
+                                <i class="fas fa-file-word me-2"></i>Word (.docx)
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" id="exportPdfBtn">
+                                <i class="fas fa-file-pdf me-2"></i>PDF (.pdf)
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
+                <table class="table table-hover align-middle" id="firmaOlcumTablo" style="font-size: 0.85rem; width: 100%; min-width: 1200px;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 35px;" class="no-sort">
+                                <input type="checkbox" id="tumunuSec" class="form-check-input">
+                            </th>
+                            <th style="width: 45px;" class="no-sort">SIRA</th>
+                            <th style="width: 150px;">FIRMA</th>
+                            <th style="width: 120px;">OLC_KOD</th>
+                            <th style="width: 100px;">BAS TRH</th>
+                            <th style="width: 120px;">BIT TAR</th>
+                            <th style="width: 30px;">BACA_SAY</th>
+                            <th style="width: 80px;">PARAMETRE</th>
+                            <th style="width: 60px;">PER.</th>
+                            <th style="width: 80px;">IL</th>
+                            <th style="width: 80px;">ILCE</th>
+                            <th style="width: 80px;">YETK</th>
+                            <th style="width: 80px;">TEL</th>
+                            <th style="width: 80px;">DURUM</th>
+                            <th style="width: 80px;" class="text-end no-sort">İŞLEMLER</th>
+                        </tr>
+                        <tr id="filterRow">
+                            <th></th>
+                            <th></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(2, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(3, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(4, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(5, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(6, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(7, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(8, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(9, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(10, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(11, this.value)"></th>
+                            <th><input type="text" class="form-control form-control-sm" placeholder="Filtrele" onkeyup="filterTable(12, this.value)"></th>
+                            <th>
+                                <select class="form-control form-control-sm" onchange="filterTable(13, this.value)">
+                                    <option value="">Tümü</option>
+                                    <option value="Aktif">Aktif</option>
+                                    <option value="Pasif">Pasif</option>
+                                </select>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if firma_olcumler %}
+                            {% for olcum in firma_olcumler %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input firma-olcum-checkbox" value="{{ olcum.id }}">
+                                </td>
+                                <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
+                                <td>{{ olcum.firma_adi | default('', true) }}</td>
+                                <td>{{ olcum.olcum_kodu | default('', true) }}</td>
+                                <td>{{ olcum.baslangic_tarihi | default('', true) }}</td>
+                                <td>{{ olcum.bitis_tarihi | default('', true) }}</td>
+                                <td>{{ olcum.baca_sayisi | default('', true) }}</td>
+                                <td>{{ olcum.parametreler | join(', ') if olcum.parametreler else '' }}</td>
+                                <td>{{ olcum.personel | join(', ') if olcum.personel else '' }}</td>
+                                <td>{{ olcum.il | default('', true) }}</td>
+                                <td>{{ olcum.ilce | default('', true) }}</td>
+                                <td>{{ olcum.yetkili | default('', true) }}</td>
+                                <td>{{ olcum.telefon | default('', true) }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if olcum.durum == 'Aktif' else 'danger' }}">{{ olcum.durum }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Export">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="exportFirmaOlcum('{{ olcum.id }}', 'excel')">
+                                                    <i class="fas fa-file-excel me-2"></i>Excel (.xlsx)
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="exportFirmaOlcum('{{ olcum.id }}', 'word')">
+                                                    <i class="fas fa-file-word me-2"></i>Word (.docx)
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="exportFirmaOlcum('{{ olcum.id }}', 'pdf')">
+                                                    <i class="fas fa-file-pdf me-2"></i>PDF (.pdf)
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                        <a href="{{ url_for('firma_olcum_detail', olcum_id=olcum.id) }}" class="btn btn-outline-info btn-sm" title="Detay"><i class="fas fa-eye"></i></a>
+                                        <a href="{{ url_for('edit_firma_olcum', olcum_id=olcum.id) }}" class="btn btn-outline-warning btn-sm" title="Düzenle" aria-label="Düzenle"><i class="fas fa-pen"></i></a>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" title="Sil" onclick="deleteFirmaOlcum('{{ olcum.id }}', '{{ olcum.firma_adi }}')"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="15" class="text-center text-muted p-4">Henüz firma ölçüm kaydı bulunmuyor.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- İçeri Aktar Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">Firma Ölçüm Verilerini İçeri Aktar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="#" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="excel_file" class="form-label">Excel Dosyası Seçin</label>
+                        <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+                        <div class="form-text">Sadece .xlsx veya .xls uzantılı dosyalar kabul edilir.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">İçeri Aktar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tablo sıralama ve filtreleme
+document.addEventListener('DOMContentLoaded', function() {
+    // Tümünü seç checkbox'ı
+    const tumunuSec = document.getElementById('tumunuSec');
+    const checkboxes = document.querySelectorAll('.firma-olcum-checkbox');
+    
+    tumunuSec.addEventListener('change', function() {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateButtonStates();
+    });
+    
+    // Tekil checkbox'lar
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateButtonStates();
+            updateTumunuSec();
+        });
+    });
+    
+    function updateButtonStates() {
+        const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+        const secilenleriSil = document.getElementById('secilenleriSil');
+        
+        if (checkedBoxes.length > 0) {
+            if (secilenleriSil) {
+                secilenleriSil.disabled = false;
+                secilenleriSil.innerHTML = `<i class="fas fa-trash me-2"></i>Sil (${checkedBoxes.length})`;
+            }
+        } else {
+            if (secilenleriSil) {
+                secilenleriSil.disabled = true;
+                secilenleriSil.innerHTML = '<i class="fas fa-trash me-2"></i>Sil';
+            }
+        }
+    }
+    
+    function updateTumunuSec() {
+        const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+        const totalBoxes = checkboxes.length;
+        
+        if (checkedBoxes.length === 0) {
+            tumunuSec.checked = false;
+            tumunuSec.indeterminate = false;
+        } else if (checkedBoxes.length === totalBoxes) {
+            tumunuSec.checked = true;
+            tumunuSec.indeterminate = false;
+        } else {
+            tumunuSec.checked = false;
+            tumunuSec.indeterminate = true;
+        }
+    }
+    
+    // Arama fonksiyonu - Arama input'u yoksa bu kısmı atla
+    const aramaInput = document.getElementById('firmaOlcumArama');
+    if (aramaInput) {
+        aramaInput.addEventListener('keyup', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#firmaOlcumTablo tbody tr');
+            
+            rows.forEach(row => {
+                const firmaAdi = row.cells[2].textContent.toLowerCase();
+                if (firmaAdi.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Buton işlevleri
+    const detayBtn = document.getElementById('detayBtn');
+    if (detayBtn) {
+        detayBtn.addEventListener('click', function() {
+            alert('Detay görüntüleme özelliği yakında eklenecek!');
+        });
+    }
+    
+    // Excel export butonu
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
+    if (exportExcelBtn) {
+        exportExcelBtn.addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Lütfen dışa aktarılacak ölçümleri seçin!');
+                return;
+            }
+            
+            const selectedIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+            exportFirmaOlcum(selectedIds, 'excel');
+        });
+    }
+
+    // Word export butonu
+    const exportWordBtn = document.getElementById('exportWordBtn');
+    if (exportWordBtn) {
+        exportWordBtn.addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Lütfen dışa aktarılacak ölçümleri seçin!');
+                return;
+            }
+            
+            const selectedIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+            exportFirmaOlcum(selectedIds, 'word');
+        });
+    }
+
+    // PDF export butonu
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Lütfen dışa aktarılacak ölçümleri seçin!');
+                return;
+            }
+            
+            const selectedIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+            exportFirmaOlcum(selectedIds, 'pdf');
+        });
+    }
+    
+    // Seçilenleri sil butonu
+    if (document.getElementById('secilenleriSil')) {
+        document.getElementById('secilenleriSil').addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+            if (checkedBoxes.length > 0) {
+                if (confirm('Seçilen ölçümleri silmek istediğinizden emin misiniz?')) {
+                    deleteSelectedFirmaOlcum();
+                }
+            }
+        });
+    }
+    
+    // İlk yüklemede buton durumunu güncelle
+    updateButtonStates();
+});
+
+// Tekil kayıt silme fonksiyonu
+function deleteFirmaOlcum(olcumId, firmaAdi) {
+    if (confirm(`"${firmaAdi}" firmasına ait ölçüm kaydını silmek istediğinizden emin misiniz?`)) {
+        fetch(`/firma_olcum/delete/${olcumId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Hata: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('Bir hata oluştu!');
+        });
+    }
+}
+
+// Seçili kayıtları silme fonksiyonu
+function deleteSelectedFirmaOlcum() {
+    const checkedBoxes = document.querySelectorAll('.firma-olcum-checkbox:checked');
+    const ids = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+    
+    console.log('Seçilen ID\'ler:', ids); // Debug için log
+    
+    if (ids.length === 0) {
+        alert('Silinecek kayıt seçilmedi!');
+        return;
+    }
+    
+    fetch('/firma_olcum/delete_selected', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: ids })
+    })
+    .then(response => {
+        console.log('Response status:', response.status); // Debug için log
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data); // Debug için log
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Hata: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        alert('Bir hata oluştu!');
+    });
+}
+
+// Export fonksiyonu
+function exportFirmaOlcum(olcumIds, format = 'excel') {
+    console.log('Export başlatıldı:', olcumIds, 'Format:', format);
+    
+    // Loading göster
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'alert alert-info position-fixed';
+    loadingDiv.style.cssText = 'top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; min-width: 300px; text-align: center;';
+    loadingDiv.innerHTML = `
+        <i class="fas fa-spinner fa-spin me-2"></i>
+        ${format.toUpperCase()} dosyası hazırlanıyor...
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    // API endpoint'ini belirle
+    let apiEndpoint = '/api/firma_olcum_excel_export';
+    if (format === 'word') {
+        apiEndpoint = '/api/firma_olcum_word_export';
+    } else if (format === 'pdf') {
+        apiEndpoint = '/api/firma_olcum_pdf_export';
+    }
+    
+    // Export API'sini çağır
+    fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            olcum_ids: Array.isArray(olcumIds) ? olcumIds : [olcumIds]
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            // Backend'den gelen dosya adını al
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = '';
+            
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            // Eğer backend'den dosya adı gelmezse varsayılan adı kullan
+            if (!filename) {
+                const now = new Date();
+                const timestamp = now.getFullYear() + 
+                                String(now.getMonth() + 1).padStart(2, '0') + 
+                                String(now.getDate()).padStart(2, '0') + '_' +
+                                String(now.getHours()).padStart(2, '0') + 
+                                String(now.getMinutes()).padStart(2, '0');
+                
+                let extension = '.xlsx';
+                if (format === 'word') {
+                    extension = '.docx';
+                } else if (format === 'pdf') {
+                    extension = '.pdf';
+                }
+                
+                filename = `Firma_Olcum_${Array.isArray(olcumIds) ? olcumIds.length + '_kayit' : olcumIds}_${timestamp}${extension}`;
+            }
+            
+            return response.blob().then(blob => ({ blob, filename }));
+        } else {
+            throw new Error('Export hatası');
+        }
+    })
+    .then(({ blob, filename }) => {
+        // Dosyayı indir
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // Başarı mesajı
+        alert('Dosya başarıyla oluşturuldu!');
+    })
+    .catch(error => {
+        console.error('Export hatası:', error);
+        alert('Dosya oluşturulurken hata oluştu!');
+    })
+    .finally(() => {
+        // Loading'i kaldır
+        if (loadingDiv && loadingDiv.parentNode) {
+            loadingDiv.parentNode.removeChild(loadingDiv);
+        }
+    });
+}
+
+// Tablo filtreleme fonksiyonu
+function filterTable(columnIndex, value) {
+    const table = document.getElementById('firmaOlcumTablo');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+        const cell = rows[i].getElementsByTagName('td')[columnIndex];
+        if (cell) {
+            const cellText = cell.textContent || cell.innerText;
+            if (cellText.toLowerCase().indexOf(value.toLowerCase()) > -1) {
+                rows[i].style.display = '';
+            } else {
+                rows[i].style.display = 'none';
+            }
+        }
+    }
+}
+</script>
+{% endblock %} 

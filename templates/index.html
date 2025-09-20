@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Ana Sayfa - Emisyon Saha Programı{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Emisyon Kayıtları</h1>
+        {% if role in ['2', '3', 'admin'] %}
+        <a href="{{ url_for('add_emission') }}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle-fill me-2" viewBox="0 0 16 16">
+                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3z"/>
+            </svg>
+            Yeni Kayıt Ekle
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <button type="button" class="btn btn-warning" id="secilenleriAktar" disabled>
+                    <i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="tumunuSec" class="form-check-input">
+                            </th>
+                            <th style="width: 60px;">Sıra</th>
+                            <th>Tesis Adı</th>
+                            <th>Tarih</th>
+                            <th>Parametre</th>
+                            <th>Sonuç</th>
+                            <th>Birim</th>
+                            <th class="text-end">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if emissions %}
+                            {% for emission in emissions %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input emisyon-checkbox" value="{{ emission.id }}">
+                                    </td>
+                                    <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
+                                    <td>{{ emission.tesis_adi }}</td>
+                                    <td>{{ emission.tarih }}</td>
+                                    <td>{{ emission.parametre }}</td>
+                                    <td>{{ emission.sonuc }}</td>
+                                    <td>{{ emission.birim }}</td>
+                                    <td class="text-end">
+                                        {% if role in ['3', 'admin'] %}
+                                            <a href="{{ url_for('edit_emission', emission_id=emission.id) }}" class="btn btn-warning btn-sm me-1">Düzenle</a>
+                                            <a href="{{ url_for('delete_emission', emission_id=emission.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Bu kaydı silmek istediğinizden emin misiniz?');">Sil</a>
+                                        {% elif role in ['2', 'admin'] %}
+                                            <a href="{{ url_for('edit_emission', emission_id=emission.id) }}" class="btn btn-warning btn-sm me-1">Düzenle</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">Henüz kayıt bulunmuyor.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Index sayfası yüklendi');
+        
+        var tumunuSecCheckbox = document.getElementById('tumunuSec');
+        var secilenleriAktarButton = document.getElementById('secilenleriAktar');
+        
+        // Tümünü seç checkbox'ı
+        if (tumunuSecCheckbox) {
+            console.log('Tümünü seç checkbox bulundu');
+            tumunuSecCheckbox.addEventListener('change', function() {
+                console.log('Tümünü seç checkbox değişti:', this.checked);
+                var checkboxes = document.querySelectorAll('.emisyon-checkbox');
+                console.log('Bulunan checkbox sayısı:', checkboxes.length);
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.checked = tumunuSecCheckbox.checked;
+                });
+                updateSecilenleriAktarButton();
+            });
+        } else {
+            console.error('Tümünü seç checkbox bulunamadı!');
+        }
+
+        // Tekil checkbox'lar
+        var emisyonCheckboxes = document.querySelectorAll('.emisyon-checkbox');
+        console.log('Emisyon checkbox sayısı:', emisyonCheckboxes.length);
+        
+        emisyonCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                console.log('Tekil checkbox değişti:', this.value, this.checked);
+                updateSecilenleriAktarButton();
+                // Tüm checkbox'lar seçili mi kontrol et
+                var allCheckboxes = document.querySelectorAll('.emisyon-checkbox');
+                var checkedCheckboxes = document.querySelectorAll('.emisyon-checkbox:checked');
+                if (tumunuSecCheckbox) {
+                    tumunuSecCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+                }
+            });
+        });
+
+        // Seçilenleri dışa aktar butonu
+        if (secilenleriAktarButton) {
+            secilenleriAktarButton.addEventListener('click', function() {
+                var selectedIds = [];
+                document.querySelectorAll('.emisyon-checkbox:checked').forEach(function(checkbox) {
+                    selectedIds.push(checkbox.value);
+                });
+                
+                console.log('Seçilen emisyon ID\'leri:', selectedIds);
+                
+                if (selectedIds.length > 0) {
+                    // Seçilen ID'leri URL parametresi olarak gönder
+                    var idsParam = selectedIds.join(',');
+                    window.location.href = '/export_selected_emissions?ids=' + idsParam;
+                }
+            });
+        }
+
+        function updateSecilenleriAktarButton() {
+            var checkedCount = document.querySelectorAll('.emisyon-checkbox:checked').length;
+            console.log('Seçili emisyon sayısı:', checkedCount);
+            
+            if (secilenleriAktarButton) {
+                secilenleriAktarButton.disabled = checkedCount === 0;
+                if (checkedCount > 0) {
+                    secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar (' + checkedCount + ')';
+                } else {
+                    secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar';
+                }
+            }
+        }
+        
+        // İlk yüklemede buton durumunu güncelle
+        updateSecilenleriAktarButton();
+    });
+    </script>
+{% endblock %}

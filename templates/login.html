@@ -1,0 +1,45 @@
+{% extends "base_simple.html" %}
+
+{% block title %}Giriş Yap - Emisyon Saha Programı{% endblock %}
+
+{% block content %}
+<style>
+    html, body {
+        height: 100%;
+    }
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #212529;
+    }
+    .card {
+        width: 100%;
+        max-width: 400px;
+    }
+</style>
+<div class="card p-4 shadow-lg">
+    <div class="card-body">
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" width="72">
+            <h3 class="mt-3">Giriş Yap</h3>
+        </div>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <form method="post">
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="username" name="username" placeholder="Kullanıcı Adı" required>
+                <label for="username">Kullanıcı Adı</label>
+            </div>
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Şifre" required>
+                <label for="password">Şifre</label>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg">Giriş Yap</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

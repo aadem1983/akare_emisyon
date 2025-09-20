@@ -1,0 +1,1216 @@
+{% extends "base.html" %}
+
+{% block title %}Ölçüm Oluştur - Emisyon Saha Programı{% endblock %}
+
+{% block extra_head %}
+<style>
+    .step-content {
+        display: none;
+    }
+    .step-content.active {
+        display: block;
+    }
+    .progress {
+        height: 10px;
+        margin: 20px 0;
+    }
+    .baca-card {
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+    }
+</style>
+<datalist id="parametreListesi">
+    {% for param in parameters %}
+        <option value="{{ param.parametre_adi }}">
+    {% endfor %}
+</datalist>
+{% endblock %}
+
+{% block content %}
+<!-- Hidden element to store unique parameters as JSON -->
+<div id="uniqueParams" data-params='{{ unique_param_names | tojson | safe }}' style="display: none;"></div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Yeni Ölçüm Oluştur</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Progress Bar -->
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-4">
+                        <div>
+                            <small class="text-muted">Aşama <span id="currentStep">1</span> / 2</small>
+                        </div>
+                        <div>
+                            <small class="text-muted" id="stepDescription">Temel Bilgiler</small>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Basic Information -->
+                    <div id="step1" class="step-content active">
+                        <h5 class="mb-4">1. Temel Bilgiler</h5>
+                        <form id="basicInfoForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="firmaAdi" class="form-label">Firma Adı</label>
+                                    <input type="text" class="form-control" id="firmaAdi" list="firmaListesi" required>
+                                    <datalist id="firmaListesi">
+                                        {% for firma in companies %}
+                                            <option value="{{ firma.musteri_adi }}">
+                                        {% endfor %}
+                                    </datalist>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="olcumKodu" class="form-label">Ölçüm Kodu</label>
+                                    <input type="text" class="form-control" id="olcumKodu" required>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="bacaSayisi" class="form-label">Baca Sayısı</label>
+                                    <input type="number" class="form-control" id="bacaSayisi" min="1" required>
+                                    <div class="form-text">Baca sayısını belirtin.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="olcumBas" class="form-label">Ölçüm Başlangıç</label>
+                                    <input type="datetime-local" class="form-control" id="olcumBas" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="olcumBit" class="form-label">Ölçüm Bitiş</label>
+                                    <input type="datetime-local" class="form-control" id="olcumBit" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ölçüm Personeli</label>
+                                <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                                    {% for user in users %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="olcumPersoneli" value="{{ user }}" id="personel_{{ loop.index }}">
+                                            <label class="form-check-label" for="personel_{{ loop.index }}">{{ user }}</label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Step 2: Baca ve Parametreler -->
+                    <div id="step2" class="step-content">
+                        <h5 class="mb-4">2. Baca ve Parametre Bilgileri</h5>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span id="olcumBilgileri"></span> için baca bilgilerini ve parametreleri girin.
+                        </div>
+                        <div id="bacaContainer">
+                            <!-- Baca bilgileri buraya eklenecek -->
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-outline-secondary" id="prevStep" style="display: none;">
+                            <i class="fas fa-arrow-left me-2"></i>Geri
+                        </button>
+                        <div class="ms-auto">
+                            <button type="button" class="btn btn-primary" id="nextStep">
+                                İleri<i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                            <button type="button" class="btn btn-success" id="finishStep" style="display: none;">
+                                <i class="fas fa-save me-2"></i>Kaydet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ölçüm oluşturma JavaScript'i -->
+<script src="{{ url_for('static', filename='js/olcum_olustur.js') }}"></script>
+{% endblock %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Ölçüm Oluştur</h2>
+        <div class="btn-toolbar">
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="fas fa-file-upload me-2"></i>İçeri Aktar
+                </button>
+                <a href="{{ url_for('export_all_measurements') }}" class="btn btn-info">
+                    <i class="fas fa-file-download me-2"></i>Dışarı Aktar
+                </a>
+                <button type="button" class="btn btn-warning" id="secilenleriAktar" disabled>
+                    <i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar
+                </button>
+                <button type="button" class="btn btn-danger" id="secilenleriSil" disabled>
+                    <i class="fas fa-trash me-2"></i>Seçilenleri Sil
+                </button>
+            </div>
+            <a href="#" class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#yeniOlcumModal">
+                <i class="fas fa-plus me-2"></i>Yeni Ölçüm Ekle
+            </a>
+        </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="olcumTablo">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;" class="no-sort">
+                                <input type="checkbox" id="tumunuSec" class="form-check-input">
+                            </th>
+                            <th style="width: 60px;" class="no-sort">Sıra</th>
+                            <th style="width: 180px;">Firma Adı</th>
+                            <th style="width: 150px;">Ölçüm Kodu</th>
+                            <th>Baca<br>Say</th>
+                            <th>Ölç. Baş.</th>
+                            <th>Ölç. Bitiş</th>
+                            <th style="width: 225px;">Personel</th>
+                            <th>Durum</th>
+                            <th class="text-end no-sort">İşlemler</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            <th></th>
+                            <th>
+                                <input type="text" class="form-control form-control-sm" id="firmaFilter" placeholder="Firma ara...">
+                            </th>
+                            <th>
+                                <input type="text" class="form-control form-control-sm" id="kodFilter" placeholder="Kod ara...">
+                            </th>
+                            <th></th>
+                            <th>
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="date" class="form-control form-control-sm" id="baslangicFrom" placeholder="Başlangıç...">
+                                    <input type="date" class="form-control form-control-sm" id="baslangicTo" placeholder="Bitiş...">
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex flex-column gap-1">
+                                    <input type="date" class="form-control form-control-sm" id="bitisFrom" placeholder="Başlangıç...">
+                                    <input type="date" class="form-control form-control-sm" id="bitisTo" placeholder="Bitiş...">
+                                </div>
+                            </th>
+                            <th>
+                                <input type="text" class="form-control form-control-sm" id="personelFilter" placeholder="Personel ara...">
+                            </th>
+                            <th>
+                                <input type="text" class="form-control form-control-sm" id="durumFilter" placeholder="Durum ara...">
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if measurements %}
+                            {% for measurement in measurements %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input olcum-checkbox" value="{{ measurement.id }}">
+                                </td>
+                                <td class="text-center fw-bold text-muted">{{ loop.index }}</td>
+                                <td>{{ measurement.firma_adi }}</td>
+                                <td>{{ measurement.olcum_kodu }}</td>
+                                <td>{{ measurement.baca_sayisi }}</td>
+                                <td>{{ measurement.olcum_baslangic_fmt }}</td>
+                                <td>{{ measurement.olcum_bitis_fmt }}</td>
+                                <td>{{ measurement.olcumPersoneli }}</td>
+                                <td>{{ measurement.durum }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex gap-1 justify-content-end">
+                                        <button type="button" class="btn btn-outline-info btn-sm detaylar-btn" data-id="{{ measurement.id }}"><i class="fas fa-info-circle"></i> Detay</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted p-4">Henüz ölçüm kaydı bulunmuyor.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importModalLabel">Excel'den Ölçüm Aktar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Lütfen içeri aktarmak istediğiniz Excel dosyasını seçin. Dosyanın sütun sıralaması şu şekilde olmalıdır:</p>
+        <p><small><code>Ölçüm Adı, Tarih, Durum</code></small></p>
+        <form action="#" method="post" enctype="multipart/form-data" id="importForm">
+            <div class="mb-3">
+                <label for="excelFile" class="form-label">Excel Dosyası (.xlsx, .xls)</label>
+                <input class="form-control" type="file" id="excelFile" name="excel_file" accept=".xlsx, .xls" required>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="submit" form="importForm" class="btn btn-primary">Yükle</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Yeni Ölçüm Ekle Modal -->
+<div class="modal fade" id="yeniOlcumModal" tabindex="-1" aria-labelledby="yeniOlcumModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="yeniOlcumModalLabel">Yeni Ölçüm Oluştur</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Adım 1: Temel Bilgiler -->
+        <div id="step1" class="step-content">
+          <h6 class="mb-3 text-primary">1. Aşama: Temel Bilgiler</h6>
+          <form id="temelBilgilerForm">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6">
+                <label for="firmaAdi" class="form-label">Firma Adı</label>
+                <input type="text" class="form-control" id="firmaAdi" name="firmaAdi" list="firmaListesi" placeholder="Firma adını yazın veya seçin..." autocomplete="off" required>
+                <datalist id="firmaListesi">
+                  {% for firma in companies %}
+                    <option value="{{ firma['musteri_adi'] }}">
+                  {% endfor %}
+                </datalist>
+              </div>
+              <div class="col-md-6">
+                <label for="olcumKodu" class="form-label">Ölçüm Kodu</label>
+                <input type="text" class="form-control" id="olcumKodu" name="olcumKodu" required>
+              </div>
+            </div>
+            <div class="row g-3 mt-2">
+              <div class="col-md-6">
+                <label for="bacaSayisi" class="form-label">Baca Sayısı</label>
+                <input type="number" class="form-control" id="bacaSayisi" name="bacaSayisi" min="1" placeholder="Örn: 3" required>
+                <div class="form-text">Baca sayısını belirtin.</div>
+              </div>
+              <div class="col-md-6">
+                <label for="olcumBas" class="form-label">Ölçüm Başlangıç</label>
+                <input type="datetime-local" class="form-control" id="olcumBas" name="olcumBas" required>
+              </div>
+              <div class="col-md-6">
+                <label for="olcumBit" class="form-label">Ölçüm Bitiş</label>
+                <input type="datetime-local" class="form-control" id="olcumBit" name="olcumBit" required>
+              </div>
+            </div>
+            <div class="row g-3 mt-2">
+              <div class="col-12">
+                <label class="form-label">Ölçüm Personeli</label>
+                <div class="border rounded p-2" style="max-height: 120px; overflow-y: auto; background: #f8f9fa;">
+                  {% for user in users %}
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="checkbox" name="olcumPersoneli" value="{{ user }}" id="personel_{{ loop.index }}">
+                      <label class="form-check-label" for="personel_{{ loop.index }}">{{ user }}</label>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Adım 2: Baca ve Parametreler -->
+        <div id="step2" class="step-content" style="display: none;">
+          <h6 class="mb-3 text-primary">2. Aşama: Baca Bilgileri ve Parametreler</h6>
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong id="olcumBilgileri"></strong> için baca bilgilerini ve parametreleri girin.
+          </div>
+          
+          <!-- Üst kısımda boşluk bırakıp matrisi alta taşıyoruz -->
+          <div style="min-height: 300px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+            <div class="text-center text-muted">
+              <i class="fas fa-arrow-down fa-2x mb-2"></i>
+              <p class="mb-0">Baca ve parametre matrisi aşağıda görünecek</p>
+            </div>
+          </div>
+          
+          <div id="bacaContainer" style="margin-top: 30px;">
+            <!-- Baca bilgileri ve parametre seçimleri buraya dinamik olarak eklenecek -->
+          </div>
+        </div>
+
+        <!-- İlerleme Çubuğu -->
+        <div class="progress mt-3" style="height: 8px;">
+          <div class="progress-bar" id="progressBar" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+          <small class="text-muted">Aşama <span id="currentStep">1</span> / 2</small>
+          <small class="text-muted" id="stepDescription">Temel bilgiler</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-outline-primary" id="prevStep" style="display: none;">Geri</button>
+        <button type="button" class="btn btn-primary" id="nextStep">İleri</button>
+        <button type="button" class="btn btn-success" id="finishStep" style="display: none;">Kaydet</button>
+        <button type="button" class="btn btn-primary" id="nextStep">İleri</button>
+        <button type="button" class="btn btn-success" id="finishStep" style="display: none;">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Ölçüm Düzenle Modal -->
+<div class="modal fade" id="editOlcumModal" tabindex="-1" aria-labelledby="editOlcumModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editOlcumModalLabel">Ölçüm Düzenle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="olcumDuzenleForm" method="post">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+              <label for="editFirmaAdi" class="form-label">Firma Adı</label>
+              <input type="text" class="form-control" id="editFirmaAdi" name="firmaAdi" list="editFirmaListesi" placeholder="Firma adını yazın veya seçin..." autocomplete="off" required>
+              <datalist id="editFirmaListesi">
+                {% for firma in companies %}
+                  <option value="{{ firma['musteri_adi'] }}">
+                {% endfor %}
+              </datalist>
+            </div>
+            <div class="col-md-6">
+              <label for="editOlcumKodu" class="form-label">Ölçüm Kodu</label>
+              <input type="text" class="form-control" id="editOlcumKodu" name="olcumKodu" required>
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between align-items-center">
+                <label for="editBacaSayisi" class="form-label mb-0">Baca Sayısı</label>
+                <span id="editBacaEkleBtn" title="Baca Ekle" style="font-weight:bold; color:#198754; cursor:pointer; user-select:none; margin-left:10px;">EKLE</span>
+              </div>
+              <input type="number" class="form-control" id="editBacaSayisi" name="bacaSayisi" min="1" placeholder="Örn: 3" required>
+            </div>
+          </div>
+          <div class="row g-3 mt-2 align-items-end">
+            <div class="col-md-6">
+              <label for="editOlcumBas" class="form-label">Ölç.Baş.</label>
+              <input type="date" class="form-control" id="editOlcumBas" name="olcumBas" required>
+            </div>
+            <div class="col-md-6">
+              <label for="editOlcumBit" class="form-label">Ölç.Bit</label>
+              <input type="date" class="form-control" id="editOlcumBit" name="olcumBit" required>
+            </div>
+          </div>
+          <div class="row g-3 mt-2">
+            <div class="col-12">
+              <label class="form-label">Ölçüm Personeli</label>
+              <div class="border rounded p-2" style="max-height: 80px; overflow-y: auto; background: #f8f9fa;">
+                {% for user in users %}
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input edit-personel-checkbox" type="checkbox" name="olcumPersoneli" value="{{ user }}" id="edit_personel_{{ loop.index }}">
+                    <label class="form-check-label" for="edit_personel_{{ loop.index }}">{{ user }}</label>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </form>
+        
+        <!-- Dinamik Baca Ekleme Alanı (Düzenleme) -->
+        <div id="editBacaEklemeAlani" class="mt-4" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Baca Ekle</h6>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="editBacaAdi" class="form-label">Baca Adı</label>
+                  <input type="text" class="form-control" id="editBacaAdi" placeholder="Örn: 1. NOLU BACA">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Ölçülecek Parametreler</label>
+                  <select class="form-select" id="editParametreSecimi" multiple size="8" style="height: auto;">
+                    {% for param in unique_param_names %}
+                    <option value="{{ param }}">{{ param }}</option>
+                    {% endfor %}
+                  </select>
+                  <small class="form-text text-muted">Ctrl tuşu ile birden fazla parametre seçebilirsiniz</small>
+                </div>
+              </div>
+              <div class="mt-3">
+                <button type="button" class="btn btn-success btn-sm" onclick="editBacaEkle()">
+                  <i class="fas fa-plus"></i> Baca Ekle
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm ms-2" onclick="editBacaEklemeAlaniKapat()">
+                  <i class="fas fa-times"></i> İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Baca Tablosu (Düzenleme) -->
+        <div id="editBacaTablosu" class="mt-4" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Baca ve Parametre Listesi</h6>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered" id="editBacaParametreTablosu">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Baca Adı</th>
+                      {% for param in unique_param_names %}
+                      <th>{{ param }}</th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody id="editBacaTablosuBody">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button type="submit" form="olcumDuzenleForm" class="btn btn-primary">Güncelle</button>
+      </div>
+    </div>
+  </div>
+</div>
+{# Ölçüm Detay Modalı #}
+<div class="modal fade" id="olcumDetayModal" tabindex="-1" aria-labelledby="olcumDetayModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="olcumDetayModalLabel">Ölçüm Detayları</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="olcumDetayIcerik">
+          <div class="text-center text-muted">Yükleniyor...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Ölçüm oluştur sayfası yüklendi');
+    
+    var tablo = document.getElementById('olcumTablo');
+    var tumunuSecCheckbox = document.getElementById('tumunuSec');
+    var secilenleriAktarButton = document.getElementById('secilenleriAktar');
+    var secilenleriSilButton = document.getElementById('secilenleriSil');
+    
+    // Sütun filtreleri
+    var firmaFilter = document.getElementById('firmaFilter');
+    var kodFilter = document.getElementById('kodFilter');
+    var baslangicFromFilter = document.getElementById('baslangicFrom');
+    var baslangicToFilter = document.getElementById('baslangicTo');
+    var bitisFromFilter = document.getElementById('bitisFrom');
+    var bitisToFilter = document.getElementById('bitisTo');
+    var personelFilter = document.getElementById('personelFilter');
+    var durumFilter = document.getElementById('durumFilter');
+
+    function applyFilters() {
+        var firmaValue = firmaFilter ? firmaFilter.value.toLowerCase() : '';
+        var kodValue = kodFilter ? kodFilter.value.toLowerCase() : '';
+        var baslangicFromValue = baslangicFromFilter ? baslangicFromFilter.value : '';
+        var baslangicToValue = baslangicToFilter ? baslangicToFilter.value : '';
+        var bitisFromValue = bitisFromFilter ? bitisFromFilter.value : '';
+        var bitisToValue = bitisToFilter ? bitisToFilter.value : '';
+        var personelValue = personelFilter ? personelFilter.value.toLowerCase() : '';
+        var durumValue = durumFilter ? durumFilter.value.toLowerCase() : '';
+
+        var satirlar = tablo.getElementsByTagName('tr');
+        for (var i = 2; i < satirlar.length; i++) { // 0. ve 1. satır başlık
+            var cells = satirlar[i].getElementsByTagName('td');
+            if (cells.length >= 9) {
+                var firmaText = (cells[2] ? cells[2].textContent || cells[2].innerText : '').toLowerCase();
+                var kodText = (cells[3] ? cells[3].textContent || cells[3].innerText : '').toLowerCase();
+                var baslangicText = (cells[5] ? cells[5].textContent || cells[5].innerText : '').toLowerCase();
+                var bitisText = (cells[6] ? cells[6].textContent || cells[6].innerText : '').toLowerCase();
+                var personelText = (cells[7] ? cells[7].textContent || cells[7].innerText : '').toLowerCase();
+                var durumText = (cells[8] ? cells[8].textContent || cells[8].innerText : '').toLowerCase();
+
+                var showRow = true;
+                if (firmaValue && firmaText.indexOf(firmaValue) === -1) showRow = false;
+                if (kodValue && kodText.indexOf(kodValue) === -1) showRow = false;
+                
+                // Tarih filtreleme
+                if (baslangicFromValue) {
+                    var baslangicDate = convertTurkishDateToStandard(baslangicText);
+                    if (baslangicDate < baslangicFromValue) showRow = false;
+                }
+                if (baslangicToValue) {
+                    var baslangicDate = convertTurkishDateToStandard(baslangicText);
+                    if (baslangicDate > baslangicToValue) showRow = false;
+                }
+                if (bitisFromValue) {
+                    var bitisDate = convertTurkishDateToStandard(bitisText);
+                    if (bitisDate < bitisFromValue) showRow = false;
+                }
+                if (bitisToValue) {
+                    var bitisDate = convertTurkishDateToStandard(bitisText);
+                    if (bitisDate > bitisToValue) showRow = false;
+                }
+                
+                if (personelValue && personelText.indexOf(personelValue) === -1) showRow = false;
+                if (durumValue && durumText.indexOf(durumValue) === -1) showRow = false;
+
+                satirlar[i].style.display = showRow ? '' : 'none';
+            }
+        }
+    }
+
+    // Türkçe tarih formatını standart formata çevir
+    function convertTurkishDateToStandard(turkishDate) {
+        if (!turkishDate || turkishDate === '-') return '';
+        
+        // "15.12.23 (Pzt)" formatından "15.12.23" kısmını al
+        var datePart = turkishDate.split(' ')[0];
+        if (!datePart) return '';
+        
+        // "15.12.23" formatını parçala
+        var parts = datePart.split('.');
+        if (parts.length !== 3) return '';
+        
+        var day = parts[0];
+        var month = parts[1];
+        var year = '20' + parts[2]; // yy -> yyyy
+        
+        // Standart format: yyyy-mm-dd
+        return year + '-' + month + '-' + day;
+    }
+
+    // Filtre event listener'ları
+    if (firmaFilter) firmaFilter.addEventListener('keyup', applyFilters);
+    if (kodFilter) kodFilter.addEventListener('keyup', applyFilters);
+    if (baslangicFromFilter) baslangicFromFilter.addEventListener('change', applyFilters);
+    if (baslangicToFilter) baslangicToFilter.addEventListener('change', applyFilters);
+    if (bitisFromFilter) bitisFromFilter.addEventListener('change', applyFilters);
+    if (bitisToFilter) bitisToFilter.addEventListener('change', applyFilters);
+    if (personelFilter) personelFilter.addEventListener('keyup', applyFilters);
+    if (durumFilter) durumFilter.addEventListener('keyup', applyFilters);
+
+    // Sayısal alanlar için virgül desteği
+    var bacaSayisiInput = document.getElementById('bacaSayisi');
+    if (bacaSayisiInput) {
+        bacaSayisiInput.addEventListener('input', function(e) {
+            var value = e.target.value;
+            // Sadece tam sayı karakterlerine izin ver
+            value = value.replace(/[^0-9]/g, '');
+            e.target.value = value;
+        });
+    }
+    
+    // Tümünü seç checkbox'ı
+    if (tumunuSecCheckbox) {
+        console.log('Tümünü seç checkbox bulundu');
+        tumunuSecCheckbox.addEventListener('change', function() {
+            console.log('Tümünü seç checkbox değişti:', this.checked);
+            var checkboxes = document.querySelectorAll('.olcum-checkbox');
+            console.log('Bulunan checkbox sayısı:', checkboxes.length);
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = tumunuSecCheckbox.checked;
+            });
+            updateSecilenleriAktarButton();
+        });
+    } else {
+        console.error('Tümünü seç checkbox bulunamadı!');
+    }
+
+    // Tekil checkbox'lar
+    var olcumCheckboxes = document.querySelectorAll('.olcum-checkbox');
+    console.log('Ölçüm checkbox sayısı:', olcumCheckboxes.length);
+    
+    olcumCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            console.log('Tekil checkbox değişti:', this.value, this.checked);
+            updateSecilenleriAktarButton();
+            // Tüm checkbox'lar seçili mi kontrol et
+            var allCheckboxes = document.querySelectorAll('.olcum-checkbox');
+            var checkedCheckboxes = document.querySelectorAll('.olcum-checkbox:checked');
+            if (tumunuSecCheckbox) {
+                tumunuSecCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+            }
+        });
+    });
+
+    // Seçilenleri dışa aktar butonu
+    if (secilenleriAktarButton) {
+        secilenleriAktarButton.addEventListener('click', function() {
+            var selectedIds = [];
+            document.querySelectorAll('.olcum-checkbox:checked').forEach(function(checkbox) {
+                selectedIds.push(checkbox.value);
+            });
+            
+            console.log('Seçilen ölçüm ID\'leri:', selectedIds);
+            
+            if (selectedIds.length > 0) {
+                // Seçilen ID'leri URL parametresi olarak gönder
+                var idsParam = selectedIds.join(',');
+                window.location.href = '/export_selected_measurements?ids=' + idsParam;
+            }
+        });
+    }
+    
+    // Seçilenleri sil butonu - Uyarısız
+    if (secilenleriSilButton) {
+        secilenleriSilButton.addEventListener('click', function() {
+            var selectedIds = [];
+            document.querySelectorAll('.olcum-checkbox:checked').forEach(function(checkbox) {
+                selectedIds.push(checkbox.value);
+            });
+            
+            if (selectedIds.length === 0) {
+                return; // Hiçbir şey seçilmemişse sessizce çık
+            }
+            
+            // Direkt silme işlemi - uyarı yok
+            fetch('/delete_selected_measurements', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ids: selectedIds})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Sessizce sayfayı yenile
+                    window.location.reload();
+                } else {
+                    console.error('Toplu silme hatası:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+            });
+        });
+    }
+    
+    function updateSecilenleriAktarButton() {
+        var checkedCount = document.querySelectorAll('.olcum-checkbox:checked').length;
+        console.log('Seçili ölçüm sayısı:', checkedCount);
+        
+        if (secilenleriAktarButton) {
+            secilenleriAktarButton.disabled = checkedCount === 0;
+            if (checkedCount > 0) {
+                secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar (' + checkedCount + ')';
+            } else {
+                secilenleriAktarButton.innerHTML = '<i class="fas fa-file-download me-2"></i>Seçilenleri Dışa Aktar';
+            }
+        }
+        
+        if (secilenleriSilButton) {
+            secilenleriSilButton.disabled = checkedCount === 0;
+            if (checkedCount > 0) {
+                secilenleriSilButton.innerHTML = '<i class="fas fa-trash me-2"></i>Seçilenleri Sil (' + checkedCount + ')';
+            } else {
+                secilenleriSilButton.innerHTML = '<i class="fas fa-trash me-2"></i>Seçilenleri Sil';
+            }
+        }
+    }
+    
+    // İlk yüklemede buton durumunu güncelle
+    updateSecilenleriAktarButton();
+    
+    // Ölçüm Düzenle butonları
+    document.querySelectorAll('.edit-olcum-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = btn.getAttribute('data-id');
+            // Ölçüm verisini bul
+            var measurements = JSON.parse(document.getElementById('measurements-json').textContent);
+            var measurement = null;
+            for (var i = 0; i < measurements.length; i++) {
+                if (measurements[i].id === id) {
+                    measurement = measurements[i];
+                    break;
+                }
+            }
+            if (!measurement) return;
+            // Formu doldur
+            document.getElementById('editFirmaAdi').value = measurement.firma_adi;
+            document.getElementById('editOlcumKodu').value = measurement.olcum_kodu;
+            document.getElementById('editBacaSayisi').value = measurement.baca_sayisi;
+            document.getElementById('editOlcumBas').value = measurement.olcum_baslangic;
+            document.getElementById('editOlcumBit').value = measurement.olcum_bitis;
+            
+            // Çoklu personel seçimi - checkbox'lar
+            var selectedPersonnel = measurement.olcumPersoneli ? measurement.olcumPersoneli.split(', ') : [];
+            // Önce tüm checkbox'ları temizle
+            document.querySelectorAll('.edit-personel-checkbox').forEach(function(checkbox) {
+                checkbox.checked = false;
+            });
+            // Seçili personelleri işaretle
+            document.querySelectorAll('.edit-personel-checkbox').forEach(function(checkbox) {
+                if (selectedPersonnel.includes(checkbox.value)) {
+                    checkbox.checked = true;
+                }
+            });
+
+            // Baca bilgilerini doldur
+            var bacaListesi = measurement.baca_sayisi ? measurement.baca_sayisi.split(', ') : [];
+            var bacaParametreleri = measurement.parametreler ? measurement.parametreler.split(', ') : [];
+
+            document.getElementById('editBacaSayisi').value = bacaListesi.length;
+
+            // Tabloyu temizle
+            document.getElementById('editBacaTablosuBody').innerHTML = '';
+
+            // Tabloya baca bilgilerini ekleyin
+            bacaListesi.forEach(function(bacaAdi, index) {
+                const row = document.createElement('tr');
+                const bacaAdiCell = document.createElement('td');
+                bacaAdiCell.textContent = bacaAdi;
+                row.appendChild(bacaAdiCell);
+
+                // Get parameters from the data attribute
+                const uniqueParams = JSON.parse(document.getElementById('uniqueParams').dataset.params);
+                uniqueParams.forEach(param => {
+                    const cell = document.createElement('td');
+                    if (bacaParametreleri.includes(param)) {
+                        cell.innerHTML = '<span class="badge bg-success">X</span>';
+                    } else {
+                        cell.innerHTML = '<span class="text-muted">-</span>';
+                    }
+                    row.appendChild(cell);
+                });
+                document.getElementById('editBacaTablosuBody').appendChild(row);
+            });
+
+            // Form action
+            document.getElementById('olcumDuzenleForm').action = '/edit_measurement/' + id;
+            // Modalı aç
+            var modal = new bootstrap.Modal(document.getElementById('editOlcumModal'));
+            modal.show();
+        });
+    });
+    
+    // Ölçüm Detayları butonları
+    document.querySelectorAll('.detaylar-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = btn.getAttribute('data-id');
+            var modal = new bootstrap.Modal(document.getElementById('olcumDetayModal'));
+            document.getElementById('olcumDetayIcerik').innerHTML = '<div class="text-center text-muted">Yükleniyor...</div>';
+            modal.show();
+            
+            // Modal kapatıldığında backdrop'u temizle
+            document.getElementById('olcumDetayModal').addEventListener('hidden.bs.modal', function() {
+                document.body.classList.remove('modal-open');
+                var backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                }
+                // Tüm modal-backdrop elementlerini temizle
+                document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+                    el.remove();
+                });
+                // Body'den tüm modal class'larını temizle
+                document.body.classList.remove('modal-open');
+                document.body.style.paddingRight = '';
+            });
+            fetch('/get_measurement_details/' + id)
+                .then(response => response.json())
+                .then(function(data) {
+                    if (data.error) {
+                        document.getElementById('olcumDetayIcerik').innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
+                        return;
+                    }
+                    var html = '';
+                    html += '<div class="row mb-2">';
+                    html += '<div class="col-md-6"><strong>Firma:</strong> ' + (data.company ? data.company.musteri_adi : (data.measurement.firma_adi || '')) + '</div>';
+                    html += '<div class="col-md-6"><strong>Ölçüm Kodu:</strong> ' + (data.measurement.olcum_kodu || '') + '</div>';
+                    html += '</div>';
+                    html += '<div class="row mb-2">';
+                    html += '<div class="col-md-4"><strong>Baca Sayısı:</strong> ' + (data.measurement.baca_sayisi || '') + '</div>';
+                    html += '<div class="col-md-4"><strong>Başlangıç:</strong> ' + (data.measurement.olcum_baslangic_fmt || '') + '</div>';
+                    html += '<div class="col-md-4"><strong>Bitiş:</strong> ' + (data.measurement.olcum_bitis_fmt || '') + '</div>';
+                    html += '</div>';
+                    html += '<div class="row mb-2">';
+                    html += '<div class="col-md-6"><strong>Personel:</strong> ' + (data.measurement.olcumPersoneli || '') + '</div>';
+                    html += '<div class="col-md-6"><strong>Durum:</strong> ' + (data.measurement.durum || '') + '</div>';
+                    html += '</div>';
+                    if (data.baca_bilgileri && data.baca_bilgileri.length > 0) {
+                        html += '<hr><h6>Baca ve Parametre Detayları</h6>';
+                        html += '<div class="table-responsive"><table class="table table-bordered table-sm"><thead><tr><th>Baca Adı</th><th>Parametreler</th></tr></thead><tbody>';
+                        data.baca_bilgileri.forEach(function(baca) {
+                            html += '<tr>';
+                            html += '<td>' + (baca.baca_adi || '-') + '</td>';
+                            html += '<td>' + (baca.parametreler && baca.parametreler.length > 0 ? baca.parametreler.join(', ') : '-') + '</td>';
+                            html += '</tr>';
+                        });
+                        html += '</tbody></table></div>';
+                    } else {
+                        html += '<div class="alert alert-info">Bu ölçüme ait baca ve parametre kaydı bulunamadı.</div>';
+                    }
+                    document.getElementById('olcumDetayIcerik').innerHTML = html;
+                })
+                .catch(function() {
+                    document.getElementById('olcumDetayIcerik').innerHTML = '<div class="alert alert-danger">Detaylar yüklenemedi.</div>';
+                });
+        });
+    });
+    
+    // Ölçüm İçe Aktar butonları
+    document.querySelectorAll('.iceri-aktar-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = btn.getAttribute('data-id');
+            // İçe aktar modalını aç ve form action'ını güncelle
+            var modal = new bootstrap.Modal(document.getElementById('importModal'));
+            document.getElementById('importForm').action = "{{ url_for('import_measurement_data') }}";
+            document.getElementById('importModalLabel').textContent = 'Ölçüm Verilerini İçe Aktar';
+            modal.show();
+        });
+    });
+
+    // Ölçüm Dışa Aktar butonları
+    document.querySelectorAll('.disari-aktar-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = btn.getAttribute('data-id');
+            // Backend Excel export route'una yönlendir
+            window.location.href = '/export_measurement/' + id;
+        });
+    });
+    
+    // Ölçüm Silme butonları - Uyarısız
+    document.querySelectorAll('.delete-olcum-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = btn.getAttribute('data-id');
+            
+            // Direkt silme işlemi - uyarı yok
+            fetch('/delete_measurement/' + id, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Sessizce sayfayı yenile
+                    window.location.reload();
+                } else {
+                    console.error('Silme hatası:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+            });
+        });
+    });
+    
+    // Yeni Ölçüm Modal açıldığında form alanlarını temizle
+    document.getElementById('yeniOlcumModal').addEventListener('show.bs.modal', function() {
+        // Adım 1: Temel Bilgiler
+        document.getElementById('temelBilgilerForm').reset();
+        document.getElementById('nextStep').style.display = 'inline-block'; // İleri butonu göster
+        document.getElementById('prevStep').style.display = 'none'; // Geri butonu gizle
+        document.getElementById('finishStep').style.display = 'none'; // Kaydet butonu gizle
+        document.getElementById('stepDescription').textContent = 'Temel bilgiler';
+        document.getElementById('progressBar').style.width = '33%';
+        document.getElementById('currentStep').textContent = '1';
+
+        // Adım 2: Baca Ekleme
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('bacaEklemeAlani').innerHTML = ''; // Baca ekleme alanını temizle
+
+        // Adım 3: Parametre Seçimi
+        document.getElementById('step3').style.display = 'none';
+        document.getElementById('parametreSecimAlani').innerHTML = ''; // Parametre seçim alanını temizle
+    });
+
+    // İleri butonu
+    document.getElementById('nextStep').addEventListener('click', function() {
+        var currentStep = document.getElementById('currentStep').textContent;
+        var nextStep = parseInt(currentStep) + 1;
+        var stepContents = document.querySelectorAll('.step-content');
+        var progressBar = document.getElementById('progressBar');
+        var stepDescription = document.getElementById('stepDescription');
+
+        if (nextStep > stepContents.length) {
+            nextStep = stepContents.length; // En son adıma ulaşınca sessizce dur
+            return;
+        }
+
+        // Mevcut adımı gizle
+        stepContents[parseInt(currentStep) - 1].style.display = 'none';
+        // Sonraki adımı göster
+        stepContents[nextStep - 1].style.display = 'block';
+
+        // İlerleme çubuğunu güncelle
+        progressBar.style.width = ((nextStep - 1) / (stepContents.length - 1)) * 100 + '%';
+        stepDescription.textContent = stepContents[nextStep - 1].querySelector('h6').textContent;
+
+        // İleri butonunu gizle, geri butonu göster
+        document.getElementById('nextStep').style.display = 'none';
+        document.getElementById('prevStep').style.display = 'inline-block';
+
+        // Son adımda kaydet butonunu göster
+        if (nextStep === stepContents.length) {
+            document.getElementById('finishStep').style.display = 'inline-block';
+        }
+    });
+
+    // Geri butonu
+    document.getElementById('prevStep').addEventListener('click', function() {
+        var currentStep = document.getElementById('currentStep').textContent;
+        var prevStep = parseInt(currentStep) - 1;
+        var stepContents = document.querySelectorAll('.step-content');
+        var progressBar = document.getElementById('progressBar');
+        var stepDescription = document.getElementById('stepDescription');
+
+        if (prevStep < 1) {
+            prevStep = 1; // En başa döndüğünde sessizce dur
+            return;
+        }
+
+        // Mevcut adımı gizle
+        stepContents[parseInt(currentStep) - 1].style.display = 'none';
+        // Önceki adımı göster
+        stepContents[prevStep - 1].style.display = 'block';
+
+        // İlerleme çubuğunu güncelle
+        progressBar.style.width = ((prevStep - 1) / (stepContents.length - 1)) * 100 + '%';
+        stepDescription.textContent = stepContents[prevStep - 1].querySelector('h6').textContent;
+
+        // Geri butonunu gizle, ileri butonu göster
+        document.getElementById('prevStep').style.display = 'none';
+        document.getElementById('nextStep').style.display = 'inline-block';
+
+        // Son adımda kaydet butonunu gizle
+        if (prevStep === 1) {
+            document.getElementById('finishStep').style.display = 'none';
+        }
+    });
+
+    // Kaydet butonu
+    document.getElementById('finishStep').addEventListener('click', function() {
+        var currentStep = document.getElementById('currentStep').textContent;
+        var stepContents = document.querySelectorAll('.step-content');
+        var progressBar = document.getElementById('progressBar');
+        var stepDescription = document.getElementById('stepDescription');
+
+        if (currentStep === '1') {
+            // Adım 1: Temel Bilgiler
+            var formData = new FormData(document.getElementById('temelBilgilerForm'));
+            var firmaAdi = formData.get('firmaAdi');
+            var olcumKodu = formData.get('olcumKodu');
+            var bacaSayisi = formData.get('bacaSayisi');
+            var olcumBaslangic = formData.get('olcumBas');
+            var olcumBitis = formData.get('olcumBit');
+            var olcumPersoneli = Array.from(document.querySelectorAll('input[name="olcumPersoneli"]:checked')).map(input => input.value);
+
+            if (!firmaAdi || !olcumKodu || !bacaSayisi || !olcumBaslangic || !olcumBitis || olcumPersoneli.length === 0) {
+                alert('Lütfen tüm temel bilgileri doldurun.');
+                return;
+            }
+
+            document.getElementById('olcumBilgileri').textContent = firmaAdi + ' - ' + olcumKodu;
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('nextStep').style.display = 'inline-block';
+            document.getElementById('prevStep').style.display = 'inline-block';
+            document.getElementById('finishStep').style.display = 'none';
+            progressBar.style.width = '66%';
+            stepDescription.textContent = 'Baca bilgileri';
+
+            // Adım 2: Baca Ekleme
+            document.getElementById('bacaEklemeAlani').innerHTML = ''; // Baca ekleme alanını temizle
+            for (let i = 1; i <= parseInt(bacaSayisi); i++) {
+                const row = document.createElement('div');
+                row.className = 'row g-3 mb-2';
+                row.innerHTML = `
+                    <div class="col-md-6">
+                        <label for="bacaAdi_${i}" class="form-label">Baca ${i} Adı</label>
+                        <input type="text" class="form-control form-control-sm" id="bacaAdi_${i}" name="bacaAdi_${i}" placeholder="Örn: 1. NOLU BACA" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ölçülecek Parametreler</label>
+                        <select class="form-select form-select-sm" id="parametreSecimi_${i}" multiple size="5" style="height: auto;">
+                            ${unique_param_names.map(param => `<option value="${param}">${param}</option>`).join('')}
+                        </select>
+                        <small class="form-text text-muted">Ctrl tuşu ile birden fazla parametre seçebilirsiniz</small>
+                    </div>
+                `;
+                document.getElementById('bacaEklemeAlani').appendChild(row);
+            }
+
+        } else if (currentStep === '2') {
+            // Adım 2: Baca Ekleme
+            var bacaData = [];
+            document.querySelectorAll('#bacaEklemeAlani .row').forEach(function(row, index) {
+                var bacaAdiInput = row.querySelector('input[name^="bacaAdi_"]');
+                var parametreSecimi = row.querySelector('#parametreSecimi_' + (index + 1));
+
+                if (bacaAdiInput && parametreSecimi) {
+                    var bacaAdi = bacaAdiInput.value.trim();
+                    var seciliParametreler = Array.from(parametreSecimi.options).filter(option => option.selected).map(option => option.value);
+
+                    if (bacaAdi && seciliParametreler.length > 0) {
+                        bacaData.push({
+                            baca_adi: bacaAdi,
+                            parametreler: seciliParametreler
+                        });
+                    }
+                }
+            });
+
+            if (bacaData.length === 0) {
+                alert('Lütfen en az bir baca adı ve parametre girin.');
+                return;
+            }
+
+            document.getElementById('olcumBilgileri').textContent = document.getElementById('olcumBilgileri').textContent + ' - ' + bacaData.length + ' Baca';
+            document.getElementById('step3').style.display = 'block';
+            document.getElementById('nextStep').style.display = 'inline-block';
+            document.getElementById('prevStep').style.display = 'inline-block';
+            document.getElementById('finishStep').style.display = 'none';
+            progressBar.style.width = '99%';
+            stepDescription.textContent = 'Parametre seçimi';
+
+            // Adım 3: Parametre Seçimi
+            document.getElementById('parametreSecimAlani').innerHTML = ''; // Parametre seçim alanını temizle
+            bacaData.forEach(function(baca, index) {
+                const row = document.createElement('div');
+                row.className = 'row g-3 mb-2';
+                row.innerHTML = `
+                    <div class="col-md-6">
+                        <label class="form-label">Baca ${index + 1} Adı</label>
+                        <input type="text" class="form-control form-control-sm" value="${baca.baca_adi}" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Seçili Parametreler</label>
+                        <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto; background: #f8f9fa;">
+                            ${baca.parametreler.map(param => `<span class="badge bg-info me-1">${param}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('parametreSecimAlani').appendChild(row);
+            });
+
+        } else if (currentStep === '3') {
+            // Adım 3: Parametre Seçimi
+            var formData = new FormData();
+            formData.append('firmaAdi', document.getElementById('firmaAdi').value);
+            formData.append('olcumKodu', document.getElementById('olcumKodu').value);
+            formData.append('bacaSayisi', document.getElementById('bacaSayisi').value);
+            formData.append('olcumBaslangic', document.getElementById('olcumBas').value);
+            formData.append('olcumBitis', document.getElementById('olcumBit').value);
+            formData.append('olcumPersoneli', olcumPersoneli.join(','));
+
+            var bacaData = [];
+            document.querySelectorAll('#parametreSecimAlani .row').forEach(function(row, index) {
+                var bacaAdiInput = row.querySelector('input[type="text"]');
+                var seciliParametreler = Array.from(row.querySelectorAll('.badge.bg-info')).map(badge => badge.textContent);
+
+                if (bacaAdiInput && seciliParametreler.length > 0) {
+                    bacaData.push({
+                        baca_adi: bacaAdiInput.value.trim(),
+                        parametreler: seciliParametreler
+                    });
+                }
+            });
+
+            if (bacaData.length === 0) {
+                alert('Lütfen en az bir baca adı ve parametre girin.');
+                return;
+            }
+
+            formData.append('baca_data', JSON.stringify(bacaData));
+
+            // Ölçümü AJAX ile kaydet
+            fetch('{{ url_for("add_measurement") }}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.measurement_id) {
+                    // Baca bilgilerini topla
+                    var bacaData = [];
+                    var bacaRows = document.querySelectorAll('#bacaTablosuBody tr');
+                    bacaRows.forEach(function(row) {
+                        var bacaAdiInput = row.querySelector('.baca-adi-input');
+                        var parametreCheckboxes = row.querySelectorAll('.parametre-checkbox:checked');
+                        if (bacaAdiInput && bacaAdiInput.value.trim()) {
+                            var parametreler = [];
+                            parametreCheckboxes.forEach(function(checkbox) {
+                                parametreler.push(checkbox.getAttribute('data-parametre'));
+                            });
+                            bacaData.push({
+                                baca_adi: bacaAdiInput.value.trim(),
+                                parametreler: parametreler
+                            });
+                        }
+                    });
+                    // Baca bilgilerini kaydet
+                    if (bacaData.length > 0) {
+                        return fetch('{{ url_for("save_baca_data") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                olcum_id: data.measurement_id,
+                                baca_data: bacaData
+                            })
+                        });
+                    }
+                } else {
+                    alert('Ölçüm kaydedilemedi!');
+                }
+            })
+            .then(response => {
+                // Baca kaydı da başarılıysa sayfayı yenile
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                alert('Kaydetme sırasında hata oluştu: ' + error.message);
+            });
+        }
+    });
+    
+    // Tüm modallar için backdrop temizleme
+    document.addEventListener('hidden.bs.modal', function(event) {
+        // Tüm modal-backdrop elementlerini temizle
+        document.querySelectorAll('.modal-backdrop').forEach(function(el) {
+            el.remove();
+        });
+        // Body'den tüm modal class'larını temizle
+        document.body.classList.remove('modal-open');
+        document.body.style.paddingRight = '';
+        document.body.style.overflow = '';
+    });
+});
+</script>
+<script type="application/json" id="measurements-json">{{ measurements|tojson }}</script>
+{% endblock %}
+{% endblock %} 

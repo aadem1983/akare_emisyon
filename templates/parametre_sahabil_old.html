@@ -1,0 +1,1152 @@
+{% extends "base.html" %}
+
+{% block title %}Parametre Sahabil{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-flask me-2"></i>
+                    Parametre Sahabil
+                </h2>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success btn-sm" onclick="exportSelected()">
+                        <i class="fas fa-download me-1"></i>Seçilenleri Dışa Aktar
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="importData()">
+                        <i class="fas fa-upload me-1"></i>İçe Aktar
+                    </button>
+                    <button type="button" class="btn btn-info btn-sm" onclick="exportAll()">
+                        <i class="fas fa-download me-1"></i>Tümünü Dışa Aktar
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()">
+                        <i class="fas fa-trash me-1"></i>Seçilenleri Sil
+                    </button>
+                </div>
+            </div>
+
+            <!-- Parametre Seçimi -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Parametre Seçimi ve Ölçüm Formu
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label for="parametreSelect" class="form-label fw-bold">Parametre Seçin:</label>
+                                <select class="form-select" id="parametreSelect" onchange="loadParametreForm()">
+                                    <option value="">Parametre seçin...</option>
+                                    {% for param in parameters %}
+                                    <option value="{{ param.id }}">{{ param['Parametre Adı'] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Parametre Ölçüm Formu -->
+                    <div id="parametreOlcumForm" style="display: none;">
+                        <div class="card">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-edit me-2"></i>
+                                    <span id="selectedParametreName">Seçilen Parametre</span> - Ölçüm Bilgileri
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="parametreOlcumFormElement">
+                                    <div class="row" id="parametreOlcumFields">
+                                        <!-- Parametre ölçüm alanları dinamik olarak yüklenecek -->
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12 text-end">
+                                            <button type="button" class="btn btn-warning" onclick="saveParametreOlcum()">
+                                                <i class="fas fa-save me-1"></i>Ölçümü Kaydet
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kayıtlı Ölçümler Tablosu -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Kayıtlı Parametre Ölçümleri
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="parametreOlcumTable">
+                            <thead class="table-dark" id="parametreOlcumTableHead">
+                                <tr>
+                                    <th width="50">
+                                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th width="60">#</th>
+                                    <th>Parametre Türü/Adı</th>
+                                    <th>Ölçüm Tarihi</th>
+                                    <th>Ölçüm Değerleri</th>
+                                    <th>Birim</th>
+                                    <th>Kaynak</th>
+                                    <th width="120">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody id="parametreOlcumTableBody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">
+                                        Henüz parametre ölçümü kaydı bulunmuyor
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- İçe Aktarma Modalı -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Veri İçe Aktar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm">
+                    <div class="mb-3">
+                        <label for="importFile" class="form-label">Excel Dosyası Seçin:</label>
+                        <div class="drop-zone" id="dropZone">
+                            <div class="drop-zone-content">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <p class="mb-2">Dosyayı buraya sürükleyip bırakın</p>
+                                <p class="text-muted small">veya</p>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('importFile').click()">
+                                    Dosya Seç
+                                </button>
+                            </div>
+                            <input type="file" class="form-control d-none" id="importFile" accept=".xlsx,.xls" required>
+                        </div>
+                        <div id="fileInfo" class="mt-2" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-file-excel me-2"></i>
+                                <span id="fileName"></span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="processImport()" id="importBtn" disabled>İçe Aktar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drop-zone.dragover {
+    border-color: #007bff;
+    background-color: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.drop-zone-content {
+    pointer-events: none;
+}
+
+.drop-zone-content button {
+    pointer-events: all;
+}
+</style>
+
+<script>
+// Sürükle-bırak işlevselliği
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('importFile');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const importBtn = document.getElementById('importBtn');
+
+    // Sürükle olayları
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                file.type === 'application/vnd.ms-excel' ||
+                file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                
+                fileInput.files = files;
+                handleFileSelect(file);
+            } else {
+                alert('Lütfen sadece Excel dosyası (.xlsx veya .xls) seçin!');
+            }
+        }
+    });
+
+    // Dosya seçimi
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    function handleFileSelect(file) {
+        fileName.textContent = file.name;
+        fileInfo.style.display = 'block';
+        importBtn.disabled = false;
+        dropZone.style.borderColor = '#28a745';
+        dropZone.style.backgroundColor = '#d4edda';
+    }
+});
+
+// Parametre formunu yükle
+function loadParametreForm() {
+    const parametreSelect = document.getElementById('parametreSelect');
+    const selectedParametreId = parametreSelect.value;
+    const selectedParametreName = parametreSelect.options[parametreSelect.selectedIndex].text;
+    
+    if (!selectedParametreId) {
+        document.getElementById('parametreOlcumForm').style.display = 'none';
+        return;
+    }
+    
+    // Seçilen parametre adını güncelle
+    document.getElementById('selectedParametreName').textContent = selectedParametreName;
+    
+    // Formu göster
+    document.getElementById('parametreOlcumForm').style.display = 'block';
+    
+    // Parametre ölçüm alanlarını oluştur
+    const parametreOlcumFields = document.getElementById('parametreOlcumFields');
+    parametreOlcumFields.innerHTML = '';
+    
+    // Tablo başlıklarını güncelle
+    updateTableHeaders(selectedParametreName);
+    
+    // Excel dosyasındaki parametre yapısına göre form oluştur
+    createSimpleForm(parametreOlcumFields);
+}
+
+// Tablo başlıklarını güncelle
+function updateTableHeaders(parametreName) {
+    const tableHead = document.getElementById('parametreOlcumTableHead');
+    const tableBody = document.getElementById('parametreOlcumTableBody');
+    
+    if (parametreName.toLowerCase().includes('yg')) {
+        // YG parametresi için özel başlıklar
+        tableHead.innerHTML = `
+            <tr>
+                <th width="50">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                </th>
+                <th width="60">#</th>
+                <th>TARİH</th>
+                <th>B.SIC</th>
+                <th>O2</th>
+                <th>CO</th>
+                <th>NO</th>
+                <th>NOX</th>
+                <th>SO2</th>
+                <th>KK1-O2</th>
+                <th>KK1-CO</th>
+                <th>KK1-NO</th>
+                <th>KK1-SO2</th>
+                <th>KK2-O2</th>
+                <th>KK2-CO</th>
+                <th>KK2-NO</th>
+                <th>KK2-SO2</th>
+                <th>T90</th>
+                <th width="120">İşlemler</th>
+            </tr>
+        `;
+        
+        // Boş mesajı güncelle
+        if (tableBody.children.length === 1 && tableBody.children[0].children.length === 1) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="19" class="text-center text-muted">
+                        Henüz parametre ölçümü kaydı bulunmuyor
+                    </td>
+                </tr>
+            `;
+        }
+    } else {
+        // Standart başlıklar
+        tableHead.innerHTML = `
+            <tr>
+                <th width="50">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                </th>
+                <th width="60">#</th>
+                <th>Parametre Türü/Adı</th>
+                <th>Ölçüm Tarihi</th>
+                <th>Ölçüm Değerleri</th>
+                <th>Birim</th>
+                <th>Kaynak</th>
+                <th width="120">İşlemler</th>
+            </tr>
+        `;
+        
+        // Boş mesajı güncelle
+        if (tableBody.children.length === 1 && tableBody.children[0].children.length === 1) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        Henüz parametre ölçümü kaydı bulunmuyor
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// Excel dosyasındaki parametre yapısına göre form oluştur
+function createSimpleForm(container) {
+    const selectedParametreName = document.getElementById('selectedParametreName').textContent;
+    
+    // Excel dosyasındaki parametre yapısına göre alanları tanımla
+    const parametreFields = {
+        'TOZ': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'EPA5,EPA17,TS 9096, TS EN13284', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'YG': [
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'o2', label: 'O2', type: 'number', step: '0.01', required: false },
+            { name: 'co', label: 'CO', type: 'number', step: '0.01', required: false },
+            { name: 'no', label: 'NO', type: 'number', step: '0.01', required: false },
+            { name: 'nox', label: 'NOX', type: 'number', step: '0.01', required: false },
+            { name: 'so2', label: 'SO2', type: 'number', step: '0.01', required: false },
+            { name: 'kk1_o2', label: 'KK1-O2', type: 'number', step: '0.01', required: false },
+            { name: 'kk1_co', label: 'KK1-CO', type: 'number', step: '0.01', required: false },
+            { name: 'kk1_no', label: 'KK1-NO', type: 'number', step: '0.01', required: false },
+            { name: 'kk1_so2', label: 'KK1-SO2', type: 'number', step: '0.01', required: false },
+            { name: 'kk2_o2', label: 'KK2-O2', type: 'number', step: '0.01', required: false },
+            { name: 'kk2_co', label: 'KK2-CO', type: 'number', step: '0.01', required: false },
+            { name: 'kk2_no', label: 'KK2-NO', type: 'number', step: '0.01', required: false },
+            { name: 'kk2_so2', label: 'KK2-SO2', type: 'number', step: '0.01', required: false },
+            { name: 't90', label: 'T90', type: 'number', step: '0.01', required: false }
+        ],
+        'TOC': [
+            { name: 'b_nem', label: 'B.NEM', type: 'number', step: '0.1', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'toc_ppm', label: 'TOC(PPM)', type: 'number', step: '0.01', required: false },
+            { name: 'kk1_o', label: 'KK1-O', type: 'number', step: '0.01', required: false },
+            { name: 'kk1_span', label: 'KK1-SPAN', type: 'number', step: '0.01', required: false },
+            { name: 'kk2_o', label: 'KK2-O', type: 'number', step: '0.01', required: false },
+            { name: 'kk2_span', label: 'KK2-SPAN', type: 'number', step: '0.01', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'VOC': [
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true },
+            { name: 'gaz_hac', label: 'GAZ HAC', type: 'number', step: '0.01', required: false },
+            { name: 'gaz_sic', label: 'GAZ SIC', type: 'number', step: '0.1', required: false },
+            { name: 'dey_gaz_hac', label: 'DEY GAZ HAC', type: 'number', step: '0.01', required: false },
+            { name: 'dey_gaz_sic', label: 'DEY GAZ SIC', type: 'number', step: '0.1', required: false }
+        ],
+        'A.MET': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'EPA29, TS 14381', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'SÜLF.A': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'EPA 8', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'HF': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'ISO 15713, EPA 23A', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'HCL': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'TS EN 1911', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'AMONYAK': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'Güncel Metot 207.1', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'FORM': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'EPA Metot 323', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'CR6': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'Güncel 425', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'FOSF.A': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'NMX-AA-90-1986', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'HCN': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'Güncel 425', required: true },
+            { name: 'nozzle_cap', label: 'NOZZLE ÇAP', type: 'number', step: '0.1', required: false },
+            { name: 'travers', label: 'TRAVERS', type: 'text', required: false },
+            { name: 'b_hiz', label: 'B.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'b_bas_kpa', label: 'B.BAS(KPA)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_gm3', label: 'B.NEM(G/M3)', type: 'number', step: '0.01', required: false },
+            { name: 'b_nem_yuzde', label: 'B.NEM(%)', type: 'number', step: '0.1', required: false },
+            { name: 'syc_hac', label: 'SYC.HAC', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'syc_sic', label: 'SYC.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'debi', label: 'DEBİ', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'PM10': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'EPA 40 CFR 50 AppJ', required: true },
+            { name: 'ort_sic', label: 'ORT.SIC', type: 'number', step: '0.1', required: false },
+            { name: 'ort_nem', label: 'ORT.NEM', type: 'number', step: '0.1', required: false },
+            { name: 'ort_ruz_hiz', label: 'ORT.RUZ.HIZ', type: 'number', step: '0.01', required: false },
+            { name: 'cek_hacim', label: 'ÇEK.HACİM', type: 'number', step: '0.01', required: false },
+            { name: 'syc_ilk', label: 'SYC.İLK', type: 'number', step: '0.01', required: false },
+            { name: 'syc_son', label: 'SYC.SON', type: 'number', step: '0.01', required: false },
+            { name: 'isdl', label: 'ISDL', type: 'text', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ],
+        'ÇÖKEN TO': [
+            { name: 'metot', label: 'METOT', type: 'text', value: 'TS 2342', required: true },
+            { name: 't_ici_1', label: 'T.İÇİ-1', type: 'number', step: '0.01', required: false },
+            { name: 't_ici_2', label: 'T.İÇİ-2', type: 'number', step: '0.01', required: false },
+            { name: 't_ici_3', label: 'T.İÇİ-3', type: 'number', step: '0.01', required: false },
+            { name: 't_ici_4', label: 'T.İÇİ-4', type: 'number', step: '0.01', required: false },
+            { name: 't_dis_1', label: 'T.DIŞ-1', type: 'number', step: '0.01', required: false },
+            { name: 't_dis_2', label: 'T.DIŞ-2', type: 'number', step: '0.01', required: false },
+            { name: 't_dis_3', label: 'T.DIŞ-3', type: 'number', step: '0.01', required: false },
+            { name: 't_dis_4', label: 'T.DIŞ-4', type: 'number', step: '0.01', required: false },
+            { name: 'ilk_kurulum', label: 'İLK KURULUM', type: 'date', required: false },
+            { name: 'ikinci_kurulum', label: '2. KURULUM', type: 'date', required: false },
+            { name: 'toplama', label: 'TOPLAMA', type: 'date', required: false },
+            { name: 'tarih', label: 'TARİH', type: 'date', required: true }
+        ]
+    };
+    
+    // Seçilen parametre için alanları al
+    const fields = parametreFields[selectedParametreName] || [];
+    
+    if (fields.length === 0) {
+        // Eğer parametre bulunamazsa standart alanları göster
+        const defaultFields = [
+            { name: 'olcum_tarihi', label: 'Ölçüm Tarihi', type: 'date', required: true },
+            { name: 'olcum_saati', label: 'Ölçüm Saati', type: 'time', required: true },
+            { name: 'olcum_degeri', label: 'Ölçüm Değeri', type: 'number', step: '0.01', required: true },
+            { name: 'birim', label: 'Birim', type: 'select', options: ['mg/m³', 'μg/m³', 'ppm', 'ppb', '%'], required: true },
+            { name: 'notlar', label: 'Notlar', type: 'textarea', required: false }
+        ];
+        
+        defaultFields.forEach(createFieldElement);
+        return;
+    }
+    
+    // Parametre başlığı ekle
+    const headerCol = document.createElement('div');
+    headerCol.className = 'col-12 mb-3';
+    headerCol.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-flask me-2"></i>
+            <strong>${selectedParametreName}</strong> parametresi için özel ölçüm formu
+        </div>
+    `;
+    container.appendChild(headerCol);
+    
+    // Alanları oluştur
+    fields.forEach(createFieldElement);
+    
+    function createFieldElement(field) {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6 col-md-4 mb-3';
+        
+        let inputHtml = '';
+        if (field.type === 'textarea') {
+            inputHtml = `<textarea class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} rows="3" placeholder="${field.label}"></textarea>`;
+        } else if (field.type === 'select') {
+            inputHtml = `<select class="form-select" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''}>
+                <option value="">Seçin...</option>`;
+            field.options.forEach(option => {
+                inputHtml += `<option value="${option}">${option}</option>`;
+            });
+            inputHtml += '</select>';
+        } else {
+            const valueAttr = field.value ? `value="${field.value}"` : '';
+            inputHtml = `<input type="${field.type}" class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} ${field.step ? `step="${field.step}"` : ''} ${valueAttr} placeholder="${field.label}">`;
+        }
+        
+        col.innerHTML = `
+            <label for="${field.name}" class="form-label">${field.label}:</label>
+            ${inputHtml}
+        `;
+        
+        container.appendChild(col);
+    }
+}
+
+// Parametre ölçümünü kaydet
+function saveParametreOlcum() {
+    const parametreSelect = document.getElementById('parametreSelect');
+    const selectedParametreId = parametreSelect.value;
+    const selectedParametreName = parametreSelect.options[parametreSelect.selectedIndex].text;
+    
+    if (!selectedParametreId) {
+        alert('Lütfen bir parametre seçin!');
+        return;
+    }
+    
+    // Form verilerini topla
+    const formData = new FormData();
+    formData.append('parametre_id', selectedParametreId);
+    formData.append('parametre_adi', selectedParametreName);
+    
+    // Form alanlarını topla
+    const formFields = document.querySelectorAll('#parametreOlcumFormElement input, #parametreOlcumFormElement textarea, #parametreOlcumFormElement select');
+    formFields.forEach(field => {
+        formData.append(field.name, field.value);
+    });
+    
+    // Backend'e gönder
+    fetch('/save_parametre_sahabil', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Parametre ölçümü başarıyla kaydedildi!');
+            
+            // Formu temizle
+            document.getElementById('parametreOlcumFormElement').reset();
+            parametreSelect.value = '';
+            document.getElementById('parametreOlcumForm').style.display = 'none';
+            
+            // Tabloyu yenile
+            loadParametreOlcumTable();
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen hata'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Bir hata oluştu! Lütfen tekrar deneyin.');
+    });
+}
+
+// Parametre ölçüm tablosunu yükle
+function loadParametreOlcumTable() {
+    fetch('/api/parametre_sahabil_list')
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById('parametreOlcumTableBody');
+            tableBody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            Henüz parametre ölçümü kaydı bulunmuyor
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            data.forEach((record, index) => {
+                // Ölçüm verilerini formatla
+                let olcumBilgisi = '';
+                if (record.imported_from_excel) {
+                    // Excel'den import edilen veriler için
+                    const olcumVerileri = record.olcum_verileri || {};
+                    const olcumList = [];
+                    if (olcumVerileri.olcum_1) olcumList.push(`1.ÖLÇ: ${olcumVerileri.olcum_1}`);
+                    if (olcumVerileri.olcum_2) olcumList.push(`2.ÖLÇ: ${olcumVerileri.olcum_2}`);
+                    if (olcumVerileri.olcum_3) olcumList.push(`3.ÖLÇ: ${olcumVerileri.olcum_3}`);
+                    olcumBilgisi = olcumList.join(', ');
+                } else {
+                    // Manuel girilen veriler için
+                    olcumBilgisi = record.olcum_degeri || '-';
+                }
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="row-checkbox" value="${record.id}">
+                    </td>
+                    <td>${index + 1}</td>
+                    <td>
+                        <strong>${record.parametre_turu || record.parametre_adi}</strong>
+                        ${record.parametre_turu && record.parametre_adi ? '<br><small class="text-muted">' + record.parametre_adi + '</small>' : ''}
+                    </td>
+                    <td>${record.olcum_tarihi || '-'}</td>
+                    <td>${olcumBilgisi}</td>
+                    <td>${record.birim || '-'}</td>
+                    <td>
+                        ${record.imported_from_excel ? 
+                            '<span class="badge bg-info">Excel</span>' : 
+                            '<span class="badge bg-success">Manuel</span>'
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewParametreOlcum('${record.id}')" title="Görüntüle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning me-1" onclick="editParametreOlcum('${record.id}')" title="Düzenle">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteParametreOlcum('${record.id}')" title="Sil">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Parametre ölçüm tablosu yüklenirken hata:', error);
+        });
+}
+
+// Tümünü seç/kaldır
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.getElementsByClassName('row-checkbox');
+    
+    for (let checkbox of checkboxes) {
+        checkbox.checked = selectAll.checked;
+    }
+}
+
+// İçe aktarma modalını aç
+function importData() {
+    const importModal = new bootstrap.Modal(document.getElementById('importModal'));
+    importModal.show();
+}
+
+// İçe aktarma işlemini gerçekleştir
+function processImport() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Lütfen bir dosya seçin!');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('/import_parametre_sahabil', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Veriler başarıyla içe aktarıldı!');
+            loadParametreOlcumTable();
+        } else {
+            alert('Hata: ' + (data.error || 'İçe aktarma başarısız'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('İçe aktarma sırasında bir hata oluştu!');
+    });
+    
+    // Modalı kapat
+    const importModal = bootstrap.Modal.getInstance(document.getElementById('importModal'));
+    importModal.hide();
+}
+
+// Seçilenleri dışa aktar
+function exportSelected() {
+    const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Lütfen dışa aktarılacak kayıtları seçin!');
+        return;
+    }
+    
+    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    window.open(`/export_selected_parametre_sahabil?ids=${selectedIds.join(',')}`, '_blank');
+}
+
+// Tümünü dışa aktar
+function exportAll() {
+    window.open('/export_all_parametre_sahabil', '_blank');
+}
+
+// Seçilenleri sil
+function deleteSelected() {
+    const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Lütfen silinecek kayıtları seçin!');
+        return;
+    }
+    
+    if (confirm(`${selectedCheckboxes.length} adet kayıt silinecek. Emin misiniz?`)) {
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        
+        fetch('/delete_selected_parametre_sahabil', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Seçilen kayıtlar başarıyla silindi!');
+                loadParametreOlcumTable();
+            } else {
+                alert('Hata: ' + (data.error || 'Silme işlemi başarısız'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Silme işlemi sırasında bir hata oluştu!');
+        });
+    }
+}
+
+// Parametre formunu yükle
+function loadParametreForm() {
+    const parametreSelect = document.getElementById('parametreSelect');
+    const selectedParametreId = parametreSelect.value;
+    const selectedParametreName = parametreSelect.options[parametreSelect.selectedIndex].text;
+    
+    if (!selectedParametreId) {
+        document.getElementById('parametreOlcumForm').style.display = 'none';
+        return;
+    }
+    
+    // Seçilen parametre adını güncelle
+    document.getElementById('selectedParametreName').textContent = selectedParametreName;
+    
+    // Formu göster
+    document.getElementById('parametreOlcumForm').style.display = 'block';
+    
+    // Parametre ölçüm alanlarını oluştur
+    const parametreOlcumFields = document.getElementById('parametreOlcumFields');
+    parametreOlcumFields.innerHTML = '';
+    
+    // Tablo başlıklarını güncelle
+    updateTableHeaders(selectedParametreName);
+    
+    // Excel dosyasındaki parametre yapısına göre form oluştur
+    createSimpleForm(parametreOlcumFields);
+}
+
+// Tablo başlıklarını güncelle
+function updateTableHeaders(parametreName) {
+    const tableHead = document.getElementById('parametreOlcumTableHead');
+    const tableBody = document.getElementById('parametreOlcumTableBody');
+    
+    if (parametreName.toLowerCase().includes('yg')) {
+        // YG parametresi için özel başlıklar
+        tableHead.innerHTML = `
+            <tr>
+                <th width="50">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                </th>
+                <th width="60">#</th>
+                <th>TARİH</th>
+                <th>B.SIC</th>
+                <th>O2</th>
+                <th>CO</th>
+                <th>NO</th>
+                <th>NOX</th>
+                <th>SO2</th>
+                <th>KK1-O2</th>
+                <th>KK1-CO</th>
+                <th>KK1-NO</th>
+                <th>KK1-SO2</th>
+                <th>KK2-O2</th>
+                <th>KK2-CO</th>
+                <th>KK2-NO</th>
+                <th>KK2-SO2</th>
+                <th>T90</th>
+                <th width="120">İşlemler</th>
+            </tr>
+        `;
+        
+        // Boş mesajı güncelle
+        if (tableBody.children.length === 1 && tableBody.children[0].children.length === 1) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="19" class="text-center text-muted">
+                        Henüz parametre ölçümü kaydı bulunmuyor
+                    </td>
+                </tr>
+            `;
+        }
+    } else {
+        // Standart başlıklar
+        tableHead.innerHTML = `
+            <tr>
+                <th width="50">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                </th>
+                <th width="60">#</th>
+                <th>Parametre Türü/Adı</th>
+                <th>Ölçüm Tarihi</th>
+                <th>Ölçüm Değerleri</th>
+                <th>Birim</th>
+                <th>Kaynak</th>
+                <th width="120">İşlemler</th>
+            </tr>
+        `;
+        
+        // Boş mesajı güncelle
+        if (tableBody.children.length === 1 && tableBody.children[0].children.length === 1) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        Henüz parametre ölçümü kaydı bulunmuyor
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// Basit form oluştur (yg-voc-toc-pm10-ctoz için)
+function createSimpleForm(container) {
+    // YG parametresi için özel alanlar
+    const selectedParametreName = document.getElementById('selectedParametreName').textContent;
+    
+    if (selectedParametreName.toLowerCase().includes('yg')) {
+        createYGForm(container);
+        return;
+    }
+    
+    // Diğer basit parametreler için standart alanlar
+    const fields = [
+        { name: 'olcum_tarihi', label: 'Ölçüm Tarihi', type: 'date', required: true },
+        { name: 'olcum_saati', label: 'Ölçüm Saati', type: 'time', required: true },
+        { name: 'olcum_degeri', label: 'Ölçüm Değeri', type: 'number', step: '0.01', required: true },
+        { name: 'birim', label: 'Birim', type: 'select', options: ['mg/m³', 'μg/m³', 'ppm', 'ppb', '%'], required: true },
+        { name: 'notlar', label: 'Notlar', type: 'textarea', required: false }
+    ];
+    
+    fields.forEach((field, index) => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6 col-md-4 mb-3';
+        
+        let inputHtml = '';
+        if (field.type === 'textarea') {
+            inputHtml = `<textarea class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} rows="3" placeholder="${field.label}"></textarea>`;
+        } else if (field.type === 'select') {
+            inputHtml = `<select class="form-select" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''}>
+                <option value="">Seçin...</option>`;
+            field.options.forEach(option => {
+                inputHtml += `<option value="${option}">${option}</option>`;
+            });
+            inputHtml += '</select>';
+        } else {
+            inputHtml = `<input type="${field.type}" class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} ${field.step ? `step="${field.step}"` : ''} placeholder="${field.label}">`;
+        }
+        
+        col.innerHTML = `
+            <label for="${field.name}" class="form-label">${field.label}:</label>
+            ${inputHtml}
+        `;
+        
+        container.appendChild(col);
+    });
+}
+
+// YG parametresi için özel form alanları
+function createYGForm(container) {
+    // Başlık
+    const headerCol = document.createElement('div');
+    headerCol.className = 'col-12 mb-3';
+    headerCol.innerHTML = `
+        <div class="alert alert-warning">
+            <i class="fas fa-flask me-2"></i>
+            <strong>YG Parametresi</strong> için özel ölçüm formu
+        </div>
+    `;
+    container.appendChild(headerCol);
+    
+    // YG parametresi için özel alanlar
+    const ygFields = [
+        { name: 'tarih', label: 'TARİH', type: 'date', required: true },
+        { name: 'b_sic', label: 'B.SIC', type: 'number', step: '0.1', required: false },
+        { name: 'o2', label: 'O2', type: 'number', step: '0.01', required: false },
+        { name: 'co', label: 'CO', type: 'number', step: '0.01', required: false },
+        { name: 'no', label: 'NO', type: 'number', step: '0.01', required: false },
+        { name: 'nox', label: 'NOX', type: 'number', step: '0.01', required: false },
+        { name: 'so2', label: 'SO2', type: 'number', step: '0.01', required: false },
+        { name: 'kk1_o2', label: 'KK1-O2', type: 'number', step: '0.01', required: false },
+        { name: 'kk1_co', label: 'KK1-CO', type: 'number', step: '0.01', required: false },
+        { name: 'kk1_no', label: 'KK1-NO', type: 'number', step: '0.01', required: false },
+        { name: 'kk1_so2', label: 'KK1-SO2', type: 'number', step: '0.01', required: false },
+        { name: 'kk2_o2', label: 'KK2-O2', type: 'number', step: '0.01', required: false },
+        { name: 'kk2_co', label: 'KK2-CO', type: 'number', step: '0.01', required: false },
+        { name: 'kk2_no', label: 'KK2-NO', type: 'number', step: '0.01', required: false },
+        { name: 'kk2_so2', label: 'KK2-SO2', type: 'number', step: '0.01', required: false },
+        { name: 't90', label: 'T90', type: 'number', step: '0.01', required: false }
+    ];
+    
+    ygFields.forEach((field, index) => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6 col-md-4 mb-3';
+        
+        col.innerHTML = `
+            <label for="${field.name}" class="form-label">${field.label}:</label>
+            <input type="${field.type}" class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} ${field.step ? `step="${field.step}"` : ''} placeholder="${field.label}">
+        `;
+        
+        container.appendChild(col);
+    });
+}
+
+// Detaylı form oluştur (diğer parametreler için)
+function createDetailedForm(container, parametreName) {
+    // Standart alanlar
+    const fields = [
+        { name: 'olcum_tarihi', label: 'Ölçüm Tarihi', type: 'date', required: true },
+        { name: 'olcum_saati', label: 'Ölçüm Saati', type: 'time', required: true },
+        { name: 'olcum_degeri', label: 'Ölçüm Değeri', type: 'number', step: '0.01', required: true },
+        { name: 'birim', label: 'Birim', type: 'select', options: ['mg/m³', 'μg/m³', 'ppm', 'ppb', '%'], required: true },
+        { name: 'notlar', label: 'Notlar', type: 'textarea', required: false }
+    ];
+    
+    fields.forEach((field, index) => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6 col-md-4 mb-3';
+        
+        let inputHtml = '';
+        if (field.type === 'textarea') {
+            inputHtml = `<textarea class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} rows="3" placeholder="${field.label}"></textarea>`;
+        } else if (field.type === 'select') {
+            inputHtml = `<select class="form-select" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''}>
+                <option value="">Seçin...</option>`;
+            field.options.forEach(option => {
+                inputHtml += `<option value="${option}">${option}</option>`;
+            });
+            inputHtml += '</select>';
+        } else {
+            inputHtml = `<input type="${field.type}" class="form-control" name="${field.name}" id="${field.name}" ${field.required ? 'required' : ''} ${field.step ? `step="${field.step}"` : ''} placeholder="${field.label}">`;
+        }
+        
+        col.innerHTML = `
+            <label for="${field.name}" class="form-label">${field.label}:</label>
+            ${inputHtml}
+        `;
+        
+        container.appendChild(col);
+    });
+}
+
+// Sayfa yüklendiğinde tabloyu yükle
+document.addEventListener('DOMContentLoaded', function() {
+    loadParametreOlcumTable();
+    
+    // Parametre seçimi değiştiğinde formu yükle
+    const parametreSelect = document.getElementById('parametreSelect');
+    if (parametreSelect) {
+        parametreSelect.addEventListener('change', function() {
+            loadParametreForm();
+        });
+        
+        // Sayfa yüklendiğinde seçili parametre varsa formu yükle
+        if (parametreSelect.value) {
+            loadParametreForm();
+        }
+    }
+});
+
+// Görüntüle, düzenle, sil fonksiyonları (placeholder)
+function viewParametreOlcum(id) {
+    alert('Görüntüleme özelliği yakında eklenecek!');
+}
+
+function editParametreOlcum(id) {
+    alert('Düzenleme özelliği yakında eklenecek!');
+}
+
+function deleteParametreOlcum(id) {
+    if (confirm('Bu kaydı silmek istediğinizden emin misiniz?')) {
+        fetch(`/delete_parametre_sahabil/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Kayıt başarıyla silindi!');
+                loadParametreOlcumTable();
+            } else {
+                alert('Hata: ' + (data.error || 'Silme işlemi başarısız'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Silme işlemi sırasında bir hata oluştu!');
+        });
+    }
+}
+</script>
+{% endblock %} 

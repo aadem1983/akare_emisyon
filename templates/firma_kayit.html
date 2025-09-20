@@ -1,0 +1,769 @@
+{% extends "base.html" %}
+
+{% block title %}FIRMA_KAYIT{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="min-height: calc(100vh - 100px);">
+                <div class="card-header bg-primary text-white">
+                                         <div class="d-flex justify-content-between align-items-center">
+                         <h4 class="mb-0">
+                             <i class="fas fa-building me-2"></i>
+                             Firma Kayıt Sistemi
+                         </h4>
+                         <div class="btn-group" role="group">
+                             <button class="btn btn-light btn-sm" id="btnYeniFirma">
+                                 <i class="fas fa-plus me-1"></i>
+                                 Yeni Firma Ekle
+                             </button>
+                             <button class="btn btn-success btn-sm" onclick="exportFirmalar()">
+                                 <i class="fas fa-download me-1"></i>
+                                 Dışa Aktar
+                             </button>
+                             <button class="btn btn-info btn-sm" onclick="importFirmalar()">
+                                 <i class="fas fa-upload me-1"></i>
+                                 İçe Aktar
+                             </button>
+                         </div>
+                     </div>
+                </div>
+                
+                <div class="card-body p-0">
+                                         <!-- Firma Kayıt Formu -->
+                     <div id="firmaForm" class="p-3 bg-light border-bottom" style="display: none;">
+                        <form id="yeniFirmaForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary mb-3">Firma Bilgileri</h6>
+                                    <div class="mb-3">
+                                        <label for="firmaAdi" class="form-label">Firma Adı *</label>
+                                        <input type="text" class="form-control" id="firmaAdi" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="adres" class="form-label">Adres *</label>
+                                        <textarea class="form-control" id="adres" rows="3" required></textarea>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                                                                         <div class="mb-3">
+                                                 <label for="il" class="form-label">İl *</label>
+                                                 <select class="form-select" id="il" required onchange="loadIlceler()">
+                                                     <option value="">İl Seçiniz</option>
+                                                     {% for il in cities_data %}
+                                                     <option value="{{ il.il_adi }}">{{ il.il_adi }}</option>
+                                                     {% endfor %}
+                                                 </select>
+                                             </div>
+                                        </div>
+                                                                                 <div class="col-md-6">
+                                             <div class="mb-3">
+                                                 <label for="ilce" class="form-label">İlçe *</label>
+                                                 <select class="form-select" id="ilce" required>
+                                                     <option value="">Önce İl Seçiniz</option>
+                                                 </select>
+                                             </div>
+                                         </div>
+                                    </div>
+                                                                         <div class="row">
+                                         <div class="col-md-6">
+                                             <div class="mb-3">
+                                                 <label for="vergiDairesi" class="form-label">Vergi Dairesi</label>
+                                                 <input type="text" class="form-control" id="vergiDairesi">
+                                             </div>
+                                         </div>
+                                         <div class="col-md-6">
+                                             <div class="mb-3">
+                                                 <label for="vergiNo" class="form-label">Vergi No</label>
+                                                 <input type="text" class="form-control" id="vergiNo">
+                                             </div>
+                                         </div>
+                                     </div>
+                                </div>
+                                <div class="col-md-6">
+                                                                         <h6 class="text-primary mb-3">Yetkili Bilgileri</h6>
+                                     <div class="mb-3">
+                                         <label for="yetkiliAdi" class="form-label">Yetkili Adı</label>
+                                         <input type="text" class="form-control" id="yetkiliAdi">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label for="yetkiliTel" class="form-label">Yetkili Tel</label>
+                                         <input type="tel" class="form-control" id="yetkiliTel">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label for="yetkiliMail" class="form-label">Yetkili Mail</label>
+                                         <input type="email" class="form-control" id="yetkiliMail">
+                                     </div>
+                                     
+                                     <h6 class="text-primary mb-3 mt-4">Danışman Bilgileri</h6>
+                                     <div class="mb-3">
+                                         <label for="danismanAdi" class="form-label">Danış.Adı</label>
+                                         <input type="text" class="form-control" id="danismanAdi">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label for="danismanMail" class="form-label">Danış. Mail</label>
+                                         <input type="email" class="form-control" id="danismanMail">
+                                     </div>
+                                     <div class="mb-3">
+                                         <label for="danismanTel" class="form-label">Danış.Tel</label>
+                                         <input type="tel" class="form-control" id="danismanTel">
+                                     </div>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>
+                                    Kaydet
+                                </button>
+                                <button type="button" class="btn btn-secondary ms-2" onclick="clearForm()">
+                                    <i class="fas fa-times me-1"></i>
+                                    Temizle
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                                         <!-- Arama ve Filtreleme -->
+                     <div class="p-3 bg-light border-bottom">
+                         <div class="row">
+                             <div class="col-md-3">
+                                 <div class="input-group">
+                                     <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                     <input type="text" class="form-control" id="searchInput" placeholder="Firma adı, adres veya yetkili ara...">
+                                 </div>
+                             </div>
+                             <div class="col-md-2">
+                                 <select class="form-select" id="ilFilter">
+                                     <option value="">Tüm İller</option>
+                                     {% for il in cities_data %}
+                                     <option value="{{ il.il_adi }}">{{ il.il_adi }}</option>
+                                     {% endfor %}
+                                 </select>
+                             </div>
+                             <div class="col-md-2">
+                                 <select class="form-select" id="ilceFilter">
+                                     <option value="">Tüm İlçeler</option>
+                                 </select>
+                             </div>
+                             <div class="col-md-2">
+                                 <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                                     <i class="fas fa-times me-1"></i>
+                                     Filtreleri Temizle
+                                 </button>
+                             </div>
+                             <div class="col-md-3 text-end">
+                                 <span class="text-muted" id="resultCount">Toplam: 0 firma</span>
+                             </div>
+                         </div>
+                     </div>
+                     
+                     <!-- Firma Tablosu -->
+                     <div id="firmaTable" class="table-responsive" style="max-height: calc(100vh - 400px); overflow-y: auto;">
+                         <table class="table table-hover table-striped mb-0" id="firmaKayitTable">
+                                                          <thead class="table-primary sticky-top">
+                                 <tr>
+                                     <th style="width: 50px;">
+                                         <input type="checkbox" class="form-check-input" id="selectAll">
+                                     </th>
+                                     <th style="width: 60px;">SIRA</th>
+                                                                         <th style="width: 300px;">FIRMA ADI</th>
+                                     <th style="width: 350px;">ADRES</th>
+                                    <th style="width: 100px;">İL</th>
+                                    <th style="width: 100px;">İLÇE</th>
+                                                                                                              <th style="width: 120px;">VERGİ D.</th>
+                                     <th style="width: 100px;">VERGİ NO</th>
+                                    <th style="width: 150px;">YETKİLİ ADI</th>
+                                                                         <th style="width: 100px;">YETKİLİ TEL</th>
+                                    <th style="width: 180px;">YETKİLİ MAİL</th>
+                                                                         <th style="width: 150px;">DAN.ADI</th>
+                                                                         <th style="width: 180px;">DAN.MAİL</th>
+                                                                         <th style="width: 90px;">DAN.TEL</th>
+                                    <th style="width: 120px;">İŞLEMLER</th>
+                                </tr>
+                            </thead>
+                                                         <tbody id="firmaTableBody">
+                                 {% for firma in firma_kayitlar %}
+                                 <tr>
+                                     <td><input type="checkbox" class="form-check-input row-checkbox"></td>
+                                     <td>{{ loop.index }}</td>
+                                     <td>{{ firma.firmaAdi }}</td>
+                                     <td>{{ firma.adres }}</td>
+                                     <td>{{ firma.il }}</td>
+                                     <td>{{ firma.ilce }}</td>
+                                     <td>{{ firma.vergiDairesi }}</td>
+                                     <td>{{ firma.vergiNo }}</td>
+                                     <td>{{ firma.yetkiliAdi }}</td>
+                                     <td>{{ firma.yetkiliTel }}</td>
+                                     <td>{{ firma.yetkiliMail }}</td>
+                                     <td>{{ firma.danismanAdi }}</td>
+                                     <td>{{ firma.danismanMail }}</td>
+                                     <td>{{ firma.danismanTel }}</td>
+                                     <td>
+                                         <div class="btn-group btn-group-sm">
+                                             <button class="btn btn-outline-primary" title="Detay" onclick="showFirmaDetail('{{ firma.id }}')">
+                                                 <i class="fas fa-eye"></i>
+                                             </button>
+                                             <button class="btn btn-outline-warning" title="Düzenle" onclick="editFirma('{{ firma.id }}')">
+                                                 <i class="fas fa-pencil"></i>
+                                             </button>
+                                             <button class="btn btn-outline-danger" title="Sil" onclick="deleteFirma('{{ firma.id }}')">
+                                                 <i class="fas fa-times"></i>
+                                             </button>
+                                         </div>
+                                     </td>
+                                 </tr>
+                                 {% endfor %}
+                             </tbody>
+                        </table>
+                                         </div>
+                 </div>
+             </div>
+         </div>
+     </div>
+     
+     <!-- Gizli dosya input'u -->
+     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;" onchange="handleFileUpload(event)">
+ </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- SheetJS kütüphanesi -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let firmaListesi = JSON.parse('{{ firma_kayitlar | tojson | safe }}');
+let editingFirmaId = null;
+
+// İl-ilçe verilerini JavaScript'e aktar
+const citiesData = JSON.parse('{{ cities_data | tojson | safe }}');
+
+document.addEventListener('DOMContentLoaded', function() {
+     // Form submit olayını dinle
+     document.getElementById('yeniFirmaForm').addEventListener('submit', function(e) {
+         e.preventDefault();
+         saveFirma();
+     });
+     
+     // Yeni firma ekleme butonu
+     document.getElementById('btnYeniFirma').addEventListener('click', function() {
+         document.getElementById('firmaForm').style.display = 'block';
+         document.getElementById('yeniFirmaForm').reset();
+         editingFirmaId = null;
+     });
+     
+     // Tüm seç checkbox'ı
+     document.getElementById('selectAll').addEventListener('change', function() {
+         const checkboxes = document.querySelectorAll('.row-checkbox');
+         checkboxes.forEach(checkbox => {
+             checkbox.checked = this.checked;
+         });
+     });
+     
+     // Arama ve filtreleme olayları
+     document.getElementById('searchInput').addEventListener('input', filterTable);
+     document.getElementById('ilFilter').addEventListener('change', function() {
+         loadIlceFilter();
+         filterTable();
+     });
+     document.getElementById('ilceFilter').addEventListener('change', filterTable);
+     
+     // İlk yükleme
+     updateResultCount();
+ });
+ 
+ // İl seçildiğinde ilçeleri yükle
+ function loadIlceler() {
+     const ilSelect = document.getElementById('il');
+     const ilceSelect = document.getElementById('ilce');
+     const selectedIl = ilSelect.value;
+     
+     // İlçe select'i temizle
+     ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
+     
+     if (selectedIl) {
+         // Seçilen ile ait ilçeleri bul
+         const selectedCity = citiesData.find(city => city.il_adi === selectedIl);
+         if (selectedCity && selectedCity.ilceler) {
+             selectedCity.ilceler.forEach(ilce => {
+                 const option = document.createElement('option');
+                 option.value = ilce.ilce_adi;
+                 option.textContent = ilce.ilce_adi;
+                 ilceSelect.appendChild(option);
+             });
+         }
+     }
+ }
+
+function saveFirma() {
+    // Form verilerini al
+    const formData = {
+        firmaAdi: document.getElementById('firmaAdi').value,
+        adres: document.getElementById('adres').value,
+        il: document.getElementById('il').value,
+        ilce: document.getElementById('ilce').value,
+        vergiDairesi: document.getElementById('vergiDairesi').value,
+        vergiNo: document.getElementById('vergiNo').value,
+        yetkiliAdi: document.getElementById('yetkiliAdi').value,
+        yetkiliTel: document.getElementById('yetkiliTel').value,
+        yetkiliMail: document.getElementById('yetkiliMail').value,
+        danismanAdi: document.getElementById('danismanAdi').value,
+        danismanMail: document.getElementById('danismanMail').value,
+        danismanTel: document.getElementById('danismanTel').value
+    };
+    
+    // Validasyon
+    if (!formData.firmaAdi || !formData.adres || !formData.il || !formData.ilce) {
+        alert('Lütfen zorunlu alanları doldurunuz! (Firma Adı, Adres, İl, İlçe)');
+        return;
+    }
+    
+    // Eğer düzenleme modundaysa, güncelleme yap
+    if (editingFirmaId) {
+        formData.id = editingFirmaId;
+        fetch('/api/firma_kayit/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Firma başarıyla güncellendi!');
+                location.reload(); // Sayfayı yenile
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir hata oluştu!');
+        });
+    } else {
+        // Yeni firma ekle
+        fetch('/api/firma_kayit/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Firma başarıyla kaydedildi!');
+                location.reload(); // Sayfayı yenile
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir hata oluştu!');
+        });
+    }
+    
+    // Formu temizle ve gizle
+    document.getElementById('yeniFirmaForm').reset();
+    document.getElementById('firmaForm').style.display = 'none';
+    editingFirmaId = null;
+}
+
+
+
+function clearForm() {
+    document.getElementById('yeniFirmaForm').reset();
+}
+
+// İl filtresi değiştiğinde ilçe filtresini güncelle
+function loadIlceFilter() {
+    const ilFilter = document.getElementById('ilFilter');
+    const ilceFilter = document.getElementById('ilceFilter');
+    const selectedIl = ilFilter.value;
+    
+    // İlçe select'i temizle
+    ilceFilter.innerHTML = '<option value="">Tüm İlçeler</option>';
+    
+    if (selectedIl) {
+        // Seçilen ile ait ilçeleri bul
+        const selectedCity = citiesData.find(city => city.il_adi === selectedIl);
+        if (selectedCity && selectedCity.ilceler) {
+            selectedCity.ilceler.forEach(ilce => {
+                const option = document.createElement('option');
+                option.value = ilce.ilce_adi;
+                option.textContent = ilce.ilce_adi;
+                ilceFilter.appendChild(option);
+            });
+        }
+    }
+}
+
+// Tablo filtreleme fonksiyonu
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const selectedIl = document.getElementById('ilFilter').value;
+    const selectedIlce = document.getElementById('ilceFilter').value;
+    
+    const rows = document.querySelectorAll('#firmaTableBody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const firmaAdi = row.cells[2].textContent.toLowerCase();
+        const adres = row.cells[3].textContent.toLowerCase();
+        const il = row.cells[4].textContent;
+        const ilce = row.cells[5].textContent;
+        const yetkiliAdi = row.cells[8].textContent.toLowerCase();
+        
+        let showRow = true;
+        
+        // Arama filtresi
+        if (searchTerm) {
+            showRow = firmaAdi.includes(searchTerm) || 
+                     adres.includes(searchTerm) || 
+                     yetkiliAdi.includes(searchTerm);
+        }
+        
+        // İl filtresi
+        if (showRow && selectedIl) {
+            showRow = il === selectedIl;
+        }
+        
+        // İlçe filtresi
+        if (showRow && selectedIlce) {
+            showRow = ilce === selectedIlce;
+        }
+        
+        // Satırı göster/gizle
+        row.style.display = showRow ? '' : 'none';
+        if (showRow) visibleCount++;
+    });
+    
+    updateResultCount(visibleCount);
+}
+
+// Filtreleri temizle
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('ilFilter').value = '';
+    document.getElementById('ilceFilter').innerHTML = '<option value="">Tüm İlçeler</option>';
+    filterTable();
+}
+
+// Sonuç sayısını güncelle
+function updateResultCount(count) {
+    const resultCount = document.getElementById('resultCount');
+    if (count !== undefined) {
+        resultCount.textContent = `Gösterilen: ${count} firma`;
+    } else {
+        const visibleRows = document.querySelectorAll('#firmaTableBody tr:not([style*="display: none"])').length;
+        resultCount.textContent = `Toplam: ${visibleRows} firma`;
+    }
+}
+
+function showFirmaDetail(firmaId) {
+    const firma = firmaListesi.find(f => f.id === firmaId);
+    if (firma) {
+        alert(`Firma Detayları:\n\nFirma Adı: ${firma.firmaAdi}\nAdres: ${firma.adres}\nİl: ${firma.il}\nİlçe: ${firma.ilce}\nVergi Dairesi: ${firma.vergiDairesi}\nVergi No: ${firma.vergiNo}\nYetkili: ${firma.yetkiliAdi}\nYetkili Tel: ${firma.yetkiliTel}\nYetkili Mail: ${firma.yetkiliMail}\nDanışman: ${firma.danismanAdi}\nDanışman Mail: ${firma.danismanMail}\nDanışman Tel: ${firma.danismanTel}`);
+    }
+}
+
+function editFirma(firmaId) {
+    const firma = firmaListesi.find(f => f.id === firmaId);
+    if (firma) {
+        // Form alanlarını doldur
+        document.getElementById('firmaAdi').value = firma.firmaAdi;
+        document.getElementById('adres').value = firma.adres;
+        document.getElementById('il').value = firma.il;
+        
+        // İlçeleri yükle ve seçili olanı ayarla
+        loadIlceler();
+        setTimeout(() => {
+            document.getElementById('ilce').value = firma.ilce;
+        }, 100);
+        
+        document.getElementById('vergiDairesi').value = firma.vergiDairesi;
+        document.getElementById('vergiNo').value = firma.vergiNo;
+        document.getElementById('yetkiliAdi').value = firma.yetkiliAdi;
+        document.getElementById('yetkiliTel').value = firma.yetkiliTel;
+        document.getElementById('yetkiliMail').value = firma.yetkiliMail;
+        document.getElementById('danismanAdi').value = firma.danismanAdi;
+        document.getElementById('danismanMail').value = firma.danismanMail;
+        document.getElementById('danismanTel').value = firma.danismanTel;
+        
+        // Formu göster ve düzenleme modunu aktif et
+        document.getElementById('firmaForm').style.display = 'block';
+        editingFirmaId = firmaId;
+    }
+}
+
+function deleteFirma(firmaId) {
+    if (confirm('Bu firmayı silmek istediğinizden emin misiniz?')) {
+        fetch('/api/firma_kayit/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({id: firmaId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Firma başarıyla silindi!');
+                location.reload(); // Sayfayı yenile
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir hata oluştu!');
+        });
+    }
+}
+
+// Dışa aktarma fonksiyonu
+function exportFirmalar() {
+    if (firmaListesi.length === 0) {
+        alert('Dışa aktarılacak firma bulunamadı!');
+        return;
+    }
+    
+    // Excel için veri hazırla
+    const headers = [
+        'Firma Adı', 'Adres', 'İl', 'İlçe', 'Vergi Dairesi', 'Vergi No',
+        'Yetkili Adı', 'Yetkili Tel', 'Yetkili Mail',
+        'Danışman Adı', 'Danışman Mail', 'Danışman Tel', 'Kayıt Tarihi'
+    ];
+    
+    // Başlık satırını ekle
+    const excelData = [headers];
+    
+    // Firma verilerini ekle
+    firmaListesi.forEach(firma => {
+        excelData.push([
+            firma.firmaAdi || '',
+            firma.adres || '',
+            firma.il || '',
+            firma.ilce || '',
+            firma.vergiDairesi || '',
+            firma.vergiNo || '',
+            firma.yetkiliAdi || '',
+            firma.yetkiliTel || '',
+            firma.yetkiliMail || '',
+            firma.danismanAdi || '',
+            firma.danismanMail || '',
+            firma.danismanTel || '',
+            firma.kayitTarihi || ''
+        ]);
+    });
+    
+    // Excel dosyası oluştur
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // Sütun genişliklerini ayarla
+    const colWidths = [
+        { wch: 30 }, // Firma Adı
+        { wch: 40 }, // Adres
+        { wch: 12 }, // İl
+        { wch: 12 }, // İlçe
+        { wch: 15 }, // Vergi Dairesi
+        { wch: 12 }, // Vergi No
+        { wch: 20 }, // Yetkili Adı
+        { wch: 15 }, // Yetkili Tel
+        { wch: 25 }, // Yetkili Mail
+        { wch: 20 }, // Danışman Adı
+        { wch: 25 }, // Danışman Mail
+        { wch: 15 }, // Danışman Tel
+        { wch: 12 }  // Kayıt Tarihi
+    ];
+    ws['!cols'] = colWidths;
+    
+    // Başlık satırını kalın yap
+    const headerRange = XLSX.utils.decode_range(ws['!ref']);
+    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (!ws[cellAddress]) ws[cellAddress] = {};
+        ws[cellAddress].s = { font: { bold: true }, fill: { fgColor: { rgb: "CCCCCC" } } };
+    }
+    
+    // Çalışma kitabı oluştur
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Firma Kayıtları");
+    
+    // Dosya adı oluştur
+    const fileName = `firma_kayitlari_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    // Excel dosyasını indir
+    XLSX.writeFile(wb, fileName);
+}
+
+// İçe aktarma fonksiyonu
+function importFirmalar() {
+    document.getElementById('fileInput').click();
+}
+
+// Dosya yükleme işleyicisi
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        // Excel dosyası okuma
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // İlk sayfayı al
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // JSON'a çevir
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                if (jsonData.length < 2) {
+                    alert('Excel dosyasında veri bulunamadı!');
+                    return;
+                }
+                
+                const headers = jsonData[0];
+                const importedFirmalar = [];
+                
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    const firma = {
+                        id: crypto.randomUUID(),
+                        firmaAdi: row[0] || '',
+                        adres: row[1] || '',
+                        il: row[2] || '',
+                        ilce: row[3] || '',
+                        vergiDairesi: row[4] || '',
+                        vergiNo: row[5] || '',
+                        yetkiliAdi: row[6] || '',
+                        yetkiliTel: row[7] || '',
+                        yetkiliMail: row[8] || '',
+                        danismanAdi: row[9] || '',
+                        danismanMail: row[10] || '',
+                        danismanTel: row[11] || '',
+                        kayitTarihi: row[12] || new Date().toLocaleDateString('tr-TR')
+                    };
+                    
+                    // En az firma adı dolu olmalı
+                    if (firma.firmaAdi.trim()) {
+                        importedFirmalar.push(firma);
+                    }
+                }
+                
+                if (importedFirmalar.length === 0) {
+                    alert('Excel dosyasından geçerli firma verisi okunamadı!');
+                    return;
+                }
+                
+                if (confirm(`${importedFirmalar.length} adet firma içe aktarılacak. Devam etmek istiyor musunuz?`)) {
+                    importFirmalarToServer(importedFirmalar);
+                }
+                
+            } catch (error) {
+                console.error('Excel okuma hatası:', error);
+                alert('Excel dosyası okunurken bir hata oluştu! Lütfen geçerli bir Excel dosyası seçin.');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        
+    } else if (fileExtension === 'csv') {
+        // CSV dosyası okuma
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const csvContent = e.target.result;
+                const lines = csvContent.split('\n');
+                
+                if (lines.length < 2) {
+                    alert('CSV dosyasında veri bulunamadı!');
+                    return;
+                }
+                
+                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+                const importedFirmalar = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    
+                    const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+                    const firma = {
+                        id: crypto.randomUUID(),
+                        firmaAdi: values[0] || '',
+                        adres: values[1] || '',
+                        il: values[2] || '',
+                        ilce: values[3] || '',
+                        vergiDairesi: values[4] || '',
+                        vergiNo: values[5] || '',
+                        yetkiliAdi: values[6] || '',
+                        yetkiliTel: values[7] || '',
+                        yetkiliMail: values[8] || '',
+                        danismanAdi: values[9] || '',
+                        danismanMail: values[10] || '',
+                        danismanTel: values[11] || '',
+                        kayitTarihi: values[12] || new Date().toLocaleDateString('tr-TR')
+                    };
+                    
+                    // En az firma adı dolu olmalı
+                    if (firma.firmaAdi.trim()) {
+                        importedFirmalar.push(firma);
+                    }
+                }
+                
+                if (importedFirmalar.length === 0) {
+                    alert('CSV dosyasından geçerli firma verisi okunamadı!');
+                    return;
+                }
+                
+                if (confirm(`${importedFirmalar.length} adet firma içe aktarılacak. Devam etmek istiyor musunuz?`)) {
+                    importFirmalarToServer(importedFirmalar);
+                }
+                
+            } catch (error) {
+                console.error('CSV okuma hatası:', error);
+                alert('CSV dosyası okunurken bir hata oluştu! Lütfen geçerli bir CSV dosyası seçin.');
+            }
+        };
+        reader.readAsText(file, 'UTF-8');
+        
+    } else {
+        alert('Desteklenmeyen dosya formatı! Lütfen .xlsx, .xls veya .csv dosyası seçin.');
+    }
+    
+    event.target.value = ''; // Input'u temizle
+}
+
+// Sunucuya firma verilerini gönder
+function importFirmalarToServer(importedFirmalar) {
+    fetch('/api/firma_kayit/import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({firmalar: importedFirmalar})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${data.imported_count} adet firma başarıyla içe aktarıldı!`);
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('İçe aktarma sırasında bir hata oluştu!');
+    });
+}
+</script>
+{% endblock %}

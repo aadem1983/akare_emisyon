@@ -1,0 +1,112 @@
+/* Add your custom styles here */
+
+/* Sabit navbar için */
+.navbar {
+    position: fixed !important;
+    top: 0 !important;
+    width: 100% !important;
+    z-index: 1030 !important;
+    background-color: white !important;
+}
+
+/* Navbar altında kalan içeriği aşağı kaydır */
+body {
+    padding-top: 70px !important;
+}
+
+/* Container'ı navbar'ın altından başlat */
+.container-fluid {
+    margin-top: 20px !important;
+}
+
+/* Buz mavisi arka plan sekmeler ve tablo başlıkları için */
+.table-light, .nav-tabs .nav-link.active, .nav-tabs .nav-link {
+    background-color: #b3d8eb !important;
+    color: #222 !important;
+    border-color: #b3d8eb !important;
+}
+
+/* Tablo başlık yazısı için kontrast */
+.table-light th {
+    color: #222 !important;
+}
+
+/* Sekme geçişlerinde hover efekti için */
+.nav-tabs .nav-link:hover {
+    background-color: #a0cbe1 !important;
+    color: #111 !important;
+}
+
+/* Prevent sorting on specific columns */
+.no-sort {
+    cursor: default !important;
+}
+
+.no-sort:hover {
+    background-color: transparent !important;
+}
+
+/* Fix for table responsiveness */
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Dropdown ve takvimlerin tablo üstünde görünmesi için z-index yükseltme */
+.dropdown-menu {
+    z-index: 2000 !important;
+}
+
+/* Tarih seçiciler (kullandığınız kitaplığa göre hepsini kapsar) */
+.flatpickr-calendar,
+.ui-datepicker,
+.bootstrap-datetimepicker-widget {
+    z-index: 2100 !important;
+}
+
+/* Select2 veya benzeri açılır listeler */
+.select2-container .select2-dropdown,
+.select2-container--bootstrap-5 .select2-dropdown {
+    z-index: 2200 !important;
+}
+
+/* Dikey taşma durumunda açılırların kesilmemesi için */
+.table-responsive {
+    overflow-y: visible !important;
+}
+
+/* Fix for form validation */
+.form-control.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+/* Make checkboxes more prominent */
+.form-check-input {
+    width: 18px !important;
+    height: 18px !important;
+    border: 2px solid #007bff !important;
+    border-radius: 3px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.form-check-input:hover {
+    border-color: #0056b3 !important;
+    transform: scale(1.1) !important;
+}
+
+.form-check-input:checked {
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25) !important;
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25) !important;
+    outline: none !important;
+}
