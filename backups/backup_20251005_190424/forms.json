@@ -1,0 +1,21 @@
+[
+    {
+        "id": "324e2f18-7621-46d6-a6a6-9a79576ef31b",
+        "formAdi": "EMİSYON ÖLÇÜM FORMU",
+        "formKodu": "AÇ.F.52",
+        "yayinTarihi": "2015-08-01",
+        "revizyonTarihi": "2024-02-29",
+        "revizyonNo": "03",
+        "created_at": "2025-07-27T21:37:17.430242",
+        "updated_at": "2025-07-27T21:54:12.056098"
+    },
+    {
+        "id": "82c1491c-782e-4a11-87e8-7bd99d55cc25",
+        "formAdi": "EMİSYON ÖLÇÜM BİLGİ FORMU",
+        "formKodu": "AÇ.F.999",
+        "yayinTarihi": "2025-08-04",
+        "revizyonTarihi": "2025-08-04",
+        "revizyonNo": "00",
+        "created_at": "2025-08-04T01:10:52.918395"
+    }
+]

@@ -1,0 +1,102 @@
+[
+    {
+        "id": "12042c15-6404-43cf-829c-708396b08116",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "olcum_kodu": "E-250921-01",
+        "baslangic_tarihi": "2025-09-22",
+        "bitis_tarihi": "2025-09-23",
+        "il": "KOCAELİ",
+        "ilce": "KÖRFEZ",
+        "yetkili": "ADEM",
+        "telefon": "0555-8612445",
+        "durum": "Aktif",
+        "personel": [
+            "Semih",
+            "Kaan",
+            "Emin"
+        ],
+        "baca_sayisi": "1",
+        "baca_parametreleri": {
+            "FÜZYON BACASI": [
+                "Toz",
+                "NEM",
+                "Yg"
+            ]
+        },
+        "notlar": "",
+        "olusturma_tarihi": "2025-09-21T19:50:04.345044"
+    },
+    {
+        "id": "ef4c333d-3c6a-4c31-9b44-e2aa304bfa44",
+        "firma_adi": "HAFİZE",
+        "olcum_kodu": "e-250930-01",
+        "baslangic_tarihi": "2025-09-07",
+        "bitis_tarihi": "2025-09-08",
+        "il": "BOLU",
+        "ilce": "DÖRTDİVAN",
+        "yetkili": "HAFİZE",
+        "telefon": "555-44-77-888",
+        "durum": "Aktif",
+        "personel": [
+            "Atalay"
+        ],
+        "baca_sayisi": "2",
+        "baca_parametreleri": {
+            "a": [
+                "Toz",
+                "Yg",
+                "Voc",
+                "Amet"
+            ],
+            "b": [
+                "Toz",
+                "Yg",
+                "Sülf.a",
+                "Pm10"
+            ]
+        },
+        "notlar": "",
+        "olusturma_tarihi": "2025-09-27T23:33:41.770608"
+    },
+    {
+        "id": "5fe270b2-8aa1-4988-9d87-5926498912fe",
+        "firma_adi": "ATALAY TOKER",
+        "olcum_kodu": "e-251001-01",
+        "baslangic_tarihi": "2025-10-01",
+        "bitis_tarihi": "2025-10-01",
+        "il": "KOCAELİ",
+        "ilce": "DARICA",
+        "yetkili": "",
+        "telefon": "5065064457",
+        "durum": "Aktif",
+        "personel": [
+            "Kamuran",
+            "Semih"
+        ],
+        "baca_sayisi": "1",
+        "baca_parametreleri": {
+            "adem": [
+                "Toz",
+                "NEM",
+                "Yg",
+                "Voc",
+                "Toc",
+                "AĞIR METAL",
+                "SÜLFÜRİK ASİT",
+                "Hf",
+                "Hcl",
+                "AMONYAK",
+                "FORMALDEHİT",
+                "Cr6",
+                "FOSFORİK ASİT",
+                "HCN",
+                "Pm10",
+                "Çt",
+                "PAH",
+                "DİOKSİN FURAN"
+            ]
+        },
+        "notlar": "",
+        "olusturma_tarihi": "2025-10-01T20:58:05.381924"
+    }
+]

@@ -46,6 +46,9 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'kk_egri' %}active{% endif %}" href="{{ url_for('kk_egri') }}">KK_EGRI</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'pivot' %}active{% endif %}" href="{{ url_for('pivot') }}">PIVOT</a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     {% if username %}
@@ -80,6 +83,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     {% block scripts %}
     <!-- TableSort.js CDN -->
     <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>

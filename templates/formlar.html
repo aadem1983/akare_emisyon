@@ -44,6 +44,63 @@
         border: 1px solid #ffc107;
     }
     
+    /* Tablo düzenleme modu için */
+    .table-warning {
+        background-color: #fff3cd !important;
+        border: 1px solid #ffc107 !important;
+    }
+    
+    .table-warning:focus {
+        background-color: #ffffff !important;
+        border: 2px solid #007bff !important;
+        outline: none !important;
+    }
+    
+    /* Boş hücreler için */
+    .table-warning:empty {
+        background-color: #f8f9fa !important;
+        color: #6c757d !important;
+    }
+    
+    .table-warning:empty:focus {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* Parametre Sahabil tablosu için */
+    #importExportTable td {
+        background-color: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    #importExportTable td:focus {
+        background-color: #ffffff !important;
+        border: 2px solid #007bff !important;
+        outline: none !important;
+    }
+    
+    /* Boş hücreler için özel stil */
+    #importExportTable td:empty {
+        background-color: #f8f9fa !important;
+        color: #6c757d !important;
+        min-height: 30px;
+    }
+    
+    #importExportTable td:empty:focus {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* Düzenleme modunda tablo hücreleri */
+    #importExportTable.editing-mode td {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    #importExportTable.editing-mode td:hover {
+        background-color: #e3f2fd !important;
+    }
+    
     /* Zengin Metin Editörü CSS */
     .rich-text-toolbar {
         border: 1px solid #dee2e6;
@@ -164,6 +221,13 @@
                                 <i class="fas fa-tools me-1"></i>CİHAZ LİS.
                             </button>
                         </li>
+                        {% if username == 'admin' %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="yedekleme-tab" data-bs-toggle="tab" data-bs-target="#yedekleme" type="button" role="tab" aria-controls="yedekleme" aria-selected="false">
+                                <i class="fas fa-database me-1"></i>YEDEKLEME
+                            </button>
+                        </li>
+                        {% endif %}
  
                     </ul>
 
@@ -589,18 +653,10 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-sm" id="importExportTable">
+                                <table class="table table-bordered table-sm" id="importExportTable" style="table-layout: fixed;">
                                     <thead class="table-dark">
-                                        <tr>
-                                            <th style="width: 200px;">TOZ, A.MET, SÜLF.A, HF, HCL, AMON., FORM., CR6, FOSF.A., HCN</th>
-                                            <th style="width: 150px;">NEM</th>
-                                            <th style="width: 150px;">YG</th>
-                                            <th style="width: 150px;">TOC</th>
-                                            <th style="width: 150px;">VOC</th>
-                                            <th style="width: 150px;">PM10</th>
-                                            <th style="width: 150px;">ÇT</th>
-                                            <th style="width: 100px;">boş</th>
-                                            <th style="width: 100px;">boş</th>
+                                        <tr id="parSahaHeaderRow" style="white-space: nowrap;">
+                                            <!-- Başlıklar JS ile yüklenecek -->
                                         </tr>
                                         <tr>
                                             <th class="table-secondary">TARİH</th>
@@ -1759,6 +1815,50 @@
                             </div>
                         </div>
 
+                        {% if username == 'admin' %}
+                        <!-- YEDEKLEME Sekmesi -->
+                        <div class="tab-pane fade" id="yedekleme" role="tabpanel" aria-labelledby="yedekleme-tab">
+                            <div class="mt-3">
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header bg-warning text-dark">
+                                                <h3 class="mb-0"><i class="fas fa-database me-2"></i>Veri Yedekleme ve Geri Yükleme</h3>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <div class="d-grid">
+                                                            <button type="button" class="btn btn-success btn-lg" id="backupBtn">
+                                                                <i class="fas fa-save me-2"></i>Veri Yedekle
+                                                            </button>
+                                                            <small class="text-muted mt-1">Yedek dosyasını kaydetmek istediğiniz yeri seçin</small>
+                                                            <input type="file" id="backupFileInput" accept=".json" style="display: none;" webkitdirectory directory multiple>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="d-grid">
+                                                            <button type="button" class="btn btn-info btn-lg" id="restoreBtn">
+                                                                <i class="fas fa-undo me-2"></i>Veri Geri Yükle
+                                                            </button>
+                                                            <small class="text-muted mt-1">Yedek dosyasını seçin</small>
+                                                            <input type="file" id="restoreFileInput" accept=".json" style="display: none;" multiple>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-3">
+                                                    <div id="backupStatus" class="alert alert-info" style="display: none;">
+                                                        <i class="fas fa-spinner fa-spin me-2"></i>İşlem devam ediyor...
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
  <!-- Cihaz Ekleme Modal -->
  <div class="modal fade" id="cihazEkleModal" tabindex="-1" aria-labelledby="cihazEkleModalLabel" aria-hidden="true">
      <div class="modal-dialog modal-lg">
@@ -2808,11 +2908,19 @@ let importExportEditEnabled = false;
 
 function toggleEditImportExportTable() {
     importExportEditEnabled = !importExportEditEnabled;
+    const table = document.getElementById('importExportTable');
     const cells = document.querySelectorAll('#importExportTable tbody td');
+    
+    // Tabloya editing-mode class'ını ekle/çıkar
+    if (table) {
+        table.classList.toggle('editing-mode', importExportEditEnabled);
+    }
+    
     cells.forEach(td => {
         td.contentEditable = importExportEditEnabled ? 'true' : 'false';
         td.classList.toggle('table-warning', importExportEditEnabled);
     });
+    
     const btn = document.getElementById('toggleEditImportExport');
     if (btn) {
         btn.innerHTML = importExportEditEnabled
@@ -3794,10 +3902,40 @@ function loadSavedContent() {
     const teklifGirisText = document.getElementById('teklifGirisText');
     const genelHukumlerText = document.getElementById('genelHukumlerText');
     
+    // Varsayılan teklif giriş metni
+    const defaultTeklifGiris = `<p><strong>Sayın Yetkili,</strong></p>
+<p>Firmanız için yapılacak emisyon ölçümleri hakkında aşağıdaki teklifimizi sunuyoruz:</p>
+<p>• Ölçümler TS EN 14181 standardına uygun olarak yapılacaktır.</p>
+<p>• Tüm parametreler akredite laboratuarımızda analiz edilecektir.</p>
+<p>• Ölçüm raporları 15 iş günü içinde teslim edilecektir.</p>
+<p>• Teklifimiz 30 gün geçerlidir.</p>`;
+    
+    // Varsayılan genel hükümler metni
+    const defaultGenelHukumler = `<strong>GENEL HÜKÜMLER</strong>
+<ul>
+    <li><strong>Fiyatlara KDV dahil değildir.</strong></li>
+    <li><strong>Teklifimizin geçerlilik süresi 30 gündür.</strong></li>
+    <li><strong>(*) işaretli parametrelerin ölçümü ve analizleri yetkili taşeron işbirliği laboratuvarı tarafından yapılacaktır.</strong></li>
+    <li><strong>Fiyat tarifemiz; Çevre, Şehircilik ve İklim Değişikliği Bakanlığı'nın 27.12.2024 tarihinde yayınlanan duyurusu itibarıyla, 01.01.2025 tarihi itibariyle geçerli olacak şekil tarifi öz sınırları kaynaklamıştır.</strong></li>
+    <li><strong>Yetkili Ölçüm ve Analiz Laboratuvarlarından 02.12.2024 tarihinden sonra Fiyat Tarifesi 13. Maddesi gereği, ödeme rapor tesliminden önce para yapılacaktır.</strong></li>
+    <li><strong>Ölçüm esnasında firmanızdan kaynaklanan bir hangi bir sebepten dolayı ölçüm yapılamaması durumunda ücret iadeesi yapılmayacaktır.</strong></li>
+    <li><strong>Tüm anlaşmazlıklarda İstanbul (Çağlayan) Adliyeleri yetkilidir.</strong></li>
+    <li><strong>İş Güvenliği Firmanız sorumluluğundadır.</strong></li>
+    <li><strong>Numuneler 30 gün saklanacaktır.</strong></li>
+    <li><strong>Raporlara itiraz süresi teslim tarihinden itibaren 15 gündür.</strong></li>
+    <li><strong>Raporlar 15 iş günü içinde teslim edilecektir.</strong></li>
+    <li><strong>Laboratuvarımız TS EN ISO/IEC 17025 standardına uygun çalışmaktadır.</strong></li>
+    <li><strong>Karar kuralları: Ölçüm sonuçları belirsizlik hesaplamaları ile birlikte değerlendirilir.</strong></li>
+</ul>`;
+    
     if (teklifGirisText) {
         const savedContent = localStorage.getItem('teklifGirisText');
         if (savedContent) {
             teklifGirisText.innerHTML = savedContent;
+        } else {
+            // Varsayılan içeriği yükle
+            teklifGirisText.innerHTML = defaultTeklifGiris;
+            localStorage.setItem('teklifGirisText', defaultTeklifGiris);
         }
     }
     
@@ -3805,6 +3943,10 @@ function loadSavedContent() {
         const savedContent = localStorage.getItem('genelHukumlerText');
         if (savedContent) {
             genelHukumlerText.innerHTML = savedContent;
+        } else {
+            // Varsayılan içeriği yükle
+            genelHukumlerText.innerHTML = defaultGenelHukumler;
+            localStorage.setItem('genelHukumlerText', defaultGenelHukumler);
         }
     }
 }
@@ -3865,6 +4007,69 @@ document.addEventListener('DOMContentLoaded', function() {
         genelHukumlerText.addEventListener('blur', autoSaveContent);
     }
 });
+
+// PAR_SAHA siyah başlıklarını yükle ve düzenlenebilir yap
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/par_saha_headers')
+        .then(r => r.json())
+        .then(resp => {
+            const headerRow = document.getElementById('parSahaHeaderRow');
+            if (!headerRow) return;
+            headerRow.innerHTML = '';
+            const groups = (resp && resp.success && Array.isArray(resp.groups) && resp.groups.length>0)
+                ? resp.groups
+                : [
+                    {label:'TOZ, A.MET, SÜLF.A, HF, HCL, AMON., FORM., CR6, FOSF.A., HCN'},
+                    {label:'NEM'},{label:'YG'},{label:'TOC'},{label:'VOC'},{label:'PM10'},{label:'ÇT'},{label:'boş'},{label:'boş'}
+                  ];
+            groups.forEach((g, idx) => {
+                const th = document.createElement('th');
+                if (idx === 0) th.style.width = '220px';
+                if (idx > 0 && idx < 7) th.style.width = '120px';
+                if (idx >= 7) th.style.width = '80px';
+                th.contentEditable = true;
+                th.innerText = g.label || '';
+                th.dataset.index = idx.toString();
+                th.addEventListener('input', () => { th.classList.add('table-warning'); });
+                headerRow.appendChild(th);
+            });
+            // Kaydet butonu ekle
+            const saveBtnId = 'saveParSahaHeadersBtn';
+            if (!document.getElementById(saveBtnId)) {
+                const container = document.querySelector('#par-saha .btn-group') || document.querySelector('#par-saha');
+                if (container) {
+                    const btn = document.createElement('button');
+                    btn.id = saveBtnId;
+                    btn.className = 'btn btn-primary ms-2';
+                    btn.innerHTML = '<i class="fas fa-save me-1"></i>Başlıkları Kaydet';
+                    btn.onclick = saveParSahaHeaders;
+                    container.appendChild(btn);
+                }
+            }
+        })
+        .catch(console.error);
+});
+
+function saveParSahaHeaders() {
+    const headerRow = document.getElementById('parSahaHeaderRow');
+    if (!headerRow) return;
+    const labels = Array.from(headerRow.children).map(th => ({ label: th.innerText.trim() }));
+    fetch('/api/par_saha_headers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groups: labels })
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp && resp.success) {
+            Array.from(headerRow.children).forEach(th => th.classList.remove('table-warning'));
+            alert('Başlıklar kaydedildi.');
+        } else {
+            alert('Kaydedilemedi: ' + (resp && resp.message ? resp.message : 'Bilinmeyen hata'));
+        }
+    })
+    .catch(err => alert('Hata: ' + err.message));
+}
 
 // Cihaz Listesi JavaScript Fonksiyonları
 let cihazListesi = [];
@@ -4425,6 +4630,111 @@ function formatTarihFromExcel(tarihStr) {
         return tarihStr;
     } catch (e) {
         return tarihStr;
+    }
+}
+
+// Backup/Restore butonları
+const backupBtn = document.getElementById('backupBtn');
+const restoreBtn = document.getElementById('restoreBtn');
+const backupStatus = document.getElementById('backupStatus');
+
+if (backupBtn) {
+    backupBtn.addEventListener('click', function() {
+        // Backup dosyasını indir
+        showStatus('Veri yedekleme başlatılıyor...', 'info');
+        
+        fetch('/api/admin/backup-download', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            throw new Error('Yedekleme hatası');
+        })
+        .then(blob => {
+            // Dosyayı indir
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `emisyon_backup_${new Date().toISOString().slice(0,10)}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showStatus('✅ Veri yedekleme başarılı! Dosya indirildi.', 'success');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showStatus('❌ Yedekleme sırasında hata oluştu!', 'danger');
+        });
+    });
+}
+
+if (restoreBtn) {
+    restoreBtn.addEventListener('click', function() {
+        // Dosya seçim dialogunu aç
+        document.getElementById('restoreFileInput').click();
+    });
+}
+
+// Restore dosya seçimi
+const restoreFileInput = document.getElementById('restoreFileInput');
+if (restoreFileInput) {
+    restoreFileInput.addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (files.length === 0) return;
+        
+        if (confirm('⚠️ DİKKAT: Bu işlem mevcut tüm verileri siler ve seçilen yedekten geri yükler!\n\nDevam etmek istediğinizden emin misiniz?')) {
+            showStatus('Veri geri yükleme başlatılıyor...', 'warning');
+            
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            
+            fetch('/api/admin/restore-upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('✅ Veri geri yükleme başarılı! ' + data.message, 'success');
+                    setTimeout(() => {
+                        if (confirm('Geri yükleme tamamlandı. Sayfayı yenilemek istiyor musunuz?')) {
+                            location.reload();
+                        }
+                    }, 2000);
+                } else {
+                    showStatus('❌ Geri yükleme hatası: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('❌ Geri yükleme sırasında hata oluştu!', 'danger');
+            });
+        }
+        
+        // Input'u temizle
+        e.target.value = '';
+    });
+}
+
+function showStatus(message, type) {
+    backupStatus.innerHTML = message;
+    backupStatus.className = `alert alert-${type}`;
+    backupStatus.style.display = 'block';
+    
+    if (type === 'success') {
+        setTimeout(() => {
+            backupStatus.style.display = 'none';
+        }, 5000);
     }
 }
 </script>

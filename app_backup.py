@@ -321,43 +321,32 @@ def save_used_teklif_numbers(used_numbers):
         return False
 
 def generate_teklif_no():
-    """Yeni teklif numarası oluşturur (TE25-01, TE26-01 formatında) - BENZERSİZ GARANTİLİ"""
+    """Yeni teklif numarası oluşturur (TE25-01, TE26-01 formatında).
+    Not: Kullanıcı talebi gereği, silinen teklif numaraları tekrar kullanılabilir.
+    Bu nedenle yalnızca mevcut (silinmemiş) teklifler içinde benzersizlik sağlanır.
+    """
     try:
         current_year = datetime.now().year
-        year_suffix = str(current_year)[-2:]  # 25, 26, 27...
-        
-        # Mevcut teklifleri yükle
-        teklifler = load_teklif()
-        
-        # Kullanılmış tüm numaraları yükle (silinen teklifler dahil)
-        used_numbers = load_used_teklif_numbers()
-        
-        # Mevcut tekliflerdeki numaraları da ekle
-        for teklif in teklifler:
-            teklif_no = teklif.get('teklif_no', '')
-            if teklif_no:
-                used_numbers.add(teklif_no)
-        
-        # Bu yıl için kullanılmamış en küçük numarayı bul
+        year_suffix = str(current_year)[-2:]
+
+        # Mevcut tekliflerdeki numaraları topla (yalnızca aktif teklifler)
+        mevcut_numaralar = set()
+        for t in load_teklif():
+            no = t.get('teklif_no')
+            if no:
+                mevcut_numaralar.add(no)
+
         number = 1
-        while True:
-            new_teklif_no = f'TE{year_suffix}-{number:02d}'
-            if new_teklif_no not in used_numbers:
-                # Bu numarayı kullanılmış listesine ekle
-                used_numbers.add(new_teklif_no)
-                save_used_teklif_numbers(used_numbers)
-                return new_teklif_no
+        while number <= 9999:
+            aday = f'TE{year_suffix}-{number:02d}'
+            if aday not in mevcut_numaralar:
+                return aday
             number += 1
-            
-            # Güvenlik için maksimum 9999'a kadar dene
-            if number > 9999:
-                raise Exception("Teklif numarası limiti aşıldı!")
-        
+
+        raise Exception('Teklif numarası limiti aşıldı!')
     except Exception as e:
         print(f"Teklif numarası oluşturulurken hata: {e}")
-        # Hata durumunda varsayılan format
-        current_year = datetime.now().year
-        year_suffix = str(current_year)[-2:]
+        year_suffix = str(datetime.now().year)[-2:]
         return f'TE{year_suffix}-01'
 
 def migrate_existing_teklif_numbers():
@@ -530,6 +519,286 @@ def logout():
     session.pop('role', None)
     return redirect(url_for('login'))
 
+# PIVOT - sadece admin
+@app.route('/pivot')
+def pivot():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+    return render_template('pivot.html', username=session.get('username'), role=session.get('role'))
+
+@app.route('/api/pivot/summary')
+def pivot_summary():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'auth'}), 401
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'forbidden'}), 403
+
+    try:
+        start = request.args.get('start')
+        end = request.args.get('end')
+        # Tarih aralığı zorunlu
+        if not start or not end:
+            return jsonify({'error': 'start/end required'}), 400
+
+        from datetime import datetime
+        def in_range(dt):
+            try:
+                d = datetime.fromisoformat(dt.replace('Z', '+00:00')).date()
+            except Exception:
+                try:
+                    d = datetime.strptime(dt, '%Y-%m-%d').date()
+                except Exception:
+                    return False
+            return datetime.strptime(start, '%Y-%m-%d').date() <= d <= datetime.strptime(end, '%Y-%m-%d').date()
+
+        # Yardımcı: normalize (Türkçe karakterleri sadeleştir)
+        def _norm(sval: str) -> str:
+            m = (sval or '').strip().lower()
+            tr_map = str.maketrans({
+                'ı':'i','İ':'i','ş':'s','Ş':'s','ç':'c','Ç':'c','ğ':'g','Ğ':'g','ü':'u','Ü':'u','ö':'o','Ö':'o'
+            })
+            return m.translate(tr_map)
+
+        # Teklifler
+        teklifler = load_teklif()
+        filt_teklif = [t for t in teklifler if t.get('teklif_tarihi') and in_range(t.get('teklif_tarihi'))]
+        toplam_teklif_adedi = len(filt_teklif)
+        toplam_teklif_tutari = sum(float(t.get('netToplam', 0) or 0) for t in filt_teklif)
+        # Kabul/red tespiti
+        accepted_list, rejected_list = [], []
+        for t in filt_teklif:
+            status = _norm(t.get('teklif_durumu',''))
+            if any(k in status for k in ['kabul','onay']):
+                accepted_list.append(t)
+            elif any(k in status for k in ['red','ret','iptal','olumsuz','kabul edilmedi','kabul edilmez']):
+                rejected_list.append(t)
+        kabul_adet = len(accepted_list)
+        red_adet = len(rejected_list)
+
+        # Kapsam içi/dışı sadece KABUL OLANLARDAN hesaplanır
+        kapsam_ici = []
+        kapsam_disi = []
+        for t in accepted_list:
+            tip = _norm(t.get('teklif_tipi',''))
+            if 'kapsam' in tip and 'ici' in tip:
+                kapsam_ici.append(t)
+            elif 'kapsam' in tip and ('disi' in tip or 'dış' in tip):
+                kapsam_disi.append(t)
+        kapsam_ici_adet = len(kapsam_ici)
+        kapsam_disi_adet = len(kapsam_disi)
+        kapsam_ici_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_ici)
+        kapsam_disi_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_disi)
+        # Formül kontrolü amacıyla toplam = kabul + red
+        # İstemci tarafı bu değerleri kullanarak doğrulama yapabilir
+
+        # Ölçümler (parametre_olcum)
+        param_olcumler = load_parametre_olcum()
+        filt_olcum = [o for o in param_olcumler if o.get('created_at') and in_range(o.get('created_at')[:10])]
+        toplam_olcum_adedi = len(filt_olcum)
+
+        # Parametre bazında özet (TEKLİF parametrelerinden - adet/toplam doğru gelir)
+        from collections import defaultdict
+        parametre_ozet = defaultdict(lambda: {'adet': 0, 'toplam': 0.0})
+        for t in filt_teklif:
+            for pr in t.get('parametreler', []) or []:
+                p_ad = pr.get('parametre') or 'Bilinmiyor'
+                try:
+                    p_adet = int(pr.get('adet', 0) or 0)
+                except Exception:
+                    p_adet = 0
+                try:
+                    p_top = float(pr.get('topFiyat', 0) or 0)
+                except Exception:
+                    p_top = 0.0
+                parametre_ozet[p_ad]['adet'] += p_adet
+                parametre_ozet[p_ad]['toplam'] += p_top
+
+        parametre_list = [
+            {'parametre': k, 'adet': v['adet'], 'toplam': round(v['toplam'], 2)}
+            for k, v in sorted(parametre_ozet.items(), key=lambda x: x[0].lower())
+        ]
+
+        # Personel x Parametre matrisi (ölçüm kaydı -> ilgili bacadan personel)
+        try:
+            baca_list = load_baca_bilgileri()
+        except Exception:
+            baca_list = []
+        # Baca index: (firma, olcum, baca) -> personel
+        baca_index = {}
+        for b in baca_list:
+            if not (b.get('firma_adi') and b.get('olcum_kodu') and b.get('baca_adi')):
+                continue
+            key = (b.get('firma_adi'), b.get('olcum_kodu'), b.get('baca_adi'))
+            baca_index[key] = (b.get('personel_adi') or '').strip() or 'Bilinmiyor'
+
+        personel_set = set()
+        matrix = defaultdict(lambda: defaultdict(int))  # parametre -> personel -> adet
+        for o in filt_olcum:
+            param = (o.get('parametre_adi') or 'Bilinmiyor').strip() or 'Bilinmiyor'
+            key = (o.get('firma_adi'), o.get('olcum_kodu'), o.get('baca_adi'))
+            personel = (o.get('personel_adi') or '').strip()
+            if not personel:
+                personel = baca_index.get(key, 'Bilinmiyor')
+            if not personel:
+                personel = 'Bilinmiyor'
+            personel_set.add(personel)
+            matrix[param][personel] += 1
+
+        personeller = sorted(list(personel_set), key=lambda x: x.lower())
+        matrix_rows = []
+        for param, counts in sorted(matrix.items(), key=lambda x: x[0].lower()):
+            row = {
+                'parametre': param,
+                'counts': {p: counts.get(p, 0) for p in personeller},
+                'toplam': sum(counts.values())
+            }
+            matrix_rows.append(row)
+
+        # Basit personel özeti (toplam adet) – matrix'ten türet
+        toplam_by_person = defaultdict(int)
+        for counts in matrix.values():
+            for p, v in counts.items():
+                toplam_by_person[p] += v
+        personel_list = [
+            {'personel': p, 'adet': toplam_by_person[p]}
+            for p in sorted(toplam_by_person.keys(), key=lambda x: (-toplam_by_person[x], x.lower()))
+        ]
+
+        return jsonify({
+            'summary': {
+                'toplam_teklif_adedi': toplam_teklif_adedi,
+                'toplam_teklif_tutari': round(toplam_teklif_tutari, 2),
+                'kapsam_ici_adet': kapsam_ici_adet,
+                'kapsam_ici_tutar': round(kapsam_ici_tutar, 2),
+                'kapsam_disi_adet': kapsam_disi_adet,
+                'kapsam_disi_tutar': round(kapsam_disi_tutar, 2),
+                'kabul_adet': kabul_adet,
+                'red_adet': red_adet,
+                'toplam_olcum_adedi': toplam_olcum_adedi
+            },
+            'parametreler': parametre_list,
+            'personeller': personel_list,
+            'personel_parametre': {
+                'personel_headers': personeller,
+                'rows': matrix_rows
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/pivot/compare')
+def pivot_compare():
+    """Seçilen yıllar için özet ve parametre toplamlarını döndürür (admin)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'auth'}), 401
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'forbidden'}), 403
+
+    try:
+        years_q = request.args.get('years', '')
+        years = [y for y in [s.strip() for s in years_q.split(',')] if y.isdigit()]
+        if not years:
+            from datetime import datetime
+            y = str(datetime.now().year)
+            years = [y]
+
+        def _norm(sval: str) -> str:
+            m = (sval or '').strip().lower()
+            tr_map = str.maketrans({'ı':'i','İ':'i','ş':'s','Ş':'s','ç':'c','Ç':'c','ğ':'g','Ğ':'g','ü':'u','Ü':'u','ö':'o','Ö':'o'})
+            return m.translate(tr_map)
+
+        teklifler = load_teklif()
+        param_olcumler = load_parametre_olcum()
+
+        result = {}
+        for y in years:
+            # Teklifler: yıla göre filtrele
+            yil_teklif = []
+            for t in teklifler:
+                tdate = t.get('teklif_tarihi')
+                if not tdate:
+                    continue
+                try:
+                    ty = tdate[:4]
+                except Exception:
+                    continue
+                if ty == y:
+                    yil_teklif.append(t)
+
+            toplam_teklif_adedi = len(yil_teklif)
+            toplam_teklif_tutari = sum(float(t.get('netToplam', 0) or 0) for t in yil_teklif)
+
+            accepted_list, rejected_list = [], []
+            for t in yil_teklif:
+                status = _norm(t.get('teklif_durumu',''))
+                if any(k in status for k in ['kabul','onay']):
+                    accepted_list.append(t)
+                elif any(k in status for k in ['red','ret','iptal','olumsuz','kabul edilmedi','kabul edilmez']):
+                    rejected_list.append(t)
+            kabul_adet = len(accepted_list)
+            red_adet = len(rejected_list)
+
+            kapsam_ici = []
+            kapsam_disi = []
+            for t in accepted_list:
+                tip = _norm(t.get('teklif_tipi',''))
+                if 'kapsam' in tip and 'ici' in tip:
+                    kapsam_ici.append(t)
+                elif 'kapsam' in tip and ('disi' in tip or 'dış' in tip):
+                    kapsam_disi.append(t)
+            kapsam_ici_adet = len(kapsam_ici)
+            kapsam_disi_adet = len(kapsam_disi)
+            kapsam_ici_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_ici)
+            kapsam_disi_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_disi)
+
+            # Parametre adet/tutar (teklif satırlarından)
+            from collections import defaultdict
+            param_adet = defaultdict(int)
+            param_tl = defaultdict(float)
+            for t in yil_teklif:
+                for pr in t.get('parametreler', []) or []:
+                    p_ad = pr.get('parametre') or 'Bilinmiyor'
+                    try:
+                        p_adet = int(pr.get('adet', 0) or 0)
+                    except Exception:
+                        p_adet = 0
+                    try:
+                        p_top = float(pr.get('topFiyat', 0) or 0)
+                    except Exception:
+                        p_top = 0.0
+                    param_adet[p_ad] += p_adet
+                    param_tl[p_ad] += p_top
+
+            # Ölçüm kaydı adedi (param ölçümünden, created_at yılı)
+            yil_olcum_adedi = 0
+            for o in param_olcumler:
+                c = o.get('created_at') or ''
+                if len(c) >= 4 and c[:4] == y:
+                    yil_olcum_adedi += 1
+
+            result[y] = {
+                'summary': {
+                    'toplam_teklif_adedi': toplam_teklif_adedi,
+                    'toplam_teklif_tutari': round(toplam_teklif_tutari, 2),
+                    'kabul_adet': kabul_adet,
+                    'red_adet': red_adet,
+                    'kapsam_ici_adet': kapsam_ici_adet,
+                    'kapsam_ici_tutar': round(kapsam_ici_tutar, 2),
+                    'kapsam_disi_adet': kapsam_disi_adet,
+                    'kapsam_disi_tutar': round(kapsam_disi_tutar, 2),
+                    'toplam_olcum_adedi': yil_olcum_adedi
+                },
+                'parametre_adet': {k: int(v) for k, v in param_adet.items()},
+                'parametre_tl': {k: round(v, 2) for k, v in param_tl.items()}
+            }
+
+        return jsonify({'years': years, 'data': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     # Protect this route
@@ -629,7 +898,6 @@ def admin():
 
     # For GET request, pass the list of users to the template
     return render_template('admin.html', username=session.get('username'), users=current_users)
-
 @app.route('/add_emission', methods=['GET', 'POST'])
 def add_emission():
     if not session.get('logged_in') or not can_write(session.get('role')):
@@ -1266,7 +1534,6 @@ def get_measurement_details(measurement_id):
     except Exception as e:
         print(f"Hata: {e}")
         return jsonify({'error': f'Server hatası: {str(e)}'}), 500
-
 @app.route('/export_measurement/<measurement_id>')
 def export_measurement(measurement_id):
     if 'username' not in session:
@@ -1669,6 +1936,9 @@ def firma_kayit():
     # Firma kayıt verilerini yükle
     firma_kayitlar = load_firma_kayit()
     
+    # Alfabetik sıralama (firma adına göre)
+    firma_kayitlar.sort(key=lambda x: x.get('firmaAdi', '').lower())
+    
     # İstediğiniz illeri en üste taşı
     oncelikli_iller = ['KOCAELİ', 'SAKARYA', 'DÜZCE', 'BOLU', 'İSTANBUL', 'BURSA', 'BİLECİK', 'KÜTAHYA']
     
@@ -1912,7 +2182,6 @@ def delete_asgari_fiyat():
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
-
 @app.route('/api/teklif/detail/<teklif_id>')
 def get_teklif_detail(teklif_id):
     """Teklif detayını getirir"""
@@ -1948,12 +2217,8 @@ def delete_teklif():
         # Silinecek teklifi bul ve numarasını kaydet
         silinen_teklif = next((t for t in teklifler if t.get('id') == teklif_id), None)
         
-        if silinen_teklif and silinen_teklif.get('teklif_no'):
-            # Kullanılmış numaralar listesine ekle (zaten ekliydi ama emin olmak için)
-            used_numbers = load_used_teklif_numbers()
-            used_numbers.add(silinen_teklif['teklif_no'])
-            save_used_teklif_numbers(used_numbers)
-            print(f"Silinen teklif numarası kalıcı olarak kaydedildi: {silinen_teklif['teklif_no']}")
+        # Not: Kullanıcı isteği gereği silinen teklif numaraları yeniden kullanılabilsin.
+        # Bu nedenle used_teklif_numbers.json'a ekleme yapılmıyor.
         
         # Teklifi listeden kaldır
         teklifler = [t for t in teklifler if t.get('id') != teklif_id]
@@ -2081,6 +2346,21 @@ def update_teklif_durum_tarihi():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
 
+@app.route('/api/firma_kayit', methods=['GET'])
+def api_firma_kayit():
+    """Firma kayıtlarını API olarak döndürür."""
+    try:
+        firma_kayitlar = load_firma_kayit()
+        return jsonify({
+            'success': True,
+            'firma_kayitlar': firma_kayitlar
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Firma kayıtları yüklenirken hata oluştu: {str(e)}'
+        }), 500
+
 @app.route('/api/firma_kayit/add', methods=['POST'])
 def add_firma_kayit():
     if not session.get('logged_in'):
@@ -2110,6 +2390,9 @@ def add_firma_kayit():
         # Mevcut verileri yükle
         firma_kayitlar = load_firma_kayit()
         firma_kayitlar.append(yeni_firma)
+        
+        # Alfabetik sıralama (firma adına göre)
+        firma_kayitlar.sort(key=lambda x: x.get('firmaAdi', '').lower())
         
         # Verileri kaydet
         if save_firma_kayit(firma_kayitlar):
@@ -2150,6 +2433,9 @@ def update_firma_kayit():
                     'danismanTel': data.get('danismanTel', '')
                 })
                 break
+        
+        # Alfabetik sıralama (firma adına göre)
+        firma_kayitlar.sort(key=lambda x: x.get('firmaAdi', '').lower())
         
         # Verileri kaydet
         if save_firma_kayit(firma_kayitlar):
@@ -2205,6 +2491,9 @@ def import_firma_kayit():
             if any(existing_firma.get('id') == firma.get('id') for existing_firma in firma_kayitlar):
                 firma['id'] = str(uuid.uuid4())
             firma_kayitlar.append(firma)
+        
+        # Alfabetik sıralama (firma adına göre)
+        firma_kayitlar.sort(key=lambda x: x.get('firmaAdi', '').lower())
         
         # Verileri kaydet
         if save_firma_kayit(firma_kayitlar):
@@ -2530,7 +2819,6 @@ def delete_selected_firma_olcum():
     except Exception as e:
         print(f"Toplu silme hatası: {e}")
         return jsonify({'success': False, 'error': f'Silme hatası: {str(e)}'}), 500
-
 @app.route('/firma_olcum/edit/<olcum_id>', methods=['GET', 'POST'])
 def edit_firma_olcum(olcum_id):
     if not session.get('logged_in'):
@@ -3697,7 +3985,6 @@ def api_olcum_kodlari(firma_adi):
         return jsonify(olcum_kodlari)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 @app.route('/api/baca_listesi/<firma_adi>/<olcum_kodu>')
 def api_baca_listesi(firma_adi, olcum_kodu):
     """Belirli firma ve ölçüm kodu için baca listesini döndür"""
@@ -4333,7 +4620,6 @@ def api_bulk_delete_parametre_olcumleri():
     except Exception as e:
         print(f"Parametre ölçümleri toplu silme hatası: {e}")
         return jsonify({'success': False, 'error': str(e)})
-
 @app.route('/save_baca_bilgileri_saha', methods=['POST'])
 def save_baca_bilgileri_saha():
     """Saha ölçümü için baca bilgilerini kaydeder."""
@@ -4343,6 +4629,7 @@ def save_baca_bilgileri_saha():
         baca_adi = request.form.get('baca_adi')
         baca_bilgileri_json = request.form.get('baca_bilgileri')
         personel_adi = request.form.get('personel_adi', '')
+        notlar = request.form.get('notlar', '')
         is_edit = request.form.get('is_edit', 'false') == 'true'
         
         if not all([firma_adi, olcum_kodu, baca_adi, baca_bilgileri_json]):
@@ -4381,33 +4668,37 @@ def save_baca_bilgileri_saha():
             'baca_adi': baca_adi,
             'baca_bilgileri': baca_bilgileri,
             'personel_adi': personel_adi,
+            'notlar': notlar,
             'photo_path': photo_path,
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
         
-        # Eğer güncelleme ise, mevcut kaydı bul ve güncelle
-        if is_edit:
-            record_found = False
-            for i, record in enumerate(saved_baca_bilgileri):
-                if (record.get('firma_adi') == firma_adi and 
-                    record.get('olcum_kodu') == olcum_kodu and 
-                    record.get('baca_adi') == baca_adi):
-                    # Mevcut kaydı güncelle
-                    new_record['id'] = record.get('id', str(uuid4()))
-                    new_record['created_at'] = record.get('created_at', datetime.now().isoformat())
-                    # Fotoğraf değişmemişse eski fotoğrafı koru
-                    if not photo_path:
-                        new_record['photo_path'] = record.get('photo_path')
-                    saved_baca_bilgileri[i] = new_record
-                    record_found = True
-                    break
-            
-            if not record_found:
-                # Kayıt bulunamadıysa yeni kayıt olarak ekle
-                saved_baca_bilgileri.append(new_record)
-        else:
-            # Yeni kayıt ekle
+        # Upsert davranışı: Aynı (firma_adi, olcum_kodu, baca_adi) için tek kayıt tut
+        # is_edit parametresi gelmese bile mevcut kaydı güncelle, yenisini ekleme
+        updated = False
+        for i, record in enumerate(saved_baca_bilgileri):
+            if (record.get('firma_adi') == firma_adi and 
+                record.get('olcum_kodu') == olcum_kodu and 
+                record.get('baca_adi') == baca_adi):
+                # Mevcut kaydı alan bazlı birleştir (yalnızca değişen alanlar güncellensin)
+                merged = record.copy()
+                merged['baca_bilgileri'] = {**record.get('baca_bilgileri', {}), **baca_bilgileri}
+                merged['personel_adi'] = personel_adi or record.get('personel_adi')
+                merged['notlar'] = notlar if notlar is not None else record.get('notlar')
+                merged['updated_at'] = datetime.now().isoformat()
+                if photo_path:
+                    merged['photo_path'] = photo_path
+                saved_baca_bilgileri[i] = merged
+                updated = True
+                break
+
+        if not updated:
+            # Aynı anahtarla daha önce yanlışlıkla çoğaltılmış kayıtları temizle ve en güncelini ekle
+            saved_baca_bilgileri = [r for r in saved_baca_bilgileri 
+                                     if not (r.get('firma_adi') == firma_adi and 
+                                             r.get('olcum_kodu') == olcum_kodu and 
+                                             r.get('baca_adi') == baca_adi)]
             saved_baca_bilgileri.append(new_record)
         
         # Baca bilgilerini dosyaya kaydet
@@ -4912,7 +5203,6 @@ def delete_parametre_field():
     except Exception as e:
         print(f"Parametre alanı silinirken hata: {e}")
         return jsonify({'success': False, 'message': 'Sunucu hatası!'}), 500
-
 @app.route('/import_parametre_fields', methods=['POST'])
 def import_parametre_fields():
     """Tablodaki formatı Excel dosyasından içe aktarır."""
@@ -5490,7 +5780,6 @@ def export_baca_bilgileri():
     except Exception as e:
         flash(f'Dışa aktarma hatası: {str(e)}', 'error')
         return redirect(url_for('formlar'))
-
 def load_baca_paralar():
     """Baca parametrelerini JSON dosyasından yükler."""
     BACA_PARALAR_FILE = 'baca_paralar.json'
@@ -6130,7 +6419,6 @@ def api_firma_olcum_detail_word_export():
         import traceback
         print(f"DEBUG: Hata detayı: {traceback.format_exc()}")
         return jsonify({'error': f'Word export hatası: {str(e)}'}), 500
-
 @app.route('/api/firma_olcum_word_export', methods=['POST'])
 def api_firma_olcum_word_export():
     """Firma ölçüm bilgilerini Word formatında dışa aktarır."""
@@ -7581,9 +7869,9 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
         for section in sections:
             section.left_margin = Inches(5/25.4)  # 5mm = 5/25.4 inç
             section.right_margin = Inches(5/25.4)  # 5mm = 5/25.4 inç
-            # Alt bilgi yüksekliği: footer ile sayfa altı arası mesafe 1.5 cm
+            # Alt bilgi yüksekliği: footer ile sayfa altı arası mesafe 0.5 cm
             try:
-                section.footer_distance = Inches(1.5/2.54)
+                section.footer_distance = Inches(0.5/2.54)
             except Exception:
                 pass
         
@@ -7623,6 +7911,7 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
             'B_BACA': get_value_or_dash(baca_bilgisi.get('baca_bilgileri', {}).get('af55c55f-f83b-4b90-a655-ee76bf6bb2ac', '')),
             'C_DELIK': get_value_or_dash(baca_bilgisi.get('baca_bilgileri', {}).get('20881447-f7c8-4a6b-8583-76c7246082ef', '')),
             'PERSONEL': get_value_or_dash(baca_bilgisi.get('personel_adi', '')),
+            'NOTLAR': get_value_or_dash(baca_bilgisi.get('notlar', '')),
             'TARIH': datetime.now().strftime('%d.%m.%Y')
         }
         
@@ -7654,6 +7943,7 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
             # Genişlik ayarı başarısız olursa raporu engelleme
             print(f"Firma bilgisi tablosu genişlik ayarı hatası: {_tbl_err}")
 
+
         # Footer'a bilgi satırı ve imza ekle
         try:
             personel_adi = (baca_bilgisi.get('personel_adi') or '-').strip()
@@ -7668,7 +7958,7 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
                 left_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 for run in left_p.runs:
                     try:
-                        run.font.size = Pt(12)
+                        run.font.size = Pt(8)
                     except Exception:
                         pass
 
@@ -7680,7 +7970,7 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
                 r2 = right_p.add_run(personel_adi)
                 for r in [r1, r2]:
                     try:
-                        r.font.size = Pt(12)
+                        r.font.size = Pt(8)
                     except Exception:
                         pass
 
@@ -7709,7 +7999,7 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
                 if signature_path:
                     run = right_p.add_run()
                     try:
-                        run.add_picture(signature_path, width=Inches(0.72))  # %40 daha küçük
+                        run.add_picture(signature_path, width=Inches(0.5))  # Çok küçük imza
                     except Exception as _e:
                         # Görsel eklenemezse sessizce devam et
                         pass
@@ -7717,6 +8007,34 @@ def create_baca_word_document_from_template(baca_bilgisi, baca_parametreleri, fo
             # Footer ekleme sırasında hata olsa da rapor üretimini engellemeyelim
             print(f"Footer ekleme hatası: {_footer_err}")
         
+        # Notlar bölümünü ekle (eğer notlar varsa) - Baca tablosunun hemen altında
+        notlar = baca_bilgisi.get('notlar', '').strip()
+        if notlar and notlar != '-':
+            try:
+                # Notlar başlığı - boşluk eklemeden direkt başlık
+                notlar_baslik = doc.add_paragraph()
+                notlar_baslik.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                notlar_run = notlar_baslik.add_run("NOTLAR:")
+                notlar_run.bold = True
+                notlar_run.font.size = Pt(10)
+                
+                # Notlar içeriği
+                notlar_paragraf = doc.add_paragraph()
+                notlar_paragraf.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                notlar_run = notlar_paragraf.add_run(notlar)
+                notlar_run.font.size = Pt(9)
+                
+                # Çerçeve ekle (isteğe bağlı)
+                try:
+                    # Notlar paragrafını çerçevele
+                    notlar_paragraf.paragraph_format.left_indent = Inches(0.2)
+                    notlar_paragraf.paragraph_format.right_indent = Inches(0.2)
+                except Exception:
+                    pass
+                    
+            except Exception as e:
+                print(f"Notlar ekleme hatası: {e}")
+
         # Parametre ölçümlerini ekle
         if baca_parametreleri:
             add_parametre_measurements_to_document(doc, baca_parametreleri)
@@ -7928,7 +8246,6 @@ def add_parametre_details_to_document(doc, parametre, baca_adi=""):
         print(f"Hata detayı: {error_details}")
         # Hatayı yukarı fırlatma, sadece logla
         raise e
-
 def replace_placeholders_in_document(doc, data):
     """Word dokümanındaki yer tutucuları gerçek verilerle değiştirir."""
     # Docx kütüphanesini yükle
@@ -8150,6 +8467,226 @@ def create_firma_raporu_from_template(firma_adi, olcum_kodu):
         return jsonify({'error': f'Firma şablon rapor oluşturma hatası: {str(e)}'}), 500
 
 # Parametre ölçümleri export API'leri
+@app.route('/api/combined_excel_export', methods=['POST'])
+def api_combined_excel_export():
+    """Baca ve Parametre verilerini TEK SAYFADA yatay tüm sütunlar halinde dışa aktarır."""
+    try:
+        # Pandas'ı güvenle yükle (lazy-load)
+        pd_local = load_pandas()
+
+        print("Birleşik (tek sayfa) Excel export başlatıldı...")
+        data = request.get_json()
+        firma_ids = data.get('firma_ids', [])
+
+        # Verileri yükle
+        baca_bilgileri = load_baca_bilgileri()
+        parametre_olcumleri = load_parametre_olcum()
+
+        # Firma filtreleme gerekiyorsa firma adlarını çıkar
+        firma_adlari = None
+        if firma_ids:
+            firma_kayitlar = load_firma_kayit()
+            firma_adlari = [f.get('firmaAdi', '') for f in firma_kayitlar if str(f.get('id')) in set(map(str, firma_ids))]
+
+        # Filtre uygula
+        if firma_adlari is not None:
+            filtered_baca_bilgileri = [b for b in baca_bilgileri if b.get('firma_adi') in firma_adlari]
+            filtered_parametre_olcumleri = [p for p in parametre_olcumleri if p.get('firma_adi') in firma_adlari]
+        else:
+            filtered_baca_bilgileri = baca_bilgileri
+            filtered_parametre_olcumleri = parametre_olcumleri
+
+        if not filtered_baca_bilgileri and not filtered_parametre_olcumleri:
+            return jsonify({'error': 'Dışa aktarılacak veri bulunamadı'}), 404
+
+        # Parametre sütunları (soldan sağa tamamı)
+        parametre_fields = [
+            'TARİH', 'METOT', 'NOZZLE ÇAP', 'TRAVERS', 'B.HIZ', 'B.SIC', 'B.BAS(KPA)',
+            'B.NEM(G/M3)', 'B.NEM(%)', 'SYC.HAC.', 'SYC.İLK', 'SYC.SON', 'SYC.SIC', 'DEBİ', 'ISDL',
+            '1İMP-İ', '1-İMP-S', '2-İMP-İ', '2-İMP-S', '3-İMP-İ', '3-İMP-S', 'HAC.',
+            'O2', 'CO', 'NO', 'NOX', 'SO2', 'KK1-O2', 'KK1-CO', 'KK1-NO', 'KK1-SO2',
+            'KK2-O2', 'KK2-CO', 'KK2-NO', 'KK2-SO2', 'T90', 'TOC(PPM)', 'KK1-SPAN', 'KK2-SPAN',
+            'GAZ HAC.', 'GAZ.SIC.', 'SEY.GAZ.HAC', 'SEY.GAZ.SIC', 'ORT.SIC', 'ORT.NEM',
+            'ORT.RUZ.HIZ', 'ÇEK.HACİM', 'T.İÇİ-1', 'T.İÇİ-2', 'T.İÇİ-3', 'T.İÇİ-4',
+            'T-DIŞ-1', 'T.DIŞ-2', 'T.DIŞ-3', 'T.DIŞ-4', 'İLK KURULUM', '2. KURULUM'
+        ]
+
+        # Baca Bilgileri GUID -> Etiket eşlemesi (iki set)
+        baca_guid_to_label_v1 = {
+            '597fad80-d28f-40ea-bd28-a76c61c5203d': 'BACA NO',
+            'ddca398d-0e55-4662-b661-3731e0975bd2': 'YAKIT TÜRÜ',
+            '22867c9a-ca3c-4d80-b017-b73dafdd7fef': 'ISIL GÜÇ (MW)',
+            '6b3546e0-184c-49de-82e4-e2835e81923b': 'ÇATI ŞEKLİ',
+            '98399625-5bbc-465e-8e09-de454f231ae4': 'KAYNAK TÜRÜ',
+            'd9958774-43f7-4bc3-8e12-436614a6193a': 'BACA ŞEKLİ',
+            'b1b6fc38-98c0-4048-8b8e-795cf7d44c48': 'BACA ÖLÇÜSÜ',
+            '6a301d72-f21b-485b-b8fb-116ad5cb223f': 'YERDEN YÜK.',
+            '8ec9ecc9-ecda-4bf2-9802-02fa2e3fda4c': 'ÇATI YÜK',
+            'ab2b67dd-16a5-4bee-9b6e-b60b8cfc2d0c': 'RÜZGAR HIZ (M/S)',
+            'eca60e54-ec39-4412-8884-caa17faed0be': 'ORT. SIC.',
+            '64238e0a-6387-4c31-9bf4-d7f800ef17e1': 'ORT. NEM',
+            'b09ad69a-e4d4-4219-b055-2cf923ffd499': 'ORT. BAS.',
+            '9c8c8bcf-c98e-4109-8b10-63b08b26460e': 'A BACA',
+            'af55c55f-f83b-4b90-a655-ee76bf6bb2ac': 'B BACA',
+            '20881447-f7c8-4a6b-8583-76c7246082ef': 'C DELİK'
+        }
+        baca_guid_to_label_v2 = {
+            '7425ab86-4cfb-4796-bd2c-a84c3f1c61a4': 'BACA NO',
+            '2517064c-c286-4210-8f60-fa0a6b9e22a9': 'YAKIT TÜRÜ',
+            '2360aa46-81dd-41db-a6b6-5c23e62900fe': 'ISIL GÜÇ (MW)',
+            'f1e7b875-ddf4-4628-87a3-eda6afa775b7': 'ÇATI ŞEKLİ',
+            '7647078a-4f69-4908-99f7-3fff5651cc9b': 'KAYNAK TÜRÜ',
+            '394272bc-a8dc-46c4-a1a8-15ed4c0dbf29': 'BACA ŞEKLİ',
+            '6774fc7e-c124-4272-b826-482d064f3215': 'BACA ÖLÇÜSÜ',
+            '943f1111-1be7-4dd3-b62d-b734963c768e': 'YERDEN YÜK.',
+            '3f622008-8178-460c-a6a1-c5f4eb357231': 'ÇATI YÜK',
+            'eba873d9-1398-4fde-9ef0-851359037990': 'RÜZGAR HIZ (M/S)',
+            '5ab155d9-a52d-4359-abbf-bd3083e216da': 'ORT. SIC.',
+            'dea8eb12-71c2-4af4-a280-acd5eac4660b': 'ORT. NEM',
+            '922ab008-e6ec-442c-a2ee-4159b6ce948e': 'ORT. BAS.',
+            '0c47bc1d-afdf-477a-94b8-abb2c1d6f92c': 'A BACA',
+            'f59ec1f6-f93e-49a7-ac11-c33ce327987a': 'B BACA',
+            '0e9de9b8-d7a4-4125-b299-747e47c71b4b': 'C DELİK'
+        }
+        # Etiket -> GUID listesi
+        label_to_guids = {}
+        for gid, label in {**baca_guid_to_label_v1, **baca_guid_to_label_v2}.items():
+            label_to_guids.setdefault(label, []).append(gid)
+
+        # Tek sayfa görsel sıralamaya uygun Baca sütun etiketleri
+        baca_fields = [
+            'BACA NO', 'KAYNAK TÜRÜ', 'ISIL GÜÇ (MW)', 'BACA ŞEKLİ', 'BACA ÖLÇÜSÜ', 'ÇATI YÜK', 'YAKIT TÜRÜ',
+            'ÇATI ŞEKLİ', 'YERDEN YÜK.', 'RÜZGAR HIZ (M/S)', 'ORT. SIC.', 'ORT. NEM',
+            'ORT. BAS.', 'A BACA', 'B BACA', 'C DELİK'
+        ]
+
+        # Kimlik sütunları
+        identity_fields = ['#', 'Firma', 'Ölçüm Kodu', 'Baca', 'Parametre', 'Kayıt Türü', 'Personel', 'Notlar', 'Kayıt Tarihi']
+
+        # Baca bilgilerini hızlı erişim için eşle
+        baca_index = {}
+        for b in filtered_baca_bilgileri:
+            key = (b.get('firma_adi', ''), b.get('olcum_kodu', ''), b.get('baca_adi', ''))
+            baca_index[key] = b
+
+        # Tek sayfa için satırları oluştur
+        rows = []
+
+        # 1) Parametre ölçümleri: tüm parametre sütunları dolu, varsa baca kimlik bilgileri de dolu
+        for idx, olcum in enumerate(filtered_parametre_olcumleri, 1):
+            row = {f: '' for f in identity_fields + baca_fields + parametre_fields}
+            row['#'] = idx
+            row['Firma'] = olcum.get('firma_adi', '')
+            row['Ölçüm Kodu'] = olcum.get('olcum_kodu', '')
+            row['Baca'] = olcum.get('baca_adi', '')
+            row['Parametre'] = olcum.get('parametre_adi', '')
+            row['Kayıt Türü'] = 'Parametre'
+            row['Kayıt Tarihi'] = olcum.get('created_at', '')[:19].replace('T', ' ') if olcum.get('created_at') else ''
+
+            # İlgili baca kaydından personel/notlar varsa çek
+            bkey = (row['Firma'], row['Ölçüm Kodu'], row['Baca'])
+            brec = baca_index.get(bkey)
+            if brec:
+                row['Personel'] = brec.get('personel_adi', '')
+                row['Notlar'] = brec.get('notlar', '')
+                # Baca alanlarını doldur (GUID->Etiket mapping ile)
+                bjson = brec.get('baca_bilgileri', {}) or {}
+                for bf in baca_fields:
+                    val = ''
+                    for gid in label_to_guids.get(bf, []):
+                        v = bjson.get(gid)
+                        if v not in (None, ''):
+                            val = v
+                            break
+                    row[bf] = val
+
+            # Parametre verilerini bas
+            pveri = olcum.get('parametre_verileri', {}) or {}
+            for field in parametre_fields:
+                row[field] = pveri.get(field, '')
+
+            rows.append(row)
+
+        # 2) Baca kayıtları: kimlik/personel/notlar dolu, parametre sütunları boş
+        start_idx = len(rows) + 1
+        for i, b in enumerate(filtered_baca_bilgileri, start_idx):
+            row = {f: '' for f in identity_fields + baca_fields + parametre_fields}
+            row['#'] = i
+            row['Firma'] = b.get('firma_adi', '')
+            row['Ölçüm Kodu'] = b.get('olcum_kodu', '')
+            row['Baca'] = b.get('baca_adi', '')
+            row['Parametre'] = ''
+            row['Kayıt Türü'] = 'Baca'
+            row['Personel'] = b.get('personel_adi', '')
+            row['Notlar'] = b.get('notlar', '')
+            row['Kayıt Tarihi'] = b.get('created_at', '')[:19].replace('T', ' ') if b.get('created_at') else ''
+            # Baca alanlarını doldur (GUID->Etiket mapping ile)
+            bjson = b.get('baca_bilgileri', {}) or {}
+            for bf in baca_fields:
+                val = ''
+                for gid in label_to_guids.get(bf, []):
+                    v = bjson.get(gid)
+                    if v not in (None, ''):
+                        val = v
+                        break
+                row[bf] = val
+            rows.append(row)
+
+        # DataFrame oluştur
+        df = pd_local.DataFrame(rows, columns=identity_fields + baca_fields + parametre_fields)
+
+        # Geçici dosya oluştur ve yaz
+        tmp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                tmp_file_path = tmp_file.name
+
+            with pd_local.ExcelWriter(tmp_file_path, engine='openpyxl') as writer:
+                sheet_name = 'Tüm Kayıtlar'
+                df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+                ws = writer.sheets[sheet_name]
+                # Otomatik filtre
+                ws.auto_filter.ref = ws.dimensions
+                # Sütun genişlikleri
+                for column in ws.columns:
+                    max_len = 0
+                    col_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            val_len = len(str(cell.value)) if cell.value is not None else 0
+                            if val_len > max_len:
+                                max_len = val_len
+                        except Exception:
+                            pass
+                    ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
+
+            # Dosyayı oku ve döndür
+            with open(tmp_file_path, 'rb') as f:
+                content = f.read()
+
+            try:
+                os.unlink(tmp_file_path)
+            except Exception:
+                pass
+
+            resp = make_response(content)
+            resp.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            resp.headers['Content-Disposition'] = 'attachment; filename=tum_kayitlar.xlsx'
+            return resp
+
+        except Exception as e:
+            if tmp_file_path and os.path.exists(tmp_file_path):
+                try:
+                    os.unlink(tmp_file_path)
+                except Exception:
+                    pass
+            raise e
+
+    except Exception as e:
+        print(f"Excel export hatası: {e}")
+        return jsonify({'error': f'Excel export hatası: {str(e)}'}), 500
+
 @app.route('/api/parametre_olcumleri_excel_export', methods=['POST'])
 def api_parametre_olcumleri_excel_export():
     """Parametre ölçümlerini Excel formatında dışa aktarır."""
@@ -8180,7 +8717,7 @@ def api_parametre_olcumleri_excel_export():
         
         # Tüm parametre alanlarını tanımla (frontend ile aynı sırada)
         allParametreFields = [
-            'TARİH', 'METOT', 'NOZZLE ÇAP', 'TRAVERS', 'B.HIZ', 'B.SIC', 'B.BAS(KPA)', 
+            'TARİH', 'METOD', 'NOZZLE ÇAP', 'TRAVERS', 'B.HIZ', 'B.SIC', 'B.BAS(KPA)', 
             'B.NEM(G/M3)', 'B.NEM(%)', 'SYC.HAC.', 'SYC.İLK', 'SYC.SON', 'SYC.SIC', 'DEBİ', 'ISDL',
             '1İMP-İ', '1-İMP-S', '2-İMP-İ', '2-İMP-S', '3-İMP-İ', '3-İMP-S', 'HAC.',
             'O2', 'CO', 'NO', 'NOX', 'SO2', 'KK1-O2', 'KK1-CO', 'KK1-NO', 'KK1-SO2', 
@@ -8281,7 +8818,6 @@ def api_parametre_olcumleri_excel_export():
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Excel export hatası: {str(e)}'}), 500
-
 @app.route('/api/parametre_olcumleri_word_export', methods=['POST'])
 def api_parametre_olcumleri_word_export():
     """Parametre ölçümlerini Word formatında dışa aktarır."""
@@ -8561,29 +9097,26 @@ def yazdir_teklif(teklif_id):
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
 
 def create_word_teklif(teklif, firma):
-    """Word formatında teklif oluşturur - Basitleştirilmiş format"""
+    """Word formatında teklif oluşturur - Fly'daki şablonla uyumlu"""
     try:
         Document, Inches, Pt, RGBColor, WD_ALIGN_PARAGRAPH, WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL = load_docx()
-        
         if not DOCX_AVAILABLE:
             return jsonify({'success': False, 'message': 'Word dosyası oluşturma için gerekli kütüphane yüklü değil'})
-        
-        # Yeni Word dokümanı oluştur - daha basit yaklaşım
+
         doc = Document()
-        
-        # Sayfa kenar boşluklarını ayarla
+
+        # Kenar boşlukları
         sections = doc.sections
         for section in sections:
             section.top_margin = Inches(0.5)
             section.bottom_margin = Inches(0.5)
             section.left_margin = Inches(0.5)
             section.right_margin = Inches(0.5)
-        
-        # Header (üst bilgi) ekle
+
+        # Header resmi
         try:
             header_img_path = 'static/images/tek_ust1.jpg'
             if os.path.exists(header_img_path):
-                # Header section'a resim ekle
                 section = doc.sections[0]
                 header = section.header
                 header_paragraph = header.paragraphs[0]
@@ -8592,37 +9125,41 @@ def create_word_teklif(teklif, firma):
                 header_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         except Exception as e:
             print(f"Header resmi eklenirken hata: {e}")
-        
-        # 1. SAYFA - TEKLİF FORMU
-        
-        # TEKLİF FORMU başlığı
-        title = doc.add_heading('TEKLİF FORMU', 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Firma bilgileri tablosu (3 sütunlu - 4 cm, 0.5 cm, 13 cm)
+
+        # Footer - sayfa x / y
+        try:
+            section = doc.sections[0]
+            footer = section.footer
+            footer_paragraph = footer.paragraphs[0]
+            footer_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            from docx.oxml.shared import qn
+            from docx.oxml import OxmlElement
+            run = footer_paragraph.add_run('Sayfa ')
+            fldChar1 = OxmlElement('w:fldChar'); fldChar1.set(qn('w:fldCharType'), 'begin'); fldChar1.set(qn('w:dirty'), 'true'); run._r.append(fldChar1)
+            instrText = OxmlElement('w:instrText'); instrText.text = 'PAGE'; run._r.append(instrText)
+            fldChar2 = OxmlElement('w:fldChar'); fldChar2.set(qn('w:fldCharType'), 'end'); run._r.append(fldChar2)
+            run.add_text(' / ')
+            fldChar3 = OxmlElement('w:fldChar'); fldChar3.set(qn('w:fldCharType'), 'begin'); fldChar3.set(qn('w:dirty'), 'true'); run._r.append(fldChar3)
+            instrText2 = OxmlElement('w:instrText'); instrText2.text = 'NUMPAGES'; run._r.append(instrText2)
+            fldChar4 = OxmlElement('w:fldChar'); fldChar4.set(qn('w:fldCharType'), 'end'); run._r.append(fldChar4)
+        except Exception as e:
+            print(f"Footer eklenirken hata: {e}")
+
+        # Başlık kullanma; 3 satır boşluk
+        doc.add_paragraph(); doc.add_paragraph(); doc.add_paragraph()
+
+        # Firma bilgileri tablosu - kenarlıksız
         firma_tablo = doc.add_table(rows=8, cols=3)
-        firma_tablo.style = 'Table Grid'
-        
-        # Sütun genişliklerini ve satır yüksekliklerini ayarla
+        firma_tablo.style = None
         for row in firma_tablo.rows:
-            row.cells[0].width = Inches(1.57)  # 4 cm
-            row.cells[1].width = Inches(0.2)   # 0.5 cm
-            row.cells[2].width = Inches(5.12)  # 13 cm
-            row.height = Inches(0.37)  # Satır yüksekliği 9.5 mm
-        
-        # Sol sütun - Etiketler
+            row.cells[0].width = Inches(1.57)
+            row.cells[1].width = Inches(0.2)
+            row.cells[2].width = Inches(5.12)
+            row.height = Inches(0.37)
+
         etiketler = [
-            "Firma Adı",
-            "Firma Yetkili",
-            "Firma Adresi",
-            "Tel / E-Posta",
-            "Talep",
-            "Teklif Kodu",
-            "Sayfa Adedi",
-            "Tarih"
+            'Firma Adı','Firma Yetkili','Firma Adresi','Tel / E-Posta','Talep','Teklif Kodu','Sayfa Adedi','Tarih'
         ]
-        
-        # Değerler - Sayfa adedi şimdilik boş, sonra doldurulacak
         tel_email = f"{firma.get('telefon', '') if firma else ''} / {firma.get('email', '') if firma else ''}"
         degerler = [
             firma.get('firmaAdi', '') if firma else '',
@@ -8631,69 +9168,101 @@ def create_word_teklif(teklif, firma):
             tel_email,
             teklif.get('teklif_tipi', ''),
             teklif.get('teklif_no', ''),
-            "",  # Sayfa adedi sonra doldurulacak
+            '',
             teklif.get('teklif_tarihi', '')
         ]
-        
-        # Tabloyu doldur
         for i in range(8):
-            # Sol sütun - etiketler (kalın ve altı çizili)
             left_cell = firma_tablo.rows[i].cells[0]
             left_paragraph = left_cell.paragraphs[0]
-            left_run = left_paragraph.add_run(etiketler[i])
-            left_run.bold = True
-            left_run.underline = True
-            
-            # Orta sütun - ":" işareti (0.5 cm)
-            middle_cell = firma_tablo.rows[i].cells[1]
-            middle_cell.text = ":"
-            
-            # Sağ sütun - değerler
-            right_cell = firma_tablo.rows[i].cells[2]
-            right_cell.text = str(degerler[i]) if degerler[i] else ''
-        
-        # Tablo ile metin arası 2 satır boşluk
-        doc.add_paragraph()
-        doc.add_paragraph()
-        
-        # Teklif giriş metni (3. aşamadan gelen veri) - 1. sayfada
+            r = left_paragraph.add_run(etiketler[i]); r.bold = True; r.underline = True
+            firma_tablo.rows[i].cells[1].text = ':'
+            firma_tablo.rows[i].cells[2].text = str(degerler[i]) if degerler[i] else ''
+
+        # "Sayfa Adedi" hücresine toplam sayfa sayısı alanı ekle
+        try:
+            from docx.oxml.shared import qn
+            from docx.oxml import OxmlElement
+            page_cell = firma_tablo.rows[6].cells[2]
+            page_cell.text = ''
+            pnum = page_cell.paragraphs[0]
+            runp = pnum.add_run()
+            fld1 = OxmlElement('w:fldChar'); fld1.set(qn('w:fldCharType'), 'begin'); fld1.set(qn('w:dirty'), 'true'); runp._r.append(fld1)
+            instr = OxmlElement('w:instrText'); instr.text = 'NUMPAGES'; runp._r.append(instr)
+            fld2 = OxmlElement('w:fldChar'); fld2.set(qn('w:fldCharType'), 'end'); runp._r.append(fld2)
+        except Exception as e:
+            print(f"NUMPAGES alanı eklenemedi: {e}")
+
+        # 2 satır boşluk
+        doc.add_paragraph(); doc.add_paragraph()
+
+        # Giriş metni - HTML bold koru
         giris_metni = teklif.get('teklif_giris_metni', '')
-        
-        # Eğer 3. aşamadan metin varsa onu kullan, yoksa varsayılan
         if not giris_metni or giris_metni.strip() == '':
-            giris_metni = '''Sayın Yetkili;
-Talebiniz doğrultusunda hazırlanan fiyat teklifimiz bilginize sunulmuştur.
+            giris_metni = ('Sayın Yetkili;\n\n'
+                           'Talebiniz doğrultusunda hazırlanan fiyat teklifimiz bilginize sunulmuştur.\n\n'
+                           'Laboratuvarımız çalışmalarını "TÜRKAK Akreditasyon Belgesi" ve "Çevre Analizleri Yeterlilik Belgesi" kapsamında gerçekleştirmektedir.\n\n'
+                           'Teklifimizi uygun bulacağınızı umar, iyi çalışmalar dilerim.\n\n'
+                           'Saygılarımızla\n\nTeklifi Hazırlayan\nHafize Demet Fazli')
 
-Laboratuvarımız çalışmalarını "TÜRKAK Akreditasyon Belgesi" ve "Çevre Analizleri Yeterlilik Belgesi" kapsamında gerçekleştirmektedir.
-
-Teklifimizi uygun bulacağınızı umar, iyi çalışmalar dilerim.
-
-Saygılarımızla
-
-Teklifi Hazırlayan
-Hafize Demet Fazli'''
-        
-        # HTML içeriğini düz metne çevir ve ekle
+        print(f"DEBUG - Giriş metni verisi: {giris_metni[:200]}...")
         if giris_metni:
-            # HTML tag'lerini temizle
+            from bs4 import BeautifulSoup
             import re
-            clean_text = re.sub(r'<[^>]+>', '', giris_metni)
-            clean_text = clean_text.replace('&nbsp;', ' ')
-            clean_text = clean_text.replace('<br>', '\n')
-            clean_text = clean_text.replace('<br/>', '\n')
-            clean_text = clean_text.replace('<br />', '\n')
-            
-            for line in clean_text.split('\n'):
-                if line.strip():
-                    doc.add_paragraph(line.strip())
-        
-        # Sayfa sonu ekle
-        doc.add_page_break()
-        
-        # 2. sayfa başlangıcında 1 satır boşluk
-        doc.add_paragraph()
-        
-        # 2. SAYFA - ÖLÇÜM METOTLARI VE GENEL HÜKÜMLER
+            try:
+                clean_html = giris_metni
+                clean_html = re.sub(r'\[if\s+!supportLists\][\s\S]*?\[endif\]', '', clean_html)
+                clean_html = re.sub(r'\[if\s+supportLists\][\s\S]*?\[endif\]', '', clean_html)
+                clean_html = re.sub(r'<!--\[if[^>]*>.*?<\[endif\]-->', '', clean_html, flags=re.DOTALL)
+                clean_html = re.sub(r'<!--.*?-->', '', clean_html, flags=re.DOTALL)
+                clean_html = re.sub(r'style="[^"]*"', '', clean_html)
+                clean_html = re.sub(r'class="[^"]*"', '', clean_html)
+                soup = BeautifulSoup(clean_html, 'html.parser')
+                p = doc.add_paragraph()
+                def process(el):
+                    if el.name is None:
+                        text = el.strip()
+                        if text:
+                            text = (text.replace('&nbsp;', ' ').replace('&amp;', '&')
+                                         .replace('&lt;', '<').replace('&gt;', '>'))
+                            text = re.sub(r'\s+', ' ', text)
+                            run = p.add_run(text + ' ')
+                            run.font.name = 'Times New Roman'; run.font.size = Pt(11); run.font.bold = False
+                    elif el.name in ['strong','b']:
+                        text = el.get_text().strip()
+                        if text:
+                            text = (text.replace('&nbsp;', ' ').replace('&amp;', '&')
+                                         .replace('&lt;', '<').replace('&gt;', '>'))
+                            text = re.sub(r'\s+', ' ', text)
+                            run = p.add_run(text + ' ')
+                            run.font.name = 'Times New Roman'; run.font.size = Pt(11); run.font.bold = True
+                    else:
+                        for c in el.children:
+                            process(c)
+                for c in soup.children:
+                    process(c)
+                if not p.runs:
+                    clean_text = re.sub(r'<[^>]+>', '', clean_html).replace('&nbsp;', ' ')
+                    lines = [ln.strip() for ln in clean_text.split('\n') if ln.strip()]
+                    if lines:
+                        para = doc.add_paragraph(' '.join(lines))
+                        for run in para.runs:
+                            run.font.name = 'Times New Roman'; run.font.size = Pt(11); run.font.bold = False
+            except Exception as e:
+                print(f"Giriş metni formatlaması hatası: {e}")
+                import re
+                clean_text = re.sub(r'<[^>]+>', '', giris_metni).replace('&nbsp;', ' ')
+                lines = [ln.strip() for ln in clean_text.split('\n') if ln.strip()]
+                if lines:
+                    para = doc.add_paragraph(' '.join(lines))
+                    for run in para.runs:
+                        run.font.name = 'Times New Roman'; run.font.size = Pt(11); run.font.bold = False
+
+        # Sayfa sonu ve ikinci sayfa
+        doc.add_page_break(); doc.add_paragraph()
+
+        # Başlık ve parametre tablosu
+        olcum_baslik = doc.add_heading('ÖLÇÜM METOTLARI VE ÜCRETLENDİRME', level=1)
+        olcum_baslik.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
         # ÖLÇÜM METOTLARI VE ÜCRETLENDİRME başlığı
         olcum_baslik = doc.add_heading('ÖLÇÜM METOTLARI VE ÜCRETLENDİRME', level=1)
@@ -8799,37 +9368,94 @@ Hafize Demet Fazli'''
         doc.add_page_break()
         
         # 3. SAYFA - GENEL HÜKÜMLER
-        
-        # 3. sayfa başlangıcında 1 satır boşluk
+        genel_baslik = doc.add_heading('GENEL HÜKÜMLER', level=1)
+        genel_baslik.alignment = WD_ALIGN_PARAGRAPH.CENTER
         doc.add_paragraph()
         
-
         
-        # Genel hükümler metni (3. aşamadan gelen veri)
+        # Genel hükümler metni (3. aşamadan gelen veri) - İyileştirilmiş
         genel_hukumler = teklif.get('genel_hukumler', '')
         
-        # Genel hükümleri ekle - basit şekilde
+        # Genel hükümleri ekle - Gelişmiş temizleme ve bold/madde işareti biçimi
         if genel_hukumler and genel_hukumler.strip():
+            from bs4 import BeautifulSoup
             import re
-            
-            # HTML etiketlerini temizle
-            clean_content = re.sub(r'<[^>]+>', '', genel_hukumler)
-            clean_content = clean_content.replace('&nbsp;', ' ')
-            clean_content = clean_content.replace('&amp;', '&')
-            clean_content = clean_content.replace('&lt;', '<')
-            clean_content = clean_content.replace('&gt;', '>')
-            
-            # Temizlenmiş metni ekle
-            if clean_content.strip():
-                # Satırları ayır ve ekle
-                lines = clean_content.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if line:
-                        doc.add_paragraph(line)
-                    else:
-                        doc.add_paragraph()  # Boş satır
-        
+            try:
+                clean_html = genel_hukumler
+                # Word/Outlook izleri ve inline stilleri temizle
+                clean_html = re.sub(r'\[if\s+!supportLists\][\s\S]*?\[endif\]', '', clean_html)
+                clean_html = re.sub(r'\[if\s+supportLists\][\s\S]*?\[endif\]', '', clean_html)
+                clean_html = re.sub(r'\[if\s+!mso\][\s\S]*?\[endif\]', '', clean_html)
+                clean_html = re.sub(r'\[if\s+mso\][\s\S]*?\[endif\]', '', clean_html)
+                clean_html = re.sub(r'<!--\[if[^>]*>.*?<\[endif\]-->', '', clean_html, flags=re.DOTALL)
+                clean_html = re.sub(r'<!--.*?-->', '', clean_html, flags=re.DOTALL)
+                clean_html = re.sub(r'style="[^"]*"', '', clean_html)
+                clean_html = re.sub(r'class="[^"]*"', '', clean_html)
+                clean_html = re.sub(r'lang="[^"]*"', '', clean_html)
+                soup = BeautifulSoup(clean_html, 'html.parser')
+
+                # Her <p> için bir paragraf oluştur, başına kalın madde imi koy
+                p_tags = soup.find_all('p')
+                if p_tags:
+                    for p_tag in p_tags:
+                        text = p_tag.get_text().strip()
+                        if not text or len(text) <= 3:
+                            continue
+                        p = doc.add_paragraph()
+                        bullet = p.add_run('• ')
+                        bullet.font.name = 'Times New Roman'; bullet.font.size = Pt(11); bullet.font.bold = True
+                        
+                        def process(node):
+                            if node.name is None:
+                                t = node.strip()
+                                if t:
+                                    t = (t.replace('&nbsp;', ' ').replace('&amp;', '&')
+                                            .replace('&lt;', '<').replace('&gt;', '>'))
+                                    t = re.sub(r'\s+', ' ', t)
+                                    r = p.add_run(t + ' ')
+                                    r.font.name = 'Times New Roman'; r.font.size = Pt(11); r.font.bold = False
+                            elif node.name in ['b','strong']:
+                                t = node.get_text().strip()
+                                if t:
+                                    t = (t.replace('&nbsp;', ' ').replace('&amp;', '&')
+                                            .replace('&lt;', '<').replace('&gt;', '>'))
+                                    t = re.sub(r'\s+', ' ', t)
+                                    r = p.add_run(t + ' ')
+                                    r.font.name = 'Times New Roman'; r.font.size = Pt(11); r.font.bold = True
+                            else:
+                                for c in node.children:
+                                    process(c)
+
+                        for child in p_tag.children:
+                            process(child)
+                        p.paragraph_format.space_after = Pt(6)
+                        p.paragraph_format.space_before = Pt(0)
+                        p.paragraph_format.line_spacing = 1.5
+                else:
+                    # <p> yoksa satırlara bölüp madde olarak ekle
+                    plain = re.sub(r'<[^>]+>', '', clean_html)
+                    plain = plain.replace('&nbsp;', ' ').replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+                    lines = [ln.strip() for ln in plain.split('\n') if ln.strip()]
+                    for ln in lines:
+                        p = doc.add_paragraph()
+                        bullet = p.add_run('• ')
+                        bullet.font.name = 'Times New Roman'; bullet.font.size = Pt(11); bullet.font.bold = True
+                        run = p.add_run(ln)
+                        run.font.name = 'Times New Roman'; run.font.size = Pt(11); run.font.bold = False
+                        p.paragraph_format.space_after = Pt(6)
+                        p.paragraph_format.space_before = Pt(0)
+                        p.paragraph_format.line_spacing = 1.5
+            except Exception as e:
+                print(f"Genel hükümler parse hatası: {e}")
+                # Basit fallback
+                import re
+                clean_text = re.sub(r'<[^>]+>', '', genel_hukumler).replace('&nbsp;', ' ')
+                lines = [ln.strip() for ln in clean_text.split('\n') if ln.strip()]
+                for ln in lines:
+                    p = doc.add_paragraph()
+                    bullet = p.add_run('• '); bullet.font.bold = True; bullet.font.size = Pt(11); bullet.font.name = 'Times New Roman'
+                    run = p.add_run(ln); run.font.name = 'Times New Roman'; run.font.size = Pt(11)
+                    p.paragraph_format.space_after = Pt(6); p.paragraph_format.line_spacing = 1.5
         # Geçici dosya oluştur ve kaydet
         temp_file_path = None
         try:
@@ -8839,11 +9465,22 @@ Hafize Demet Fazli'''
             # Belgeyi kaydet
             doc.save(temp_file_path)
             
-            # Sayfa adedi güncelle - belge 2 sayfalı olduğu için
-            firma_tablo.rows[6].cells[2].text = "2"
-            
-            # Güncellenmiş belgeyi tekrar kaydet
-            doc.save(temp_file_path)
+            # Sayfa adedi tahmini hesapla ve hücreye yaz
+            try:
+                from docx import Document as DocxDocument
+                temp_doc = DocxDocument(temp_file_path)
+                total_paragraphs = len(temp_doc.paragraphs)
+                estimated_pages = max(3, (total_paragraphs // 15) + 1)
+                if genel_hukumler and len(genel_hukumler) > 500:
+                    estimated_pages += 1
+                estimated_pages = min(estimated_pages, 8)
+                firma_tablo.rows[6].cells[2].text = str(estimated_pages)
+                doc.save(temp_file_path)
+            except Exception as e:
+                print(f"Sayfa adedi tahmin hatası: {e}")
+                # Fallback: 5 yaz
+                firma_tablo.rows[6].cells[2].text = "5"
+                doc.save(temp_file_path)
             
             # Dosya adını oluştur (yeni format)
             firma_adi = firma.get('firmaAdi', '') if firma else ''

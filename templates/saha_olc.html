@@ -313,6 +313,16 @@
                                     </div>
                                 </div>
 
+                                <!-- Notlar Alanı -->
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <label for="bacaNotlari" class="form-label fw-bold">
+                                            <i class="fas fa-sticky-note me-2"></i>Notlar:
+                                        </label>
+                                        <textarea class="form-control" id="bacaNotlari" name="notlar" rows="3" placeholder="Baca ile ilgili özel notlar, gözlemler veya açıklamalar yazabilirsiniz..."></textarea>
+                                    </div>
+                                </div>
+
                                 <div class="row mt-3">
                                     <div class="col-md-6">
                                         <div class="d-flex align-items-center">
@@ -442,6 +452,8 @@
                                             <th width="58">C<br>DELİK</th>
                                             <th width="69">Fotoğraf</th>
                                             <th width="92">PER.</th>
+                                            <th width="100">Fiyat (TL)</th>
+                                            <th width="150">Notlar</th>
                                             <th width="92">Kayıt Tarihi</th>
                                         </tr>
 
@@ -460,6 +472,9 @@
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-warning btn-sm" id="exportSelectedBacaBtn" onclick="exportSelectedBacaExcel()" disabled>
                                         <i class="fas fa-file-excel me-2"></i>Seçilenleri Excel'e Aktar
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-sm" id="exportCombinedBtn" onclick="exportCombinedExcel()">
+                                        <i class="fas fa-file-excel me-2"></i>Tümünü Tek Excel'e Aktar
                                     </button>
                                 </div>
                             </div>
@@ -530,6 +545,11 @@
                             <div class="d-flex justify-content-between align-items-center mt-3">
                                 <div class="text-muted">
                                     <small>Toplam <span id="totalParametreRecords">0</span> kayıt</small>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="syncParametrePersonel()">
+                                        <i class="fas fa-sync me-1"></i>Personel Senkronizasyonu
+                                    </button>
                                 </div>
                             </div>
 
@@ -918,6 +938,115 @@ function populateBacaDropdowns(data) {
     }
 }
 
+// Otomatik baca fiyat hesaplama fonksiyonu (Personel Kaydet butonuna tıklandığında çalışır)
+async function otomatikHesaplaBacaFiyati(firmaAdi, bacaAdi, recordId = null) {
+    try {
+        // Baca kayıt tarihinden yılı al (varsayılan 2025)
+        let yil = 2025;
+        if (recordId) {
+            const tarihElement = document.querySelector(`tr[id="row_${recordId}"] td:last-child`);
+            if (tarihElement) {
+                const tarihText = tarihElement.textContent.trim();
+                if (tarihText && tarihText !== '*') {
+                    // Tarih formatı: DD.MM.YY -> 20XX
+                    const tarihParts = tarihText.split('.');
+                    if (tarihParts.length === 3) {
+                        const yy = parseInt(tarihParts[2]);
+                        yil = 2000 + yy;
+                    }
+                }
+            }
+        }
+        
+        console.log(`Fiyat hesaplama için yıl: ${yil}`);
+        
+        // Baca bilgilerini al
+        console.log(`Fiyat hesaplama başlatılıyor: ${firmaAdi} - ${bacaAdi}`);
+        const response = await fetch(`/api/baca-bilgileri/${encodeURIComponent(firmaAdi)}`);
+        const data = await response.json();
+        
+        console.log('API yanıtı:', data);
+        
+        let toplamFiyat = 0;
+        let hesaplananParametreler = [];
+        
+        if (data.success && data.bacalar.length > 0) {
+            // Bu baca için parametreleri bul
+            const baca = data.bacalar.find(b => b.baca_adi === bacaAdi);
+            
+            if (baca && baca.parametreler && baca.parametreler.length > 0) {
+                console.log(`Baca bulundu: ${baca.baca_adi}, Parametreler:`, baca.parametreler);
+                
+                // Yıllık fiyatları al
+                const fiyatResponse = await fetch(`/api/asgari-fiyatlar/${yil}`);
+                const fiyatData = await fiyatResponse.json();
+                
+                if (fiyatData.success) {
+                    const yillikFiyatlar = fiyatData.fiyatlar;
+                    
+                    // Parametreler için fiyat hesapla
+                    baca.parametreler.forEach(parametre => {
+                        // Parametre eşleştirmesi
+                        let eslestirilenParametre = parametre;
+                        if (parametre === 'YG') eslestirilenParametre = 'YANMA GAZI';
+                        if (parametre === 'ÇT') eslestirilenParametre = 'ÇÖKEN TOZ';
+                        if (parametre === 'AMET' || parametre === 'AĞIR METAL' || parametre === 'AĞ.METAL') eslestirilenParametre = 'AĞIR METAL';
+                        if (parametre === 'AMON.') eslestirilenParametre = 'AMONYAK';
+                        if (parametre === 'FORM.') eslestirilenParametre = 'FORMALDEHİT';
+                        if (parametre === 'CR6') eslestirilenParametre = 'CR+6';
+                        if (parametre === 'FOSF.A.') eslestirilenParametre = 'FOSFORİK ASİT';
+                        
+                        const fiyat = yillikFiyatlar[eslestirilenParametre] || 0;
+                        console.log(`Parametre: ${parametre} (${eslestirilenParametre}), ${yil} yılı fiyat: ${fiyat}`);
+                        
+                        if (fiyat > 0) {
+                            toplamFiyat += fiyat;
+                            hesaplananParametreler.push(`${parametre}: ${fiyat.toLocaleString('tr-TR')} TL`);
+                        }
+                    });
+                } else {
+                    console.log('Yıllık fiyatlar alınamadı:', fiyatData.message);
+                }
+            } else {
+                console.log('Baca veya parametreler bulunamadı:', baca);
+            }
+        }
+        
+        // Eğer recordId varsa, fiyatı tabloda göster
+        if (recordId) {
+            const fiyatElement = document.getElementById(`fiyat_${recordId}`);
+            console.log(`Fiyat elementi aranıyor: fiyat_${recordId}`, fiyatElement);
+            if (fiyatElement) {
+                if (toplamFiyat > 0) {
+                    console.log(`Fiyat güncelleniyor: ${toplamFiyat} TL`);
+                    fiyatElement.innerHTML = `
+                        <span class="text-success fw-bold" title="${hesaplananParametreler.join('\n')} (${yil} yılı)">
+                            ${toplamFiyat.toLocaleString('tr-TR')} TL
+                        </span>
+                    `;
+                } else {
+                    console.log('Toplam fiyat 0, parametre yok mesajı gösteriliyor');
+                    fiyatElement.innerHTML = '<span class="text-muted">Parametre yok</span>';
+                }
+            } else {
+                console.log(`Fiyat elementi bulunamadı: fiyat_${recordId}`);
+            }
+        }
+        
+        return {
+            toplamFiyat: toplamFiyat,
+            parametreler: hesaplananParametreler
+        };
+        
+    } catch (error) {
+        console.error('Otomatik fiyat hesaplama hatası:', error);
+        return {
+            toplamFiyat: 0,
+            parametreler: []
+        };
+    }
+}
+
 // Kaydedilen baca bilgisini tabloya ekle
 function addSavedBacaBilgileriToTable(record) {
     const bacaBilgileriTableBody = document.getElementById('bacaBilgileriTableBody');
@@ -980,7 +1109,11 @@ function addSavedBacaBilgileriToTable(record) {
         <td>${bacaBilgileri['af55c55f-f83b-4b90-a655-ee76bf6bb2ac'] || '*'}</td>
         <td>${bacaBilgileri['20881447-f7c8-4a6b-8583-76c7246082ef'] || '*'}</td>
         <td>${record.photo_path ? `<img src="/static/${record.photo_path}" class="img-thumbnail" style="max-width: 50px; max-height: 50px;" onclick="showPhotoModal('${record.photo_path}')" title="Fotoğrafı büyüt">` : '*'}</td>
-        <td>${record.personel_adi || '*'}</td>
+        <td>${record.personel_adi ? record.personel_adi.split(' ')[0] : '*'}</td>
+        <td class="text-end fw-bold text-success" id="fiyat_${record.id}">
+            <span class="fiyat-goster">-</span>
+        </td>
+        <td title="${record.notlar || ''}">${record.notlar ? (record.notlar.length > 30 ? record.notlar.substring(0, 30) + '...' : record.notlar) : '-'}</td>
         <td>${record.created_at ? new Date(record.created_at).toLocaleDateString('tr-TR', {day: '2-digit', month: '2-digit', year: '2-digit'}) : '*'}</td>
     `;
     
@@ -1576,6 +1709,10 @@ function saveBacaBilgileri() {
     formData.append('kayit_tarihi', kayitTarihi);
     formData.append('personel_adi', personelAdi);
     
+    // Notlar alanını ekle
+    const notlar = document.getElementById('bacaNotlari').value || '';
+    formData.append('notlar', notlar);
+    
     // Fotoğraf varsa ekle
     if (window.selectedPhoto) {
         formData.append('photo', window.selectedPhoto);
@@ -1600,8 +1737,14 @@ function saveBacaBilgileri() {
             resetSaveButton();
             
             // Baca bilgileri tablosunu yeniden yükle
-            setTimeout(() => {
+            setTimeout(async () => {
                 loadBacaBilgileri();
+                
+                // Otomatik fiyat hesaplama yap
+                setTimeout(async () => {
+                    const fiyatSonucu = await otomatikHesaplaBacaFiyati(firmaAdi, bacaAdi);
+                    console.log(`Otomatik fiyat hesaplandı: ${fiyatSonucu.toplamFiyat.toLocaleString('tr-TR')} TL`);
+                }, 1000);
                 
                 // Parametre seçimini aktif et
                 loadParametreListesiForBaca(firmaAdi, olcumKodu, bacaAdi);
@@ -2402,6 +2545,12 @@ function clearBacaBilgileriForm() {
         kayitTarihiInput.removeAttribute('data-formatted-date');
     }
     
+    // Notlar alanını temizle
+    const notlarInput = document.getElementById('bacaNotlari');
+    if (notlarInput) {
+        notlarInput.value = '';
+    }
+    
     // Fotoğrafı temizle
     removePhoto();
 }
@@ -2516,6 +2665,18 @@ function editBacaBilgileri(rowId) {
                     }
                 }
             });
+            
+            // Notlar alanını doldur
+            const notlarInput = document.getElementById('bacaNotlari');
+            if (notlarInput) {
+                // Satırdan notlar bilgisini al (notlar sütunu tabloda 22. sütun)
+                const notlarCell = row.children[22]; // Notlar sütunu
+                if (notlarCell && notlarCell.getAttribute('title')) {
+                    notlarInput.value = notlarCell.getAttribute('title');
+                } else {
+                    notlarInput.value = '';
+                }
+            }
             
             // Düzenleme modunda olduğunu belirt
             window.editingRowId = rowId;
@@ -2925,6 +3086,8 @@ function createParametreOlcumTableHeaders() {
     
     // Son başlıklar
     headerHTML += `
+        <th>PER.</th>
+        <th>Fiyat</th>
         <th>Kayıt Tarihi</th>
     </tr>`;
     
@@ -2980,6 +3143,10 @@ function createParametreOlcumTableHeaders() {
         }
     });
     
+    // PER. sütunu - boş
+    headerHTML += '<th></th>';
+    // Fiyat sütunu - boş
+    headerHTML += '<th></th>';
     // Kayıt Tarihi sütunu - boş
     headerHTML += '<th></th>';
     
@@ -3040,13 +3207,46 @@ function loadParametreOlcumleri() {
     populateParametreDropdowns();
     
     console.log('API çağrısı yapılıyor...');
-    fetch('/api/parametre_olcumleri')
-        .then(response => {
-            console.log('API yanıtı alındı:', response);
-            return response.json();
-        })
-        .then(data => {
+    // Parametre ölçümleri ve baca bilgilerini paralel yükle
+    Promise.all([
+        fetch('/api/parametre_olcumleri').then(r => r.json()),
+        fetch('/api/baca_bilgileri').then(r => r.json()),
+        fetch('/api/asgari_fiyatlar').then(r => r.json()).catch(() => ({ success: false }))
+    ])
+        .then(([data, bacaBilgileriList, asgariResp]) => {
             console.log('Parametre ölçümleri verisi:', data);
+            // Firma-Ölçüm Kodu-Baca -> Personel adı eşlemesi
+            const makeKey = (f, o, b) => `${f || ''}||${o || ''}||${b || ''}`;
+            const personelMap = new Map();
+            if (Array.isArray(bacaBilgileriList)) {
+                bacaBilgileriList.forEach(b => {
+                    const personel = (b.personel_adi || '').trim();
+                    if (personel) {
+                        personelMap.set(makeKey(b.firma_adi, b.olcum_kodu, b.baca_adi), personel);
+                    }
+                });
+            }
+
+            // Asgari fiyat haritası
+            const fiyatMap = new Map();
+            if (asgariResp && asgariResp.success && Array.isArray(asgariResp.asgari_fiyatlar)) {
+                asgariResp.asgari_fiyatlar.forEach(item => {
+                    const key = (item.parametre || '').toString().trim().toUpperCase();
+                    if (key) fiyatMap.set(key, Number(item.fiyat) || 0);
+                });
+            }
+
+            const normalizeParam = (name) => {
+                const n = (name || '').toString().trim().toUpperCase();
+                if (n === 'YG' || n === 'Y.G' || n === 'YANMA GAZI' || n === 'YANMA GAZI ') return 'YANMA GAZI';
+                if (n === 'TOZ') return 'TOZ';
+                if (n === 'NEM') return 'NEM';
+                if (n === 'VOC') return 'VOC';
+                if (n === 'TOC') return 'TOC';
+                if (n === 'AMET' || n === 'A.MET' || n === 'AGIR METAL' || n === 'AĞIR METAL' || n === 'AĞ.METAL' || n === 'AĞIR METALLER') return 'AĞIR METAL';
+                if (n === 'SÜLF.A' || n === 'SÜLFÜRİK ASİT' || n === 'SÜLFÜRİK ASIT') return 'SÜLFÜRİK ASİT';
+                return n; // fallback: aynen kullan
+            };
             const tableBody = document.getElementById('parametreOlcumTableBody');
             const emptyMessage = document.getElementById('emptyParametreMessage');
             
@@ -3059,9 +3259,26 @@ function loadParametreOlcumleri() {
             
             emptyMessage.style.display = 'none';
             
+            // Parametre sayısı + Personel sayısına göre dinamik sıralama
+            const sortedData = data.sort((a, b) => {
+                // Parametre sayısı
+                const aParametreCount = Object.keys(a.parametre_verileri || {}).length;
+                const bParametreCount = Object.keys(b.parametre_verileri || {}).length;
+                
+                // Personel sayısı (PER. sütunundaki isimler)
+                const aPersonelCount = (a.personel_adi || '').split(',').filter(p => p.trim()).length;
+                const bPersonelCount = (b.personel_adi || '').split(',').filter(p => p.trim()).length;
+                
+                // Toplam sayı (parametre + personel)
+                const aTotalCount = aParametreCount + aPersonelCount;
+                const bTotalCount = bParametreCount + bPersonelCount;
+                
+                return bTotalCount - aTotalCount; // Fazla toplam sayılı olanlar üstte
+            });
+            
             // Tüm verileri göster (sayfalama yok)
-            const totalRecords = data.length;
-            const pageData = data; // Tüm veriler
+            const totalRecords = sortedData.length;
+            const pageData = sortedData; // Sıralanmış veriler
             
             // Tüm parametre alanlarını tanımla (başlıklarla aynı sırada)
             const allParametreFields = [
@@ -3125,8 +3342,30 @@ function loadParametreOlcumleri() {
                     rowHTML += `<td>${deger}</td>`;
                 });
                 
-                // Son sütunlar
+                // Son sütunlar - Personel adı: kayıt içinde yoksa baca bilgilerine bak
+                const personelKayit = (record.personel_adi || '').trim();
+                const personelBaca = personelMap.get(makeKey(record.firma_adi, record.olcum_kodu, record.baca_adi)) || '';
+                const personelTam = personelKayit || personelBaca || '-';
+                const personelIlk = personelTam !== '-' ? personelTam.split(' ')[0] : '-';
+                // Fiyatı asgari fiyatlardan bul (ölçüm yılı dikkate alınır)
+                let measuredYear = null;
+                const tarihVal = parametreVerileri['TARİH'] || '';
+                if (tarihVal && typeof tarihVal === 'string') {
+                    const parts = tarihVal.split('.');
+                    const yy = parts[2];
+                    if (yy && yy.length === 2 && !isNaN(parseInt(yy))) {
+                        measuredYear = 2000 + parseInt(yy, 10);
+                    }
+                }
+                if (!measuredYear) {
+                    measuredYear = new Date(record.created_at).getFullYear();
+                }
+                const fiyatKey = normalizeParam(record.parametre_adi);
+                const fiyatDeger = fiyatMap.has(fiyatKey) ? fiyatMap.get(fiyatKey) : null;
+                const fiyatText = (fiyatDeger !== null && !isNaN(fiyatDeger)) ? fiyatDeger.toLocaleString('tr-TR') : '-';
                 rowHTML += `
+                    <td>${personelIlk}</td>
+                    <td>${fiyatText}</td>
                     <td>${new Date(record.created_at).toLocaleDateString('tr-TR', {day: '2-digit', month: '2-digit', year: '2-digit'})}</td>
                 `;
                 
@@ -4057,8 +4296,18 @@ function loadBacaBilgileri() {
             const pageData = data; // Tüm veriler
                 
                 // Sayfa verilerini tabloya ekle
-                pageData.forEach(record => {
+                pageData.forEach(async (record) => {
                     addSavedBacaBilgileriToTable(record);
+                    
+                    // Her kayıt için otomatik fiyat hesaplama yap
+                    setTimeout(async () => {
+                        console.log(`Fiyat hesaplama başlatılıyor: ${record.firma_adi} - ${record.baca_adi} (ID: ${record.id})`);
+                        const fiyatSonucu = await otomatikHesaplaBacaFiyati(record.firma_adi, record.baca_adi, record.id);
+                        console.log(`Fiyat hesaplama sonucu:`, fiyatSonucu);
+                        if (fiyatSonucu.toplamFiyat > 0) {
+                            console.log(`${record.firma_adi} - ${record.baca_adi}: ${fiyatSonucu.toplamFiyat.toLocaleString('tr-TR')} TL`);
+                        }
+                    }, 500); // Daha uzun bekleme süresi
                 });
                 
                 // Dropdown'ları doldur
@@ -5022,5 +5271,282 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('kkBaslangicTarihi').value = today;
     document.getElementById('kkBitisTarihi').value = today;
 });
+
+// Personel senkronizasyonu
+function syncParametrePersonel() {
+    if (!confirm('Tüm parametre ölçüm kayıtlarını baca bilgileriyle senkronize etmek istediğinizden emin misiniz?')) {
+        return;
+    }
+    
+    // Loading göster
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'alert alert-info position-fixed';
+    loadingDiv.style.cssText = 'top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; min-width: 300px; text-align: center;';
+    loadingDiv.innerHTML = `
+        <i class="fas fa-spinner fa-spin me-2"></i>
+        Personel senkronizasyonu yapılıyor...
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    // API'yi çağır
+    fetch('/api/sync_parametre_personel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Loading'i kaldır
+        if (loadingDiv.parentNode) {
+            loadingDiv.remove();
+        }
+        
+        if (data.success) {
+            alert('Personel senkronizasyonu başarıyla tamamlandı!');
+            // Parametre ölçümlerini yeniden yükle
+            loadParametreOlcumleri();
+        } else {
+            alert('Senkronizasyon hatası: ' + (data.error || 'Bilinmeyen hata'));
+        }
+    })
+    .catch(error => {
+        // Loading'i kaldır
+        if (loadingDiv.parentNode) {
+            loadingDiv.remove();
+        }
+        
+        console.error('Senkronizasyon hatası:', error);
+        alert('Senkronizasyon hatası: ' + error.message);
+    });
+}
+
+// Seçilen baca bilgilerini Excel'e aktar
+function exportSelectedBacaExcel() {
+    const checkboxes = document.querySelectorAll('#bacaBilgileriTableBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        alert('Lütfen en az bir kayıt seçin!');
+        return;
+    }
+    
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    fetch('/api/baca_bilgileri/export_excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ baca_ids: selectedIds })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'secilen_baca_bilgileri.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        alert('Seçilen baca bilgileri başarıyla Excel\'e aktarıldı!');
+    })
+    .catch(error => {
+        console.error('Export hatası:', error);
+        alert('Export sırasında hata oluştu: ' + (error.error || error.message || 'Bilinmeyen hata'));
+    });
+}
+
+// Tüm verileri tek Excel'e aktar
+function exportCombinedExcel() {
+    // Firma seçimi için modal aç
+    const modal = new bootstrap.Modal(document.getElementById('firmaSelectionModal'));
+    modal.show();
+}
+
+// Firma seçimi modal'ından export işlemini başlat
+function startCombinedExport() {
+    const checkboxes = document.querySelectorAll('#firmaSelectionTable input[type="checkbox"]:checked');
+    const firmaIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (firmaIds.length === 0) {
+        alert('Lütfen en az bir firma seçin!');
+        return;
+    }
+    
+    // Modal'ı kapat
+    const modal = bootstrap.Modal.getInstance(document.getElementById('firmaSelectionModal'));
+    modal.hide();
+    
+    // Loading göster
+    const exportBtn = document.getElementById('exportCombinedBtn');
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Excel Oluşturuluyor...';
+    exportBtn.disabled = true;
+    
+    fetch('/api/combined_excel_export', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ firma_ids: firmaIds })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'baca_ve_parametre_bilgileri.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        alert('Tüm veriler başarıyla tek Excel dosyasına aktarıldı!');
+    })
+    .catch(error => {
+        console.error('Export hatası:', error);
+        alert('Export sırasında hata oluştu: ' + (error.error || error.message || 'Bilinmeyen hata'));
+    })
+    .finally(() => {
+        // Butonu eski haline getir
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    });
+}
 </script>
+
+<!-- Firma Seçimi Modal -->
+<div class="modal fade" id="firmaSelectionModal" tabindex="-1" aria-labelledby="firmaSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="firmaSelectionModalLabel">
+                    <i class="fas fa-building me-2"></i>Firma Seçimi
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Excel'e aktarılacak firmaları seçin. Seçilen firmaların tüm baca bilgileri ve parametre ölçümleri tek Excel dosyasında birleştirilecektir.
+                </p>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllFirmas()">
+                            <i class="fas fa-check-square me-1"></i>Tümünü Seç
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="deselectAllFirmas()">
+                            <i class="fas fa-square me-1"></i>Hiçbirini Seçme
+                        </button>
+                    </div>
+                    <div class="text-muted">
+                        <small>Toplam <span id="totalFirmaCount">0</span> firma</small>
+                    </div>
+                </div>
+                
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover" id="firmaSelectionTable">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="selectAllFirmas" onchange="toggleAllFirmas(this)">
+                                </th>
+                                <th width="60">#</th>
+                                <th>Firma Adı</th>
+                                <th width="120">Kayıt Tarihi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="firmaSelectionTableBody">
+                            <!-- Firmalar buraya yüklenecek -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3">
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>İpucu:</strong> Excel dosyasında filtreleme özelliği aktif olacak. Firma adı ve ölçüm kodu sütunlarını kullanarak istediğiniz verileri filtreleyebilirsiniz.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>İptal
+                </button>
+                <button type="button" class="btn btn-success" onclick="startCombinedExport()">
+                    <i class="fas fa-file-excel me-2"></i>Excel'e Aktar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Firma seçimi modal fonksiyonları
+function loadFirmasForSelection() {
+    fetch('/api/firma_kayit')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const tbody = document.getElementById('firmaSelectionTableBody');
+            const totalCount = document.getElementById('totalFirmaCount');
+            
+            tbody.innerHTML = '';
+            totalCount.textContent = data.firma_kayitlar.length;
+            
+            data.firma_kayitlar.forEach((firma, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="firma-checkbox" value="${firma.id}">
+                    </td>
+                    <td>${index + 1}</td>
+                    <td>${firma.firmaAdi || '-'}</td>
+                    <td>${firma.created_at ? new Date(firma.created_at).toLocaleDateString('tr-TR') : '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Firma yükleme hatası:', error);
+        alert('Firmalar yüklenirken hata oluştu!');
+    });
+}
+
+function selectAllFirmas() {
+    const checkboxes = document.querySelectorAll('#firmaSelectionTableBody .firma-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    document.getElementById('selectAllFirmas').checked = true;
+}
+
+function deselectAllFirmas() {
+    const checkboxes = document.querySelectorAll('#firmaSelectionTableBody .firma-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    document.getElementById('selectAllFirmas').checked = false;
+}
+
+function toggleAllFirmas(selectAll) {
+    const checkboxes = document.querySelectorAll('#firmaSelectionTableBody .firma-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+// Modal açıldığında firmaları yükle
+document.getElementById('firmaSelectionModal').addEventListener('show.bs.modal', function() {
+    loadFirmasForSelection();
+});
+</script>
+
 {% endblock %} 

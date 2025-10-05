@@ -47,6 +47,41 @@
     .btn-group {
         flex-shrink: 0;
     }
+    
+    /* Tıklanabilir sıralama için */
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        transition: background-color 0.2s ease;
+    }
+    
+    .sortable:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .sortable::after {
+        content: '↕';
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        color: #6c757d;
+        opacity: 0.5;
+    }
+    
+    .sortable.sort-asc::after {
+        content: '↑';
+        opacity: 1;
+        color: #007bff;
+    }
+    
+    .sortable.sort-desc::after {
+        content: '↓';
+        opacity: 1;
+        color: #007bff;
+    }
 </style>
 
 
@@ -102,8 +137,8 @@
                                 <input type="checkbox" id="tumunuSec" class="form-check-input">
                             </th>
                             <th style="width: 45px;" class="no-sort">SIRA</th>
-                            <th style="width: 150px;">FIRMA</th>
-                            <th style="width: 120px;">OLC_KOD</th>
+                            <th style="width: 150px;" class="sortable" data-sort="firma">FIRMA</th>
+                            <th style="width: 120px;" class="sortable" data-sort="olcumKod">OLC_KOD</th>
                             <th style="width: 100px;">BAS TRH</th>
                             <th style="width: 120px;">BIT TAR</th>
                             <th style="width: 30px;">BACA_SAY</th>
@@ -229,6 +264,55 @@
 <script>
 // Tablo sıralama ve filtreleme
 document.addEventListener('DOMContentLoaded', function() {
+    // Sıralama fonksiyonları
+    let currentSort = { column: null, direction: 'asc' };
+    
+    // Tıklanabilir sütun başlıklarına event listener ekle
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortType = this.dataset.sort;
+            const table = document.getElementById('firmaOlcumTablo');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Sıralama yönünü belirle
+            if (currentSort.column === sortType) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.direction = 'asc';
+            }
+            currentSort.column = sortType;
+            
+            // Sıralama işlemi
+            rows.sort((a, b) => {
+                let aValue, bValue;
+                
+                if (sortType === 'firma') {
+                    aValue = a.cells[2].textContent.trim().toLowerCase();
+                    bValue = b.cells[2].textContent.trim().toLowerCase();
+                } else if (sortType === 'olcumKod') {
+                    aValue = a.cells[3].textContent.trim().toLowerCase();
+                    bValue = b.cells[3].textContent.trim().toLowerCase();
+                }
+                
+                if (currentSort.direction === 'asc') {
+                    return aValue.localeCompare(bValue, 'tr');
+                } else {
+                    return bValue.localeCompare(aValue, 'tr');
+                }
+            });
+            
+            // Tabloyu yeniden düzenle
+            rows.forEach(row => tbody.appendChild(row));
+            
+            // Sıralama göstergelerini güncelle
+            document.querySelectorAll('.sortable').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            this.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+        });
+    });
+    
     // Tümünü seç checkbox'ı
     const tumunuSec = document.getElementById('tumunuSec');
     const checkboxes = document.querySelectorAll('.firma-olcum-checkbox');

@@ -61,9 +61,10 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_development')  # 
 
 # Production-safe Flask ayarları
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-app.config['TEMPLATES_AUTO_RELOAD'] = False  # Production'da False olmalı
-app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'  # Sadece FLASK_DEBUG=true olduğunda debug modu
-app.jinja_env.auto_reload = False  # Production'da False olmalı
+is_dev = os.environ.get('FLASK_ENV') == 'development'
+app.config['TEMPLATES_AUTO_RELOAD'] = True if is_dev else False
+app.config['DEBUG'] = True if is_dev else (os.environ.get('FLASK_DEBUG', 'false').lower() == 'true')
+app.jinja_env.auto_reload = True if is_dev else False
 
 def allowed_file(filename, allowed_extensions):
     """Dosya uzantısının izin verilen uzantılar arasında olup olmadığını kontrol eder."""
@@ -94,6 +95,8 @@ USED_TEKLIF_NUMBERS_FILE = data_path('used_teklif_numbers.json')
 BACA_PARALAR_FILE = data_path('baca_paralar.json')
 PARAMETRE_SAHABIL_FILE = data_path('parametre_sahabil.json')
 PARAMETRE_FIELDS_FILE = data_path('parametre_fields.json')
+ASGARI_FIYATLAR_FILE = data_path('asgari_fiyatlar.json')
+PAR_SAHA_HEADERS_FILE = data_path('par_saha_header_groups.json')
 FORMS_FILE = data_path('forms.json')
 IL_ILCE_FILE = data_path('il-ilce.json')
 
@@ -108,7 +111,8 @@ def ensure_data_files():
             'users.json', 'emissions.json', 'parameters.json', 'measurements.json',
             'firma_olcum.json', 'firma_kayit.json', 'saha_olc.json', 'baca_bilgileri.json',
             'parametre_olcum.json', 'teklif.json', 'used_teklif_numbers.json',
-            'parametre_sahabil.json', 'forms.json', 'parametre_fields.json', 'baca_paralar.json'
+            'parametre_sahabil.json', 'forms.json', 'parametre_fields.json', 'baca_paralar.json',
+            'par_saha_header_groups.json'
         ]
         for fname in base_files:
             src = fname  # repo kökü
@@ -373,7 +377,42 @@ def generate_teklif_no():
         # Mevcut teklifleri yükle
         teklifler = load_teklif()
         
-        # Kullanılmış tüm numaraları yükle (silinen teklifler dahil)
+        # Mevcut tekliflerdeki numaraları topla (basit sistem)
+        used_numbers = set()
+        for teklif in teklifler:
+            teklif_no = teklif.get('teklif_no', '')
+            if teklif_no:
+                used_numbers.add(teklif_no)
+        
+        # Bu yıl için kullanılmamış en küçük numarayı bul (3 haneli format)
+        number = 1
+        while True:
+            new_teklif_no = f'TE{year_suffix}-{number:03d}'
+            if new_teklif_no not in used_numbers:
+                return new_teklif_no
+            number += 1
+            
+            # Güvenlik için maksimum 999'a kadar dene
+            if number > 999:
+                raise Exception("Teklif numarası limiti aşıldı!")
+        
+    except Exception as e:
+        print(f"Teklif numarası oluşturulurken hata: {e}")
+    # Hata durumunda varsayılan format (3 haneli)
+    current_year = datetime.now().year
+    year_suffix = str(current_year)[-2:]
+    return f'TE{year_suffix}-001'
+
+def reserve_teklif_no():
+    """Teklif numarasını rezerve eder (henüz kullanılmamış, sadece rezerve)"""
+    try:
+        current_year = datetime.now().year
+        year_suffix = str(current_year)[-2:]
+        
+        # Mevcut teklifleri yükle
+        teklifler = load_teklif()
+        
+        # Kullanılmış tüm numaraları yükle
         used_numbers = load_used_teklif_numbers()
         
         # Mevcut tekliflerdeki numaraları da ekle
@@ -382,27 +421,47 @@ def generate_teklif_no():
             if teklif_no:
                 used_numbers.add(teklif_no)
         
-        # Bu yıl için kullanılmamış en küçük numarayı bul
+        # Bu yıl için kullanılmamış en küçük numarayı bul ve rezerve et (3 haneli format)
         number = 1
         while True:
-            new_teklif_no = f'TE{year_suffix}-{number:02d}'
+            new_teklif_no = f'TE{year_suffix}-{number:03d}'
             if new_teklif_no not in used_numbers:
-                # Bu numarayı kullanılmış listesine ekle
+                # Bu numarayı rezerve et (kullanılmış olarak işaretle)
                 used_numbers.add(new_teklif_no)
                 save_used_teklif_numbers(used_numbers)
+                print(f"Teklif numarası rezerve edildi: {new_teklif_no}")
                 return new_teklif_no
             number += 1
             
-            # Güvenlik için maksimum 9999'a kadar dene
-            if number > 9999:
+            # Güvenlik için maksimum 999'a kadar dene
+            if number > 999:
                 raise Exception("Teklif numarası limiti aşıldı!")
-        
+                
     except Exception as e:
-        print(f"Teklif numarası oluşturulurken hata: {e}")
-        # Hata durumunda varsayılan format
+        print(f"Teklif numarası rezerve edilirken hata: {e}")
+        # Hata durumunda varsayılan numara (3 haneli)
         current_year = datetime.now().year
         year_suffix = str(current_year)[-2:]
-        return f'TE{year_suffix}-01'
+        return f'TE{year_suffix}-001'
+
+def release_teklif_no(teklif_no):
+    """Rezerve edilmiş teklif numarasını serbest bırakır (vazgeçme durumunda)"""
+    try:
+        used_numbers = load_used_teklif_numbers()
+        
+        # Eğer bu numara kullanılmış numaralar listesindeyse, çıkar
+        if teklif_no in used_numbers:
+            used_numbers.remove(teklif_no)
+            save_used_teklif_numbers(used_numbers)
+            print(f"Teklif numarası serbest bırakıldı: {teklif_no}")
+            return True
+        else:
+            print(f"Teklif numarası zaten serbest: {teklif_no}")
+            return False
+            
+    except Exception as e:
+        print(f"Teklif numarası serbest bırakılırken hata: {e}")
+        return False
 
 def migrate_existing_teklif_numbers():
     """Mevcut teklif numaralarını kullanılmış numaralar dosyasına ekler (tek seferlik)"""
@@ -422,6 +481,106 @@ def migrate_existing_teklif_numbers():
         
     except Exception as e:
         print(f"Migration hatası: {e}")
+
+def convert_teklif_numbers_to_3_digit():
+    """Mevcut teklif numaralarını 3 haneli formata dönüştürür"""
+    try:
+        teklifler = load_teklif()
+        updated_count = 0
+        
+        for teklif in teklifler:
+            teklif_no = teklif.get('teklif_no', '')
+            if teklif_no and '-' in teklif_no:
+                # TE25-89 -> TE25-089 formatına dönüştür
+                parts = teklif_no.split('-')
+                if len(parts) == 2:
+                    prefix = parts[0]  # TE25
+                    number = parts[1]  # 89
+                    
+                    # Eğer 2 haneli ise 3 haneli yap
+                    if len(number) == 2:
+                        new_number = f"{prefix}-{number.zfill(3)}"  # TE25-089
+                        teklif['teklif_no'] = new_number
+                        updated_count += 1
+                        print(f"Teklif numarası güncellendi: {teklif_no} -> {new_number}")
+        
+        if updated_count > 0:
+            # Güncellenmiş teklifleri kaydet
+            save_teklif(teklifler)
+            
+            # Kullanılmış numaralar listesini de güncelle
+            used_numbers = load_used_teklif_numbers()
+            new_used_numbers = set()
+            
+            for num in used_numbers:
+                if '-' in num:
+                    parts = num.split('-')
+                    if len(parts) == 2 and len(parts[1]) == 2:
+                        new_num = f"{parts[0]}-{parts[1].zfill(3)}"
+                        new_used_numbers.add(new_num)
+                    else:
+                        new_used_numbers.add(num)
+                else:
+                    new_used_numbers.add(num)
+            
+            save_used_teklif_numbers(new_used_numbers)
+            print(f"Teklif numarası formatı dönüştürüldü: {updated_count} teklif güncellendi")
+        else:
+            print("Dönüştürülecek teklif numarası bulunamadı")
+            
+    except Exception as e:
+        print(f"Teklif numarası dönüştürme hatası: {e}")
+
+def resequence_teklif_numbers():
+    """Mevcut teklifleri 001'den başlayarak yeniden sıralar"""
+    try:
+        teklifler = load_teklif()
+        current_year = datetime.now().year
+        year_suffix = str(current_year)[-2:]
+        
+        if not teklifler:
+            print("Sıralanacak teklif bulunamadı")
+            return
+        
+        # Teklifleri tarihe göre sırala (en eskiden en yeniye)
+        teklifler.sort(key=lambda x: x.get('teklif_tarihi', ''))
+        
+        # Yeni numaraları ata
+        new_used_numbers = set()
+        for i, teklif in enumerate(teklifler, 1):
+            old_number = teklif.get('teklif_no', '')
+            new_number = f'TE{year_suffix}-{i:03d}'
+            
+            teklif['teklif_no'] = new_number
+            new_used_numbers.add(new_number)
+            
+            print(f"Teklif sıralandı: {old_number} -> {new_number} ({teklif.get('firma_adi', 'Bilinmeyen')})")
+        
+        # Güncellenmiş teklifleri kaydet
+        save_teklif(teklifler)
+        
+        # Kullanılmış numaralar listesini güncelle
+        save_used_teklif_numbers(new_used_numbers)
+        
+        print(f"Teklif sıralaması tamamlandı: {len(teklifler)} teklif 001'den başlayarak sıralandı")
+        
+    except Exception as e:
+        print(f"Teklif sıralama hatası: {e}")
+
+def format_tarih_gg_aa_yyyy(tarih_str):
+    """YYYY-MM-DD formatındaki tarihi GG.AA.YYYY formatına çevirir"""
+    if not tarih_str:
+        return ''
+    try:
+        # YYYY-MM-DD formatını parse et
+        tarih_obj = datetime.strptime(tarih_str, '%Y-%m-%d')
+        # GG.AA.YYYY formatına çevir
+        return tarih_obj.strftime('%d.%m.%Y')
+    except:
+        return tarih_str
+
+# Template'de kullanılacak yardımcı fonksiyonları Flask'a ekle
+app.jinja_env.globals.update(format_tarih_gg_aa_yyyy=format_tarih_gg_aa_yyyy)
 
 @app.route('/api/formlar/genel-hukumler', methods=['GET'])
 def get_genel_hukumler():
@@ -573,6 +732,118 @@ def logout():
     session.pop('username', None)
     session.pop('role', None)
     return redirect(url_for('login'))
+
+@app.route('/pivot')
+def pivot():
+    # Geçici olarak giriş kontrolünü devre dışı bırak
+    # if not session.get('logged_in'):
+    #     return redirect(url_for('login'))
+    # if session.get('role') != 'admin':
+    #     return redirect(url_for('index'))
+    return render_template('pivot.html', username='admin', role='admin')
+
+@app.route('/api/pivot/summary')
+def pivot_summary():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'auth'}), 401
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'forbidden'}), 403
+    try:
+        start = request.args.get('start')
+        end = request.args.get('end')
+        if not start or not end:
+            return jsonify({'error': 'start/end required'}), 400
+        from datetime import datetime
+        def in_range(dt):
+            try:
+                d = datetime.fromisoformat(dt.replace('Z', '+00:00')).date()
+            except Exception:
+                try:
+                    d = datetime.strptime(dt, '%Y-%m-%d').date()
+                except Exception:
+                    return False
+            return datetime.strptime(start, '%Y-%m-%d').date() <= d <= datetime.strptime(end, '%Y-%m-%d').date()
+        def _norm(sval: str) -> str:
+            m = (sval or '').strip().lower()
+            tr_map = str.maketrans({'ı':'i','İ':'i','ş':'s','Ş':'s','ç':'c','Ç':'c','ğ':'g','Ğ':'g','ü':'u','Ü':'u','ö':'o','Ö':'o'})
+            return m.translate(tr_map)
+        teklifler = load_teklif()
+        filt_teklif = [t for t in teklifler if t.get('teklif_tarihi') and in_range(t.get('teklif_tarihi'))]
+        toplam_teklif_adedi = len(filt_teklif)
+        toplam_teklif_tutari = sum(float(t.get('netToplam', 0) or 0) for t in filt_teklif)
+        accepted_list, rejected_list = [], []
+        for t in filt_teklif:
+            status = _norm(t.get('teklif_durumu',''))
+            if any(k in status for k in ['kabul','onay']):
+                accepted_list.append(t)
+            elif any(k in status for k in ['red','ret','iptal','olumsuz','kabul edilmedi','kabul edilmez']):
+                rejected_list.append(t)
+        kabul_adet = len(accepted_list)
+        red_adet = len(rejected_list)
+        kapsam_ici = []
+        kapsam_disi = []
+        for t in accepted_list:
+            tip = _norm(t.get('teklif_tipi',''))
+            if 'kapsam' in tip and 'ici' in tip:
+                kapsam_ici.append(t)
+            elif 'kapsam' in tip and ('disi' in tip or 'dış' in tip):
+                kapsam_disi.append(t)
+        kapsam_ici_adet = len(kapsam_ici)
+        kapsam_disi_adet = len(kapsam_disi)
+        kapsam_ici_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_ici)
+        kapsam_disi_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_disi)
+        from collections import defaultdict
+        parametre_ozet = defaultdict(lambda: {'adet': 0, 'toplam': 0.0})
+        for t in filt_teklif:
+            for pr in t.get('parametreler', []) or []:
+                p_ad = pr.get('parametre') or 'Bilinmiyor'
+                try:
+                    p_adet = int(pr.get('adet', 0) or 0)
+                except Exception:
+                    p_adet = 0
+                try:
+                    p_top = float(pr.get('topFiyat', 0) or 0)
+                except Exception:
+                    p_top = 0.0
+                parametre_ozet[p_ad]['adet'] += p_adet
+                parametre_ozet[p_ad]['toplam'] += p_top
+        parametre_list = [{'parametre': k, 'adet': v['adet'], 'toplam': round(v['toplam'], 2)} for k, v in sorted(parametre_ozet.items(), key=lambda x: x[0].lower())]
+        try:
+            baca_list = load_baca_bilgileri()
+        except Exception:
+            baca_list = []
+        baca_index = {}
+        for b in baca_list:
+            if not (b.get('firma_adi') and b.get('olcum_kodu') and b.get('baca_adi')):
+                continue
+            key = (b.get('firma_adi'), b.get('olcum_kodu'), b.get('baca_adi'))
+            baca_index[key] = (b.get('personel_adi') or '').strip() or 'Bilinmiyor'
+        personel_set = set()
+        matrix = defaultdict(lambda: defaultdict(int))
+        for o in [o for o in load_parametre_olcum() if o.get('created_at') and in_range(o.get('created_at')[:10])]:
+            param = (o.get('parametre_adi') or 'Bilinmiyor').strip() or 'Bilinmiyor'
+            key = (o.get('firma_adi'), o.get('olcum_kodu'), o.get('baca_adi'))
+            personel = (o.get('personel_adi') or '').strip()
+            if not personel:
+                personel = baca_index.get(key, 'Bilinmiyor')
+            if not personel:
+                personel = 'Bilinmiyor'
+            personel_set.add(personel)
+            matrix[param][personel] += 1
+        personeller = sorted(list(personel_set), key=lambda x: x.lower())
+        matrix_rows = []
+        for param, counts in sorted(matrix.items(), key=lambda x: x[0].lower()):
+            row = {'parametre': param, 'counts': {p: counts.get(p, 0) for p in personeller}, 'toplam': sum(counts.values())}
+            matrix_rows.append(row)
+        toplam_by_person = defaultdict(int)
+        for counts in matrix.values():
+            for p, v in counts.items():
+                toplam_by_person[p] += v
+        personel_list = [{'personel': p, 'adet': toplam_by_person[p]} for p in sorted(toplam_by_person.keys(), key=lambda x: (-toplam_by_person[x], x.lower()))]
+        return jsonify({'summary': {'toplam_teklif_adedi': toplam_teklif_adedi, 'toplam_teklif_tutari': round(toplam_teklif_tutari, 2), 'kapsam_ici_adet': kapsam_ici_adet, 'kapsam_ici_tutar': round(kapsam_ici_tutar, 2), 'kapsam_disi_adet': kapsam_disi_adet, 'kapsam_disi_tutar': round(kapsam_disi_tutar, 2), 'kabul_adet': kabul_adet, 'red_adet': red_adet, 'toplam_olcum_adedi': len([o for o in load_parametre_olcum() if o.get('created_at') and in_range(o.get('created_at')[:10])])}, 'parametreler': parametre_list, 'personeller': personel_list, 'personel_parametre': {'personel_headers': personeller, 'rows': matrix_rows}})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -1810,6 +2081,40 @@ def get_next_teklif_number():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
 
+@app.route('/api/teklif/reserve_number')
+def reserve_teklif_number():
+    """Teklif numarasını rezerve eder (vazgeçme durumunda serbest bırakılabilir)"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+    
+    try:
+        reserved_number = reserve_teklif_no()
+        return jsonify({'success': True, 'reserved_number': reserved_number})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+@app.route('/api/teklif/release_number', methods=['POST'])
+def release_teklif_number():
+    """Rezerve edilmiş teklif numarasını serbest bırakır"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+    
+    try:
+        data = request.get_json()
+        teklif_no = data.get('teklif_no', '')
+        
+        if not teklif_no:
+            return jsonify({'success': False, 'message': 'Teklif numarası gerekli'})
+        
+        success = release_teklif_no(teklif_no)
+        if success:
+            return jsonify({'success': True, 'message': f'Teklif numarası serbest bırakıldı: {teklif_no}'})
+        else:
+            return jsonify({'success': False, 'message': f'Teklif numarası zaten serbest: {teklif_no}'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
 @app.route('/api/asgari_fiyatlar')
 def get_asgari_fiyatlar():
     """Asgari fiyat verilerini döndürür"""
@@ -1817,44 +2122,23 @@ def get_asgari_fiyatlar():
         return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
     
     try:
-        # Şimdilik sabit veriler (daha sonra veritabanından alınacak)
         current_year = datetime.now().year
-        
-        asgari_fiyatlar = [
-            {'parametre': 'TABAN FİYAT', 'metot': 'Metot', 'fiyat': 9264.99},
-            {'parametre': 'YOL', 'metot': 'Metot', 'fiyat': 0},
-            {'parametre': 'TOZ', 'metot': 'Epa 5/Epa 17/Ts En 13284-1', 'fiyat': 6655},
-            {'parametre': 'YANMA GAZI', 'metot': 'So2/No/Co/O2', 'fiyat': 3855},
-            {'parametre': 'VOC', 'metot': 'TS 13649', 'fiyat': 13170},
-            {'parametre': 'TOC', 'metot': 'TS EN 12619', 'fiyat': 13170},
-            {'parametre': 'HIZ', 'metot': 'EPA Metot 2/ TS ISO 10780', 'fiyat': 1430},
-            {'parametre': 'NEM', 'metot': 'EPA 4 - İŞLETME İÇİ METOT', 'fiyat': 1430},
-            {'parametre': 'AĞIR METAL', 'metot': 'EPA 29/TS 14384', 'fiyat': 19000},
-            {'parametre': 'SÜLFÜRİK ASİT', 'metot': 'EPA 8', 'fiyat': 6290},
-            {'parametre': 'HF', 'metot': 'ISO 15713/EPA 13A', 'fiyat': 7505},
-            {'parametre': 'HCL', 'metot': 'TS EN 1911', 'fiyat': 7505},
-            {'parametre': 'AMONYAK', 'metot': 'SCAWMD METOT 207.1', 'fiyat': 6645},
-            {'parametre': 'İSLİLİK', 'metot': 'EPA METOT323', 'fiyat': 710},
-            {'parametre': 'FORMALDEHİT', 'metot': 'CARB 425', 'fiyat': 6685},
-            {'parametre': 'CR+6', 'metot': 'Nmx-aa-90-1986', 'fiyat': 6290},
-            {'parametre': 'FOSFORİK ASİT', 'metot': 'Metot', 'fiyat': 6290},
-            {'parametre': 'HCN', 'metot': 'EPA 29/TS 14384', 'fiyat': 83950},
-            {'parametre': 'DİOKSİN FURAN', 'metot': 'EPA 23/TS EN 1948', 'fiyat': 42220},
-            {'parametre': 'PAH', 'metot': 'EPA 16/TS EN 15527', 'fiyat': 7370},
-            {'parametre': 'PM10', 'metot': 'EPA 40 CFR 50 APPJ', 'fiyat': 6640},
-            {'parametre': 'ÇÖKEN TOZ', 'metot': 'TS 2342', 'fiyat': 10560},
-            {'parametre': 'MODELLEME', 'metot': 'Metot', 'fiyat': 10210},
-            {'parametre': 'ANALİZ-VOC', 'metot': 'TS 13649', 'fiyat': 14070},
-            {'parametre': 'ANALİZ-AĞIR METAL', 'metot': 'EPA 29/TS 14384', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-SÜLFÜRİK ASİT', 'metot': 'EPA 8', 'fiyat': 3215},
-            {'parametre': 'ANALİZ-HF', 'metot': 'ISO 15713/EPA 13A', 'fiyat': 2335},
-            {'parametre': 'ANALİZ-HCL', 'metot': 'TS EN 1911', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-AMONYAK', 'metot': 'SCAWMD METOT 207.1', 'fiyat': 2520},
-            {'parametre': 'ANALİZ-FOSFORİK ASİT', 'metot': 'Metot', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-HCN', 'metot': 'EPA 29/TS 14384', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-CR+6', 'metot': 'Nmx-aa-90-1986', 'fiyat': 2000}
-        ]
-        
+        raw = load_asgari_fiyatlar()
+        # UI uyumluluğu: {parametre, metot, fiyat} listesine dönüştür
+        asgari_fiyatlar = []
+        for item in raw:
+            yillik = item.get('yillik', {}) or {}
+            fiyat = yillik.get(str(current_year))
+            if fiyat is None:
+                # en yeni yıla fallback
+                if yillik:
+                    latest_year = sorted(yillik.keys())[-1]
+                    fiyat = yillik.get(latest_year)
+            asgari_fiyatlar.append({
+                'parametre': item.get('parametre', ''),
+                'metot': item.get('metot', ''),
+                'fiyat': float(fiyat or 0)
+            })
         return jsonify({'success': True, 'asgari_fiyatlar': asgari_fiyatlar, 'current_year': current_year})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
@@ -1879,55 +2163,26 @@ def add_asgari_fiyat():
         if not yeni_parametre['parametre']:
             return jsonify({'success': False, 'message': 'Parametre adı gerekli'})
         
-        # Mevcut parametreleri kontrol et (çakışma olmasın)
-        mevcut_parametreler = [
-            {'parametre': 'TABAN FİYAT', 'metot': 'Metot', 'fiyat': 9264.99},
-            {'parametre': 'YOL', 'metot': 'Metot', 'fiyat': 0},
-            {'parametre': 'TOZ', 'metot': 'Epa 5/Epa 17/Ts En 13284-1', 'fiyat': 6655},
-            {'parametre': 'YANMA GAZI', 'metot': 'So2/No/Co/O2', 'fiyat': 3855},
-            {'parametre': 'VOC', 'metot': 'TS 13649', 'fiyat': 13170},
-            {'parametre': 'TOC', 'metot': 'TS EN 12619', 'fiyat': 13170},
-            {'parametre': 'HIZ', 'metot': 'EPA Metot 2/ TS ISO 10780', 'fiyat': 1430},
-            {'parametre': 'NEM', 'metot': 'EPA 4 - İŞLETME İÇİ METOT', 'fiyat': 1430},
-            {'parametre': 'AĞIR METAL', 'metot': 'EPA 29/TS 14384', 'fiyat': 19000},
-            {'parametre': 'SÜLFÜRİK ASİT', 'metot': 'EPA 8', 'fiyat': 6290},
-            {'parametre': 'HF', 'metot': 'ISO 15713/EPA 13A', 'fiyat': 7505},
-            {'parametre': 'HCL', 'metot': 'TS EN 1911', 'fiyat': 7505},
-            {'parametre': 'AMONYAK', 'metot': 'SCAWMD METOT 207.1', 'fiyat': 6645},
-            {'parametre': 'İSLİLİK', 'metot': 'EPA METOT323', 'fiyat': 710},
-            {'parametre': 'FORMALDEHİT', 'metot': 'CARB 425', 'fiyat': 6685},
-            {'parametre': 'CR+6', 'metot': 'Nmx-aa-90-1986', 'fiyat': 6290},
-            {'parametre': 'FOSFORİK ASİT', 'metot': 'Metot', 'fiyat': 6290},
-            {'parametre': 'HCN', 'metot': 'EPA 29/TS 14384', 'fiyat': 83950},
-            {'parametre': 'DİOKSİN FURAN', 'metot': 'EPA 23/TS EN 1948', 'fiyat': 42220},
-            {'parametre': 'PAH', 'metot': 'EPA 16/TS EN 15527', 'fiyat': 7370},
-            {'parametre': 'PM10', 'metot': 'EPA 40 CFR 50 APPJ', 'fiyat': 6640},
-            {'parametre': 'ÇÖKEN TOZ', 'metot': 'TS 2342', 'fiyat': 10560},
-            {'parametre': 'MODELLEME', 'metot': 'Metot', 'fiyat': 10210},
-            {'parametre': 'ANALİZ-VOC', 'metot': 'TS 13649', 'fiyat': 14070},
-            {'parametre': 'ANALİZ-AĞIR METAL', 'metot': 'EPA 29/TS 14384', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-SÜLFÜRİK ASİT', 'metot': 'EPA 8', 'fiyat': 3215},
-            {'parametre': 'ANALİZ-HF', 'metot': 'ISO 15713/EPA 13A', 'fiyat': 2335},
-            {'parametre': 'ANALİZ-HCL', 'metot': 'TS EN 1911', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-AMONYAK', 'metot': 'SCAWMD METOT 207.1', 'fiyat': 2520},
-            {'parametre': 'ANALİZ-FOSFORİK ASİT', 'metot': 'Metot', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-HCN', 'metot': 'EPA 29/TS 14384', 'fiyat': 2000},
-            {'parametre': 'ANALİZ-CR+6', 'metot': 'Nmx-aa-90-1986', 'fiyat': 2000}
-        ]
-        
-        # Aynı isimde parametre var mı kontrol et
-        for parametre in mevcut_parametreler:
-            if parametre['parametre'].upper() == yeni_parametre['parametre'].upper():
-                return jsonify({'success': False, 'message': 'Bu parametre zaten mevcut'})
-        
-        # Yeni parametreyi ekle (gerçek uygulamada veritabanına kaydedilir)
-        mevcut_parametreler.append(yeni_parametre)
-        
-        return jsonify({
-            'success': True, 
-            'message': 'Parametre başarıyla eklendi',
-            'parametre': yeni_parametre
-        })
+        # Dosyadan oku, ekle ve kaydet
+        data_file = load_asgari_fiyatlar()
+        # Aynı parametre varsa güncelle
+        updated = False
+        for item in data_file:
+            if item.get('parametre', '').upper() == yeni_parametre['parametre'].upper():
+                item['metot'] = yeni_parametre.get('metot', item.get('metot', ''))
+                yillik = item.get('yillik', {}) or {}
+                yillik[str(datetime.now().year)] = yeni_parametre['fiyat']
+                item['yillik'] = yillik
+                updated = True
+                break
+        if not updated:
+            data_file.append({
+                'parametre': yeni_parametre['parametre'],
+                'metot': yeni_parametre['metot'],
+                'yillik': { str(datetime.now().year): yeni_parametre['fiyat'] }
+            })
+        save_asgari_fiyatlar(data_file)
+        return jsonify({'success': True})
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
@@ -2010,6 +2265,223 @@ def delete_teklif():
         else:
             return jsonify({'success': False, 'message': 'Teklif silinirken hata oluştu'})
             
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+# Asgari fiyat tarifesi - yıllara göre
+def load_asgari_fiyatlar():
+    """Asgari fiyatları yıllara göre yükler"""
+    try:
+        with open('asgari_fiyatlar.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Asgari fiyatlar yüklenirken hata: {e}")
+        return []
+
+def get_parametre_fiyati(parametre_adi, yil):
+    """Belirli bir yıl için parametre fiyatını döndürür"""
+    asgari_fiyatlar = load_asgari_fiyatlar()
+    
+    # Parametre adı eşleştirmesi
+    parametre_eslestirme = {
+        'TOZ': 'TOZ',
+        'YG': 'YANMA GAZI', 
+        'YANMA GAZI': 'YANMA GAZI',  # Eksik olan eşleştirme eklendi
+        'VOC': 'VOC',
+        'AĞIR METAL': 'AĞIR METAL',
+        'TOC': 'TOC',
+        'SO2': 'YANMA GAZI',  # SO2 YANMA GAZI içinde
+        'NO': 'YANMA GAZI',   # NO YANMA GAZI içinde  
+        'CO': 'YANMA GAZI',   # CO YANMA GAZI içinde
+        'O2': 'YANMA GAZI',   # O2 YANMA GAZI içinde
+        'PM10': 'PM10',
+        'ÇT': 'ÇÖKEN TOZ',
+        'Çt': 'ÇÖKEN TOZ',    # Küçük t ile yazım
+        'NEM': 'NEM',
+        'HF': 'HF',
+        'HCL': 'HCL',
+        'AMON.': 'AMONYAK',
+        'AMONYAK': 'AMONYAK',  # Tam yazım
+        'FORM.': 'FORMALDEHİT',
+        'FORMALDEHİT': 'FORMALDEHİT',  # Tam yazım
+        'CR6': 'CR+6',
+        'Cr6': 'CR+6',        # Küçük c ile yazım
+        'FOSF.A.': 'FOSFORİK ASİT',
+        'FOSFORİK ASİT': 'FOSFORİK ASİT',  # Tam yazım
+        'SÜLFÜRİK ASİT': 'SÜLFÜRİK ASİT',  # Eksik olan eşleştirme eklendi
+        'SÜLF.A': 'SÜLFÜRİK ASİT',  # Alternatif yazım
+        'HCN': 'HCN',
+        'PAH': 'PAH',         # Tam yazım
+        'DİOKSİN FURAN': 'DİOKSİN FURAN'  # Tam yazım
+    }
+    
+    eslestirilen_parametre = parametre_eslestirme.get(parametre_adi, parametre_adi)
+    print(f"DEBUG: Parametre '{parametre_adi}' -> '{eslestirilen_parametre}' için {yil} yılı fiyatı aranıyor")
+    
+    for fiyat_kaydi in asgari_fiyatlar:
+        if fiyat_kaydi['parametre'] == eslestirilen_parametre:
+            yillik_fiyatlar = fiyat_kaydi.get('yillik', {})
+            fiyat = yillik_fiyatlar.get(str(yil), 0)
+            print(f"DEBUG: Bulundu! {eslestirilen_parametre} -> {yil}: {fiyat} TL")
+            return fiyat
+    
+    print(f"DEBUG: Parametre '{eslestirilen_parametre}' bulunamadı!")
+    return 0
+
+@app.route('/api/parametre-fiyatlari', methods=['GET'])
+def get_parametre_fiyatlari():
+    """Parametre fiyat tarifesini döndürür"""
+    # 2025 yılı için varsayılan fiyatlar
+    varsayilan_fiyatlar = {
+        'TOZ': 6655,
+        'YG': 3855,
+        'VOC': 13171,
+        'AĞIR METAL': 19000,
+        'TOC': 8500,
+        'SO2': 4500,
+        'NO': 4200,
+        'CO': 3800,
+        'O2': 3500,
+        'PM10': 7200,
+        'ÇT': 5500,
+        'NEM': 1430,
+        'HF': 12000,
+        'HCL': 9500,
+        'AMON.': 6800,
+        'FORM.': 7500,
+        'CR6': 15000,
+        'FOSF.A.': 11000,
+        'HCN': 13000
+    }
+    
+    return jsonify({
+        'success': True,
+        'fiyatlar': varsayilan_fiyatlar
+    })
+
+@app.route('/api/asgari-fiyatlar/<yil>', methods=['GET'])
+def get_asgari_fiyatlar_yil(yil):
+    """Belirli bir yıl için asgari fiyatları döndürür"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+    
+    try:
+        yil = int(yil)
+        asgari_fiyatlar = load_asgari_fiyatlar()
+        
+        # Yıllık fiyatları filtrele
+        yillik_fiyatlar = {}
+        for fiyat_kaydi in asgari_fiyatlar:
+            parametre = fiyat_kaydi['parametre']
+            yillik_fiyat = fiyat_kaydi.get('yillik', {}).get(str(yil), 0)
+            yillik_fiyatlar[parametre] = yillik_fiyat
+        
+        return jsonify({
+            'success': True,
+            'yil': yil,
+            'fiyatlar': yillik_fiyatlar
+        })
+        
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Geçersiz yıl formatı'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+@app.route('/api/otomatik-fiyat-hesapla', methods=['POST'])
+def otomatik_fiyat_hesapla():
+    """Seçilen parametreler için otomatik fiyat hesaplar"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+    
+    try:
+        data = request.get_json()
+        secilen_parametreler = data.get('parametreler', [])
+        yil = data.get('yil', 2025)  # Varsayılan 2025
+        
+        if not secilen_parametreler:
+            return jsonify({'success': False, 'message': 'Seçilen parametre bulunamadı'})
+        
+        # Her parametre için fiyat hesapla
+        hesaplanan_fiyatlar = []
+        toplam_fiyat = 0
+        
+        for parametre in secilen_parametreler:
+            parametre_adi = parametre.get('parametre', '')
+            adet = parametre.get('adet', 1)
+            
+            # Yıllık fiyat tarifesinden fiyatı al
+            birim_fiyat = get_parametre_fiyati(parametre_adi, yil)
+            top_fiyat = birim_fiyat * adet
+            
+            hesaplanan_fiyatlar.append({
+                'parametre': parametre_adi,
+                'metot': parametre.get('metot', ''),
+                'birimFiyat': birim_fiyat,
+                'adet': adet,
+                'topFiyat': top_fiyat
+            })
+            
+            toplam_fiyat += top_fiyat
+        
+        return jsonify({
+            'success': True,
+            'parametreler': hesaplanan_fiyatlar,
+            'toplam': toplam_fiyat,
+            'yil': yil,
+            'message': f'{len(secilen_parametreler)} parametre için {yil} yılı toplam {toplam_fiyat:,.2f} TL hesaplandı'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+@app.route('/api/baca-bilgileri/<firma_adi>', methods=['GET'])
+def get_baca_bilgileri(firma_adi):
+    """Firma için baca bilgilerini ve parametrelerini döndürür"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+    
+    try:
+        # Baca bilgilerini yükle
+        baca_bilgileri = load_baca_bilgileri()
+        
+        # Firma adına göre filtrele
+        firma_bacalar = [baca for baca in baca_bilgileri if baca.get('firma_adi', '').upper() == firma_adi.upper()]
+        
+        if not firma_bacalar:
+            return jsonify({
+                'success': False, 
+                'message': f'{firma_adi} firması için baca bilgisi bulunamadı',
+                'bacalar': []
+            })
+        
+        # Her baca için parametreleri topla
+        tum_parametreler = set()
+        baca_detaylari = []
+        
+        for baca in firma_bacalar:
+            baca_adi = baca.get('baca_adi', '')
+            parametreler = []
+            
+            # Baca bilgilerinden parametreleri çıkar
+            for key, value in baca.items():
+                if key.startswith('parametre_') and value and value.strip():
+                    parametre_adi = key.replace('parametre_', '').replace('_', ' ').upper()
+                    parametreler.append(parametre_adi)
+                    tum_parametreler.add(parametre_adi)
+            
+            baca_detaylari.append({
+                'baca_adi': baca_adi,
+                'parametreler': parametreler
+            })
+        
+        return jsonify({
+            'success': True,
+            'firma_adi': firma_adi,
+            'bacalar': baca_detaylari,
+            'tum_parametreler': list(tum_parametreler),
+            'message': f'{len(firma_bacalar)} baca bulundu, {len(tum_parametreler)} farklı parametre tespit edildi'
+        })
+        
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
 
@@ -2711,6 +3183,7 @@ def kk_egri():
     return render_template('kk_egri.html', 
                          username=session.get('username'), 
                          role=session.get('role'))
+
 
 @app.route('/api/kk_parametreler')
 def api_kk_parametreler():
@@ -4232,6 +4705,20 @@ def save_parametre_olcum_saha():
         # Mevcut parametre ölçümlerini yükle
         saved_parametre_olcum = load_parametre_olcum()
         
+        # İlgili baca bilgisinden personel adını bul (parametre ölçümü için varsayılan)
+        personel_adi_default = ''
+        try:
+            for b in load_baca_bilgileri():
+                if (
+                    b.get('firma_adi') == firma_adi and
+                    b.get('olcum_kodu') == olcum_kodu and
+                    b.get('baca_adi') == baca_adi
+                ):
+                    personel_adi_default = b.get('personel_adi', '')
+                    break
+        except Exception:
+            personel_adi_default = ''
+        
         # Kaydedilecek yeni veri
         new_record = {
             'id': str(uuid4()),
@@ -4240,6 +4727,8 @@ def save_parametre_olcum_saha():
             'baca_adi': baca_adi,
             'parametre_adi': parametre_adi,
             'parametre_verileri': parametre_verileri,
+            # Personel adı kayıt içinde bulunmuyorsa baca bilgilerindeki personele düş
+            'personel_adi': personel_adi_default,
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
@@ -4398,6 +4887,11 @@ def save_baca_bilgileri_saha():
         # Baca bilgilerini dosyaya kaydet
         if save_baca_bilgileri(saved_baca_bilgileri):
             print(f"Baca bilgileri kaydedildi: {firma_adi} - {olcum_kodu} - {baca_adi}")
+            
+            # Personel adı değiştiyse, o bacaya ait parametre ölçüm kayıtlarını güncelle
+            if personel_adi:
+                update_parametre_olcum_personel(firma_adi, olcum_kodu, baca_adi, personel_adi)
+            
             return jsonify({
                 'success': True, 
                 'message': 'Baca bilgileri başarıyla kaydedildi',
@@ -4408,6 +4902,130 @@ def save_baca_bilgileri_saha():
         
     except Exception as e:
         print(f"Baca bilgileri kaydetme hatası: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+def update_parametre_olcum_personel(firma_adi, olcum_kodu, baca_adi, personel_adi):
+    """Baca bilgilerinde personel adı değiştiğinde, o bacaya ait parametre ölçüm kayıtlarını günceller."""
+    try:
+        # Mevcut parametre ölçüm kayıtlarını yükle
+        parametre_olcumleri = load_parametre_olcum()
+        
+        # Güncellenen kayıt sayısı
+        updated_count = 0
+        
+        # O bacaya ait tüm parametre ölçüm kayıtlarını bul ve güncelle
+        for record in parametre_olcumleri:
+            if (record.get('firma_adi') == firma_adi and 
+                record.get('olcum_kodu') == olcum_kodu and 
+                record.get('baca_adi') == baca_adi):
+                # Personel adını güncelle
+                record['personel_adi'] = personel_adi
+                updated_count += 1
+        
+        # Güncellenmiş verileri kaydet
+        if updated_count > 0:
+            save_parametre_olcum(parametre_olcumleri)
+            print(f"Parametre ölçüm kayıtları güncellendi: {updated_count} kayıt - {firma_adi} - {olcum_kodu} - {baca_adi} - Personel: {personel_adi}")
+        else:
+            print(f"Güncellenecek parametre ölçüm kaydı bulunamadı: {firma_adi} - {olcum_kodu} - {baca_adi}")
+            
+    except Exception as e:
+        print(f"Parametre ölçüm kayıtları güncellenirken hata: {str(e)}")
+
+def sync_all_parametre_personel():
+    """Tüm parametre ölçüm kayıtlarını baca bilgileriyle senkronize eder."""
+    try:
+        # Baca bilgilerini yükle
+        baca_bilgileri = load_baca_bilgileri()
+        
+        # Parametre ölçümlerini yükle
+        parametre_olcumleri = load_parametre_olcum()
+        
+        # Firma + Ölçüm kodu -> Personel adı eşleştirmesi
+        personel_map = {}
+        for baca in baca_bilgileri:
+            firma = baca.get('firma_adi', '').strip()
+            olcum = baca.get('olcum_kodu', '').strip()
+            personel = baca.get('personel_adi', '').strip()
+            
+            if firma and olcum and personel:
+                key = f"{firma}||{olcum}"
+                personel_map[key] = personel
+        
+        print(f"Personel eşleştirmesi: {personel_map}")
+        
+        # Güncellenen kayıt sayısı
+        updated_count = 0
+        
+        # Tüm parametre ölçüm kayıtlarını güncelle
+        for record in parametre_olcumleri:
+            firma = record.get('firma_adi', '').strip()
+            olcum = record.get('olcum_kodu', '').strip()
+            
+            if firma and olcum:
+                key = f"{firma}||{olcum}"
+                if key in personel_map:
+                    # Personel adını güncelle
+                    record['personel_adi'] = personel_map[key]
+                    updated_count += 1
+        
+        # Güncellenmiş verileri kaydet
+        if updated_count > 0:
+            save_parametre_olcum(parametre_olcumleri)
+            print(f"Tüm parametre ölçüm kayıtları senkronize edildi: {updated_count} kayıt")
+        else:
+            print("Senkronize edilecek kayıt bulunamadı")
+            
+    except Exception as e:
+        print(f"Parametre ölçüm kayıtları senkronize edilirken hata: {str(e)}")
+
+def cleanup_orphaned_parametre_personel():
+    """Baca bilgilerinde olmayan personel isimlerini parametre ölçümlerinden temizler."""
+    try:
+        # Baca bilgilerini yükle
+        baca_bilgileri = load_baca_bilgileri()
+        
+        # Geçerli personel isimlerini topla
+        valid_personel = set()
+        for baca in baca_bilgileri:
+            personel = baca.get('personel_adi', '').strip()
+            if personel:
+                valid_personel.add(personel)
+        
+        print(f"Geçerli personel isimleri: {valid_personel}")
+        
+        # Parametre ölçümlerini yükle
+        parametre_olcumleri = load_parametre_olcum()
+        
+        # Temizlenen kayıt sayısı
+        cleaned_count = 0
+        
+        # Geçersiz personel isimlerini temizle
+        for record in parametre_olcumleri:
+            current_personel = record.get('personel_adi', '').strip()
+            if current_personel and current_personel not in valid_personel:
+                print(f"Geçersiz personel ismi temizleniyor: {current_personel} -> (boş)")
+                record['personel_adi'] = ''
+                cleaned_count += 1
+        
+        # Temizlenmiş verileri kaydet
+        if cleaned_count > 0:
+            save_parametre_olcum(parametre_olcumleri)
+            print(f"Geçersiz personel isimleri temizlendi: {cleaned_count} kayıt")
+        else:
+            print("Temizlenecek geçersiz personel ismi bulunamadı")
+            
+    except Exception as e:
+        print(f"Geçersiz personel isimleri temizlenirken hata: {str(e)}")
+
+@app.route('/api/sync_parametre_personel', methods=['POST'])
+def api_sync_parametre_personel():
+    """Tüm parametre ölçüm kayıtlarını baca bilgileriyle senkronize eder."""
+    try:
+        sync_all_parametre_personel()
+        return jsonify({'success': True, 'message': 'Parametre ölçüm kayıtları senkronize edildi'})
+    except Exception as e:
+        print(f"Senkronizasyon hatası: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/formlar')
@@ -5638,6 +6256,46 @@ def load_parametre_fields():
         print(f"Parametre alanları yüklenirken hata: {e}")
         return {}
 
+def load_asgari_fiyatlar():
+    try:
+        if not os.path.exists(ASGARI_FIYATLAR_FILE):
+            return []
+        with open(ASGARI_FIYATLAR_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Asgari fiyatlar yüklenirken hata: {e}")
+        return []
+
+def save_asgari_fiyatlar(data):
+    try:
+        with open(ASGARI_FIYATLAR_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Asgari fiyatlar kaydedilirken hata: {e}")
+        return False
+
+def load_par_saha_headers():
+    """PAR_SAHA başlıklarını yükler."""
+    try:
+        if not os.path.exists(PAR_SAHA_HEADERS_FILE):
+            return {"groups": []}
+        with open(PAR_SAHA_HEADERS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"PAR SAHA header yüklenirken hata: {e}")
+        return {"groups": []}
+
+def save_par_saha_headers(data):
+    """PAR_SAHA başlıklarını kaydeder."""
+    try:
+        with open(PAR_SAHA_HEADERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"PAR SAHA header kaydedilirken hata: {e}")
+        return False
+
 def save_parametre_fields(parametre_fields_data):
     """Parametre alanlarını JSON dosyasına kaydeder."""
     try:
@@ -5723,6 +6381,28 @@ def api_forms():
     except Exception as e:
         print(f"Formlar yüklenirken hata: {e}")
         return jsonify({'error': str(e)}), 500
+
+# PAR_SAHA başlıklarını getir
+@app.route('/api/par_saha_headers', methods=['GET'])
+def api_get_par_saha_headers():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    data = load_par_saha_headers()
+    return jsonify({'success': True, **data})
+
+# PAR_SAHA başlıklarını kaydet
+@app.route('/api/par_saha_headers', methods=['POST'])
+def api_save_par_saha_headers():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    try:
+        data = request.get_json() or {}
+        if not isinstance(data, dict) or 'groups' not in data or not isinstance(data['groups'], list):
+            return jsonify({'success': False, 'message': 'Geçersiz veri'}), 400
+        ok = save_par_saha_headers({'groups': data['groups']})
+        return jsonify({'success': ok})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/add_form', methods=['POST'])
 def add_form():
@@ -9131,7 +9811,7 @@ def create_pdf_teklif(teklif, firma):
                 <h1>FİYAT TEKLİFİ</h1>
                 <p>Firma: {firma.get('firmaAdi', '') if firma else ''}</p>
                 <p>Teklif No: {teklif.get('teklif_no', '')}</p>
-                <p>Tarih: {teklif.get('teklif_tarihi', '')}</p>
+                <p>Tarih: {format_tarih_gg_aa_yyyy(teklif.get('teklif_tarihi', ''))}</p>
             </div>
             
             <h2>Parametreler</h2>
@@ -9306,15 +9986,820 @@ def kk_excel_with_graph():
         print(f"Excel export with graph error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/pivot/compare')
+def api_pivot_compare():
+    """PIVOT karşılaştırma API endpoint'i - yıllara göre baca sayısı, parametre sayısı, fiyat ve personel performansını döndürür."""
+    try:
+        years = request.args.get('years', '')
+        if not years:
+            return jsonify({'success': False, 'error': 'Yıl parametresi gerekli'}), 400
+        
+        year_list = [int(y.strip()) for y in years.split(',') if y.strip()]
+        if not year_list:
+            return jsonify({'success': False, 'error': 'Geçerli yıl listesi gerekli'}), 400
+        
+        # Verileri yükle
+        baca_bilgileri = load_baca_bilgileri()
+        parametre_olcumleri = load_parametre_olcum()
+        teklifler = load_teklif()
+        
+        result_data = {}
+        
+        for year in year_list:
+            # O yıl için teklifleri filtrele
+            year_teklifler = []
+            for t in teklifler:
+                tdate = t.get('teklif_tarihi', '')
+                if tdate and tdate[:4] == str(year):
+                    year_teklifler.append(t)
+            
+            # Toplam teklif sayısı ve tutarı
+            toplam_teklif_adedi = len(year_teklifler)
+            toplam_teklif_tutari = sum(float(t.get('netToplam', 0) or 0) for t in year_teklifler)
+            
+            # Kabul olan teklifleri filtrele
+            def _norm(sval: str) -> str:
+                m = (sval or '').strip().lower()
+                tr_map = str.maketrans({'ı':'i','İ':'i','ş':'s','Ş':'s','ç':'c','Ç':'c','ğ':'g','Ğ':'g','ü':'u','Ü':'u','ö':'o','Ö':'o'})
+                return m.translate(tr_map)
+            
+            kabul_teklifler = []
+            for t in year_teklifler:
+                status = _norm(t.get('teklif_durumu', ''))
+                if any(k in status for k in ['kabul', 'onay']):
+                    kabul_teklifler.append(t)
+            
+            kabul_adet = len(kabul_teklifler)
+            kabul_tutari = sum(float(t.get('netToplam', 0) or 0) for t in kabul_teklifler)
+            
+            # Kapsam içi/dışı teklifleri hesapla - TÜM teklifler arasından (sadece kabul olanlar değil)
+            kapsam_ici_teklifler = [t for t in year_teklifler if 'kapsam' in _norm(t.get('teklif_tipi', '')) and ('ici' in _norm(t.get('teklif_tipi', '')) or 'i̇ci̇' in _norm(t.get('teklif_tipi', '')))]
+            kapsam_disi_teklifler = [t for t in year_teklifler if 'kapsam' in _norm(t.get('teklif_tipi', '')) and ('disi' in _norm(t.get('teklif_tipi', '')) or 'dis' in _norm(t.get('teklif_tipi', '')))]
+            is_birligi_teklifler = [t for t in year_teklifler if ('is' in _norm(t.get('teklif_tipi', '')) or 'i̇s' in _norm(t.get('teklif_tipi', ''))) and ('birlik' in _norm(t.get('teklif_tipi', '')) or 'bi̇rli̇k' in _norm(t.get('teklif_tipi', '')) or 'bi̇rli̇gi̇' in _norm(t.get('teklif_tipi', '')))]
+            
+            # Kapsam içi/dışı tutarları - sadece KABUL olanların tutarını hesapla
+            kapsam_ici_kabul_teklifler = [t for t in kapsam_ici_teklifler if any(k in _norm(t.get('teklif_durumu', '')) for k in ['kabul', 'onay'])]
+            kapsam_disi_kabul_teklifler = [t for t in kapsam_disi_teklifler if any(k in _norm(t.get('teklif_durumu', '')) for k in ['kabul', 'onay'])]
+            is_birligi_kabul_teklifler = [t for t in is_birligi_teklifler if any(k in _norm(t.get('teklif_durumu', '')) for k in ['kabul', 'onay'])]
+            
+            # Adet sayıları - sadece KABUL olanların sayısı
+            kapsam_ici_adet = len(kapsam_ici_kabul_teklifler)
+            kapsam_disi_adet = len(kapsam_disi_kabul_teklifler)
+            is_birligi_adet = len(is_birligi_kabul_teklifler)
+            
+            kapsam_ici_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_ici_kabul_teklifler)
+            kapsam_disi_tutar = sum(float(t.get('netToplam', 0) or 0) for t in kapsam_disi_kabul_teklifler)
+            is_birligi_tutar = sum(float(t.get('netToplam', 0) or 0) for t in is_birligi_kabul_teklifler)
+            
+            # Baca sayısını hesapla - Firma ölçümlerindeki BACA SAY değerlerinin toplamı
+            firma_olcumler = load_firma_olcum()
+            toplam_baca_adedi = 0
+            for olcum in firma_olcumler:
+                olcum_date = olcum.get('baslangic_tarihi', '')
+                if olcum_date and olcum_date[:4] == str(year):
+                    baca_sayisi = olcum.get('baca_sayisi', '0')
+                    try:
+                        toplam_baca_adedi += int(baca_sayisi)
+                    except (ValueError, TypeError):
+                        # Baca sayısı sayı değilse 0 olarak kabul et
+                        pass
+            
+            # Parametre isim eşleştirme tablosu - önce tanımla
+            parametre_eslesme = {
+                'YG': 'YANMA GAZI',
+                'YANMA GAZI': 'YANMA GAZI',  # Eksik olan eşleştirme eklendi
+                'AMET': 'AĞIR METAL', 
+                'SÜLF.A': 'SÜLFÜRİK ASİT',
+                'SÜLFÜRİK ASİT': 'SÜLFÜRİK ASİT',  # Eksik olan eşleştirme eklendi
+                'TOZ': 'TOZ',
+                'VOC': 'VOC',
+                'TOC': 'TOC',
+                'NEM': 'NEM',
+                'PM10': 'PM10',
+                'HIZ': 'HIZ',
+                'HF': 'HF',
+                'HCL': 'HCL',
+                'AMONYAK': 'AMONYAK',
+                'FORMALDEHİT': 'FORMALDEHİT',
+                'CR+6': 'CR+6',
+                'CR6': 'CR+6',  # Alternatif yazım
+                'FOSFORİK ASİT': 'FOSFORİK ASİT',
+                'HCN': 'HCN',
+                'DİOKSİN FURAN': 'DİOKSİN FURAN',
+                'PAH': 'PAH',
+                'ÇÖKEN TOZ': 'ÇÖKEN TOZ',
+                'ÇT': 'ÇÖKEN TOZ',  # Alternatif yazım
+                'MODELLEME': 'MODELLEME'
+            }
+            
+            # Firma ölçümlerinden parametre sayılarını hesapla
+            from collections import defaultdict
+            parametre_sayilari = defaultdict(int)
+            toplam_parametre_adedi = 0
+            
+            # Firma ölçümlerindeki parametreleri say
+            for olcum in firma_olcumler:
+                olcum_date = olcum.get('baslangic_tarihi', '')
+                if olcum_date and olcum_date[:4] == str(year):
+                    baca_parametreleri = olcum.get('baca_parametreleri', {})
+                    for baca_adi, parametre_listesi in baca_parametreleri.items():
+                        for parametre in parametre_listesi:
+                            if parametre:  # Boş parametre değilse
+                                norm_param = parametre.upper().strip()
+                                # Parametre eşleştirmesi yap
+                                eslesen_param = parametre_eslesme.get(norm_param, norm_param)
+                                parametre_sayilari[eslesen_param] += 1
+                                toplam_parametre_adedi += 1
+            
+            # Parametre tutarlarını hesapla: Parametre Adedi × Asgari Fiyat
+            parametre_tl = defaultdict(float)
+            asgari_fiyatlar = load_asgari_fiyatlar()
+            
+            # Asgari fiyatları yıla göre filtrele
+            for param_adi, adet in parametre_sayilari.items():
+                if adet > 0:  # Sadece adedi olan parametreler için hesapla
+                    # Parametre ismini eşleştir (zaten eşleştirilmiş)
+                    eslesen_param = param_adi  # Artık zaten eşleştirilmiş halde geliyor
+                    
+                    # Asgari fiyat tablosundan o yılın fiyatını bul
+                    fiyat = 0
+                    for asg_fiyat in asgari_fiyatlar:
+                        if asg_fiyat.get('parametre', '').upper().strip() == eslesen_param:
+                            yillik_fiyatlar = asg_fiyat.get('yillik', {})
+                            fiyat = float(yillik_fiyatlar.get(str(year), 0))
+                            break
+                    
+                    # Tutar = Adet × Fiyat
+                    parametre_tl[param_adi] = adet * fiyat
+                    print(f"DEBUG PIVOT: {param_adi} -> {eslesen_param} -> {adet} adet × {fiyat} TL = {adet * fiyat} TL")
+            
+            # Personel performansını hesapla (baca bilgileri kayıtlarından)
+            personel_performans = defaultdict(int)
+            personel_tutarlar = defaultdict(float)  # Personel başına toplam tutar
+            personel_parametre_performans = defaultdict(int)  # Personel-Parametre kombinasyonu
+            
+            for baca_kayit in baca_bilgileri:
+                created_at = baca_kayit.get('created_at', '')
+                if created_at and created_at[:4] == str(year):
+                    personel_adi = baca_kayit.get('personel_adi', '')
+                    if personel_adi:
+                        # Sadece ad kısmını al (boşluktan önceki kısım)
+                        personel_adi_kisa = personel_adi.split(' ')[0] if personel_adi else ''
+                        # Baca sayısını artır - kısa ad ile
+                        personel_performans[personel_adi_kisa] += 1
+                        
+                        # Bu personelin girdiği baca için parametreleri bul ve fiyat hesapla
+                        firma_adi = baca_kayit.get('firma_adi', '')
+                        olcum_kodu = baca_kayit.get('olcum_kodu', '')
+                        baca_adi = baca_kayit.get('baca_adi', '')
+                        
+                        # Dinamik olarak firma_olcum.json'dan parametreleri oku
+                        baca_parametreleri = []
+                        
+                        # Firma ölçümlerinden bu baca için parametreleri bul
+                        for olcum in firma_olcumler:
+                            if (olcum.get('firma_adi') == firma_adi and 
+                                olcum.get('olcum_kodu') == olcum_kodu and
+                                olcum.get('baca_parametreleri')):
+                                
+                                baca_parametreleri_dict = olcum['baca_parametreleri']
+                                if isinstance(baca_parametreleri_dict, dict) and baca_adi in baca_parametreleri_dict:
+                                    baca_parametreleri_list = baca_parametreleri_dict[baca_adi]
+                                    if isinstance(baca_parametreleri_list, list):
+                                        # Parametreleri normalize et (büyük harf, trim)
+                                        baca_parametreleri = [p.upper().strip() for p in baca_parametreleri_list if p and p.strip()]
+                                        break
+                        
+                        # Eğer parametre bulunamadıysa, eski sabit kodlanmış listeyi kullan (fallback)
+                        if not baca_parametreleri:
+                            # HAFİZE A bacası için: TOZ, YG, VOC, AĞIR METAL
+                            if firma_adi == "HAFİZE" and baca_adi == "a":
+                                baca_parametreleri = ["TOZ", "YANMA GAZI", "VOC", "AĞIR METAL"]
+                            # HAFİZE B bacası için: TOZ, YG, SÜLFÜRİK ASİT, PM10  
+                            elif firma_adi == "HAFİZE" and baca_adi == "b":
+                                baca_parametreleri = ["TOZ", "YANMA GAZI", "SÜLFÜRİK ASİT", "PM10"]
+                            # AKARE ÇEVRE FÜZYON BACASI için: TOZ, NEM, YG (sadece bu 3 parametre!)
+                            elif "AKARE ÇEVRE" in firma_adi and "FÜZYON" in baca_adi:
+                                baca_parametreleri = ["TOZ", "NEM", "YANMA GAZI"]
+                            # ATALAY TOKER adem bacası için: TOZ, YANMA GAZI, VOC, AĞIR METAL
+                            elif firma_adi == "ATALAY TOKER" and baca_adi == "adem":
+                                baca_parametreleri = ["TOZ", "YANMA GAZI", "VOC", "AĞIR METAL"]
+                        
+                        # Bu parametreler için o yılın asgari fiyatlarını hesapla
+                        toplam_fiyat = 0
+                        for parametre in baca_parametreleri:
+                            fiyat = get_parametre_fiyati(parametre, year)
+                            toplam_fiyat += fiyat
+                        
+                        # Debug log
+                        print(f"Personel: {personel_adi} ({personel_adi_kisa}), Firma: {firma_adi}, Baca: {baca_adi}")
+                        print(f"Bulunan parametreler: {baca_parametreleri}")
+                        print(f"Toplam Fiyat: {toplam_fiyat}")
+                        
+                        # Kısa ad ile grupla
+                        personel_tutarlar[personel_adi_kisa] += toplam_fiyat
+                        
+                        # Personel-Parametre kombinasyonu hesapla
+                        for parametre in baca_parametreleri:
+                            kombinasyon_adi = f"{parametre}-{personel_adi_kisa}"
+                            personel_parametre_performans[kombinasyon_adi] += 1
+            
+            summary = {
+                'toplam_baca_adedi': toplam_baca_adedi,
+                'toplam_parametre_adedi': toplam_parametre_adedi,
+                'toplam_teklif_adedi': toplam_teklif_adedi,
+                'kabul_adet': kabul_adet,
+                'kapsam_ici_adet': kapsam_ici_adet,
+                'kapsam_disi_adet': kapsam_disi_adet,
+                'is_birligi_adet': is_birligi_adet,
+                'toplam_teklif_tutari': round(toplam_teklif_tutari, 2),
+                'kabul_tutari': round(kabul_tutari, 2),
+                'kapsam_ici_tutar': round(kapsam_ici_tutar, 2),
+                'kapsam_disi_tutar': round(kapsam_disi_tutar, 2),
+                'is_birligi_tutar': round(is_birligi_tutar, 2),
+                'parametre_sayilari': dict(parametre_sayilari),
+                'personel_performans': dict(personel_performans),
+                'personel_tutarlar': dict(personel_tutarlar),
+                'personel_parametre_performans': dict(personel_parametre_performans)
+            }
+            
+            result_data[str(year)] = {
+                'summary': summary,
+                'parametre_tl': parametre_tl
+            }
+        
+        return jsonify({
+            'success': True,
+            'data': result_data
+        })
+        
+    except Exception as e:
+        print(f"Pivot compare API hatası: {e}")
+        import traceback
+        print(f"Hata detayı: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/pivot/export-xlsx')
+def api_pivot_export_xlsx():
+    """PIVOT verilerini XLSX formatında export et - sayılar sayı formatında, tarihler tarih formatında"""
+    try:
+        years = request.args.get('years', '')
+        if not years:
+            return jsonify({'success': False, 'error': 'Yıl parametresi gerekli'}), 400
+        
+        year_list = [int(y.strip()) for y in years.split(',') if y.strip()]
+        if not year_list:
+            return jsonify({'success': False, 'error': 'Geçerli yıl listesi gerekli'}), 400
+        
+        # Pivot verilerini al (mevcut API'yi kullan)
+        import requests
+        try:
+            response = requests.get(f'http://localhost:{os.environ.get("PORT", 5001)}/api/pivot/compare?years={",".join(map(str, year_list))}')
+            if response.status_code != 200:
+                return jsonify({'success': False, 'error': 'Pivot verileri alınamadı'}), 500
+            data = response.json()
+            if not data.get('success'):
+                return jsonify({'success': False, 'error': 'Pivot verileri başarısız'}), 500
+        except Exception as e:
+            # Direct API call başarısız olursa, verileri doğrudan hesapla
+            baca_bilgileri = load_baca_bilgileri()
+            parametre_olcumleri = load_parametre_olcum()
+            teklifler = load_teklif()
+            firma_olcumler = load_firma_olcum()
+            asgari_fiyatlar = load_asgari_fiyatlar()
+            
+            # Basit veri yapısı oluştur
+            data = {'success': True, 'data': {}}
+            for year in year_list:
+                data['data'][str(year)] = {
+                    'summary': {
+                        'toplam_teklif_adedi': 0,
+                        'kabul_adet': 0,
+                        'kapsam_ici_adet': 0,
+                        'kapsam_disi_adet': 0,
+                        'is_birligi_adet': 0,
+                        'toplam_teklif_tutari': 0,
+                        'kabul_tutari': 0,
+                        'kapsam_ici_tutar': 0,
+                        'kapsam_disi_tutar': 0,
+                        'is_birligi_tutar': 0,
+                        'toplam_baca_adedi': 0,
+                        'toplam_parametre_adedi': 0,
+                        'parametre_sayilari': {},
+                        'personel_performans': {},
+                        'personel_tutarlar': {},
+                        'personel_parametre_performans': {}
+                    }
+                }
+        
+        # XLSX dosyası oluştur
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+        from datetime import datetime
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "PIVOT Karşılaştırma"
+        
+        # Stil tanımlamaları
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        section_fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Başlık satırı
+        headers = ['METRİK']
+        for year in year_list:
+            headers.extend([f'{year} Adet', f'{year} TL'])
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        row_num = 2
+        
+        # TEKLİF TAKİP bölümü
+        section_cell = ws.cell(row=row_num, column=1, value='TEKLİF TAKİP')
+        section_cell.font = Font(bold=True)
+        section_cell.fill = section_fill
+        section_cell.border = border
+        ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=len(headers))
+        row_num += 1
+        
+        # Teklif satırları
+        teklif_rows = [
+            ('TOP. TEKLİF', lambda d: d.get('summary', {}).get('toplam_teklif_adedi', 0), lambda d: d.get('summary', {}).get('toplam_teklif_tutari', 0)),
+            ('TOP KABUL OLAN TEK.', lambda d: d.get('summary', {}).get('kabul_adet', 0), lambda d: d.get('summary', {}).get('kabul_tutari', 0)),
+            ('KAPSAM İÇİ TEKLİF', lambda d: d.get('summary', {}).get('kapsam_ici_adet', 0), lambda d: d.get('summary', {}).get('kapsam_ici_tutar', 0)),
+            ('KAPSAM DIŞI TEKLİF', lambda d: d.get('summary', {}).get('kapsam_disi_adet', 0), lambda d: d.get('summary', {}).get('kapsam_disi_tutar', 0)),
+            ('İŞ BİRLİĞİ TEKLİF', lambda d: d.get('summary', {}).get('is_birligi_adet', 0), lambda d: d.get('summary', {}).get('is_birligi_tutar', 0))
+        ]
+        
+        for title, adet_func, tutar_func in teklif_rows:
+            ws.cell(row=row_num, column=1, value=title).border = border
+            
+            for col, year in enumerate(year_list, 2):
+                year_data = data['data'].get(str(year), {})
+                
+                # Adet sütunu
+                adet_value = adet_func(year_data)
+                adet_cell = ws.cell(row=row_num, column=col, value=adet_value)
+                adet_cell.number_format = '0'  # Sayı formatı
+                adet_cell.alignment = Alignment(horizontal='right')
+                adet_cell.border = border
+                
+                # TL sütunu
+                tutar_value = tutar_func(year_data)
+                tutar_cell = ws.cell(row=row_num, column=col + len(year_list), value=tutar_value)
+                tutar_cell.number_format = '#,##0.00'  # Para formatı
+                tutar_cell.alignment = Alignment(horizontal='right')
+                tutar_cell.border = border
+            
+            row_num += 1
+        
+        # PARAMETRE bölümü
+        section_cell = ws.cell(row=row_num, column=1, value='PARAMETRE')
+        section_cell.font = Font(bold=True)
+        section_cell.fill = section_fill
+        section_cell.border = border
+        ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=len(headers))
+        row_num += 1
+        
+        # Parametre satırları
+        parametre_rows = [
+            ('TOP. BACA SAYISI', lambda d: d.get('summary', {}).get('toplam_baca_adedi', 0), lambda d: d.get('summary', {}).get('kabul_tutari', 0)),
+            ('TOP. PARAMETRE SAYISI', lambda d: d.get('summary', {}).get('toplam_parametre_adedi', 0), lambda d: 0)
+        ]
+        
+        for title, adet_func, tutar_func in parametre_rows:
+            ws.cell(row=row_num, column=1, value=title).border = border
+            
+            for col, year in enumerate(year_list, 2):
+                year_data = data['data'].get(str(year), {})
+                
+                # Adet sütunu
+                adet_value = adet_func(year_data)
+                adet_cell = ws.cell(row=row_num, column=col, value=adet_value)
+                adet_cell.number_format = '0'  # Sayı formatı
+                adet_cell.alignment = Alignment(horizontal='right')
+                adet_cell.border = border
+                
+                # TL sütunu
+                tutar_value = tutar_func(year_data)
+                tutar_cell = ws.cell(row=row_num, column=col + len(year_list), value=tutar_value)
+                tutar_cell.number_format = '#,##0.00'  # Para formatı
+                tutar_cell.alignment = Alignment(horizontal='right')
+                tutar_cell.border = border
+            
+            row_num += 1
+        
+        # Dinamik parametre satırları
+        all_params = set()
+        for year in year_list:
+            year_data = data['data'].get(str(year), {})
+            params = year_data.get('summary', {}).get('parametre_sayilari', {})
+            all_params.update(params.keys())
+        
+        # Asgari fiyat fallback
+        asgari_fiyatlar_fallback = {
+            'TOZ': 6655, 'YG': 3855, 'YANMA GAZI': 3855, 'AMET': 19000, 'AĞIR METAL': 19000,
+            'SÜLF.A': 6290, 'SÜLFÜRİK ASİT': 6290, 'VOC': 13170, 'TOC': 13170, 'HIZ': 1430,
+            'NEM': 1430, 'HF': 7505, 'HCL': 7505, 'AMONYAK': 6645, 'FORMALDEHİT': 6685,
+            'CR+6': 6290, 'FOSFORİK ASİT': 6290, 'HCN': 6810, 'DİOKSİN FURAN': 83950,
+            'PAH': 42220, 'PM10': 7370, 'ÇÖKEN TOZ': 6640, 'MODELLEME': 10560
+        }
+        
+        for param in sorted(all_params):
+            title = f'TOP. {param} SAYISI'
+            ws.cell(row=row_num, column=1, value=title).border = border
+            
+            for col, year in enumerate(year_list, 2):
+                year_data = data['data'].get(str(year), {})
+                
+                # Adet sütunu
+                adet_value = year_data.get('summary', {}).get('parametre_sayilari', {}).get(param, 0)
+                adet_cell = ws.cell(row=row_num, column=col, value=adet_value)
+                adet_cell.number_format = '0'  # Sayı formatı
+                adet_cell.alignment = Alignment(horizontal='right')
+                adet_cell.border = border
+                
+                # TL sütunu (parametre sayısı × asgari fiyat)
+                fiyat = asgari_fiyatlar_fallback.get(param, 0)
+                tutar_value = adet_value * fiyat
+                tutar_cell = ws.cell(row=row_num, column=col + len(year_list), value=tutar_value)
+                tutar_cell.number_format = '#,##0.00'  # Para formatı
+                tutar_cell.alignment = Alignment(horizontal='right')
+                tutar_cell.border = border
+            
+            row_num += 1
+        
+        # PERSONEL PERFORMANS bölümü
+        section_cell = ws.cell(row=row_num, column=1, value='PERSONEL PERFORMANS')
+        section_cell.font = Font(bold=True)
+        section_cell.fill = section_fill
+        section_cell.border = border
+        ws.merge_cells(start_row=row_num, start_column=1, end_row=row_num, end_column=len(headers))
+        row_num += 1
+        
+        # Personel performans satırları
+        all_personel = set()
+        for year in year_list:
+            year_data = data['data'].get(str(year), {})
+            personel = year_data.get('summary', {}).get('personel_performans', {})
+            all_personel.update(personel.keys())
+        
+        for personel in sorted(all_personel):
+            title = f'{personel} BACA SAYISI'
+            ws.cell(row=row_num, column=1, value=title).border = border
+            
+            for col, year in enumerate(year_list, 2):
+                year_data = data['data'].get(str(year), {})
+                
+                # Adet sütunu
+                adet_value = year_data.get('summary', {}).get('personel_performans', {}).get(personel, 0)
+                adet_cell = ws.cell(row=row_num, column=col, value=adet_value)
+                adet_cell.number_format = '0'  # Sayı formatı
+                adet_cell.alignment = Alignment(horizontal='right')
+                adet_cell.border = border
+                
+                # TL sütunu
+                tutar_value = year_data.get('summary', {}).get('personel_tutarlar', {}).get(personel, 0)
+                tutar_cell = ws.cell(row=row_num, column=col + len(year_list), value=tutar_value)
+                tutar_cell.number_format = '#,##0.00'  # Para formatı
+                tutar_cell.alignment = Alignment(horizontal='right')
+                tutar_cell.border = border
+            
+            row_num += 1
+        
+        # Sütun genişliklerini ayarla
+        ws.column_dimensions['A'].width = 30
+        for col in range(2, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 15
+        
+        # Dosyayı memory'de oluştur
+        from io import BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Dosya adı oluştur
+        filename = f'PIVOT_Karsilastirma_{"_".join(map(str, year_list))}.xlsx'
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"Pivot XLSX export hatası: {e}")
+        import traceback
+        print(f"Hata detayı: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Admin Backup/Restore endpoints
+@app.route('/api/admin/backup', methods=['POST'])
+def api_admin_backup():
+    """Admin için veri yedekleme"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Oturum açmanız gerekiyor'}), 401
+    
+    # Sadece admin kullanıcısı erişebilir
+    if session.get('username') != 'admin':
+        return jsonify({'success': False, 'error': 'Bu işlem için admin yetkisi gerekiyor'}), 403
+    
+    try:
+        from datetime import datetime
+        import shutil
+        
+        # Yedekleme dizini oluştur
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_dir = f'backups/backup_{timestamp}'
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Yedeklenecek dosyalar
+        data_files = [
+            'firma_kayit.json',
+            'teklif.json', 
+            'firma_olcum.json',
+            'saha_olc.json',
+            'parameters.json',
+            'baca_bilgileri.json',
+            'parametre_olcum.json',
+            'parametre_sahabil.json',
+            'asgari_fiyatlar.json',
+            'forms.json',
+            'users.json',
+            'used_teklif_numbers.json',
+            'par_saha_header_groups.json'
+        ]
+        
+        backed_up_files = []
+        for file in data_files:
+            if os.path.exists(file):
+                shutil.copy2(file, backup_dir)
+                backed_up_files.append(file)
+        
+        # Eski yedekleri temizle (7 günden eski)
+        cleanup_old_backups()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{len(backed_up_files)} dosya yedeklendi. Yedek klasörü: {backup_dir}',
+            'backup_dir': backup_dir,
+            'files': backed_up_files
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Yedekleme hatası: {str(e)}'}), 500
+
+@app.route('/api/admin/restore', methods=['POST'])
+def api_admin_restore():
+    """Admin için veri geri yükleme"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Oturum açmanız gerekiyor'}), 401
+    
+    # Sadece admin kullanıcısı erişebilir
+    if session.get('username') != 'admin':
+        return jsonify({'success': False, 'error': 'Bu işlem için admin yetkisi gerekiyor'}), 403
+    
+    try:
+        import shutil
+        from datetime import datetime
+        
+        # En son yedek klasörünü bul
+        backup_base_dir = 'backups'
+        if not os.path.exists(backup_base_dir):
+            return jsonify({'success': False, 'error': 'Yedek klasörü bulunamadı'}), 404
+        
+        # Yedek klasörlerini listele
+        backup_dirs = [d for d in os.listdir(backup_base_dir) if d.startswith('backup_')]
+        if not backup_dirs:
+            return jsonify({'success': False, 'error': 'Yedek dosyası bulunamadı'}), 404
+        
+        # En son yedek klasörünü seç
+        latest_backup = sorted(backup_dirs)[-1]
+        latest_backup_path = os.path.join(backup_base_dir, latest_backup)
+        
+        # Mevcut dosyaları yedekle (güvenlik için)
+        current_backup_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        current_backup_dir = f'backups/current_backup_{current_backup_time}'
+        os.makedirs(current_backup_dir, exist_ok=True)
+        
+        data_files = [
+            'firma_kayit.json',
+            'teklif.json', 
+            'firma_olcum.json',
+            'saha_olc.json',
+            'parameters.json',
+            'baca_bilgileri.json',
+            'parametre_olcum.json',
+            'parametre_sahabil.json',
+            'asgari_fiyatlar.json',
+            'forms.json',
+            'users.json',
+            'used_teklif_numbers.json',
+            'par_saha_header_groups.json'
+        ]
+        
+        # Mevcut dosyaları yedekle
+        for file in data_files:
+            if os.path.exists(file):
+                shutil.copy2(file, current_backup_dir)
+        
+        # Yedek dosyalarını geri yükle
+        restored_files = []
+        for file in data_files:
+            backup_file = os.path.join(latest_backup_path, file)
+            if os.path.exists(backup_file):
+                shutil.copy2(backup_file, file)
+                restored_files.append(file)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{len(restored_files)} dosya geri yüklendi. Yedek: {latest_backup}',
+            'restored_files': restored_files,
+            'backup_used': latest_backup
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Geri yükleme hatası: {str(e)}'}), 500
+
+def cleanup_old_backups():
+    """7 günden eski yedekleri temizler"""
+    backup_dir = 'backups'
+    if not os.path.exists(backup_dir):
+        return
+    
+    from datetime import datetime
+    current_time = datetime.now()
+    for item in os.listdir(backup_dir):
+        item_path = os.path.join(backup_dir, item)
+        if os.path.isdir(item_path):
+            # Dizin oluşturma zamanını kontrol et
+            creation_time = datetime.fromtimestamp(os.path.getctime(item_path))
+            if (current_time - creation_time).days > 7:
+                shutil.rmtree(item_path)
+                print(f"🗑️ Eski yedek silindi: {item}")
+
+@app.route('/api/admin/backup-download', methods=['POST'])
+def api_admin_backup_download():
+    """Admin için veri yedekleme - ZIP dosyası olarak indir"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Oturum açmanız gerekiyor'}), 401
+    
+    # Sadece admin kullanıcısı erişebilir
+    if session.get('username') != 'admin':
+        return jsonify({'success': False, 'error': 'Bu işlem için admin yetkisi gerekiyor'}), 403
+    
+    try:
+        import zipfile
+        import io
+        from datetime import datetime
+        
+        # Yedeklenecek dosyalar
+        data_files = [
+            'firma_kayit.json',
+            'teklif.json', 
+            'firma_olcum.json',
+            'saha_olc.json',
+            'parameters.json',
+            'baca_bilgileri.json',
+            'parametre_olcum.json',
+            'parametre_sahabil.json',
+            'asgari_fiyatlar.json',
+            'forms.json',
+            'users.json',
+            'used_teklif_numbers.json',
+            'par_saha_header_groups.json'
+        ]
+        
+        # ZIP dosyası oluştur
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for file in data_files:
+                if os.path.exists(file):
+                    zip_file.write(file, file)
+        
+        zip_buffer.seek(0)
+        
+        # Dosya adı oluştur
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'emisyon_backup_{timestamp}.zip'
+        
+        return zip_buffer.getvalue(), 200, {
+            'Content-Type': 'application/zip',
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Yedekleme hatası: {str(e)}'}), 500
+
+@app.route('/api/admin/restore-upload', methods=['POST'])
+def api_admin_restore_upload():
+    """Admin için veri geri yükleme - Yüklenen dosyalardan"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Oturum açmanız gerekiyor'}), 401
+    
+    # Sadece admin kullanıcısı erişebilir
+    if session.get('username') != 'admin':
+        return jsonify({'success': False, 'error': 'Bu işlem için admin yetkisi gerekiyor'}), 403
+    
+    try:
+        import zipfile
+        import io
+        import shutil
+        from datetime import datetime
+        
+        if 'files' not in request.files:
+            return jsonify({'success': False, 'error': 'Dosya bulunamadı'}), 400
+        
+        files = request.files.getlist('files')
+        if not files or files[0].filename == '':
+            return jsonify({'success': False, 'error': 'Dosya seçilmedi'}), 400
+        
+        # Mevcut dosyaları yedekle (güvenlik için)
+        current_backup_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        current_backup_dir = f'backups/current_backup_{current_backup_time}'
+        os.makedirs(current_backup_dir, exist_ok=True)
+        
+        data_files = [
+            'firma_kayit.json',
+            'teklif.json', 
+            'firma_olcum.json',
+            'saha_olc.json',
+            'parameters.json',
+            'baca_bilgileri.json',
+            'parametre_olcum.json',
+            'parametre_sahabil.json',
+            'asgari_fiyatlar.json',
+            'forms.json',
+            'users.json',
+            'used_teklif_numbers.json',
+            'par_saha_header_groups.json'
+        ]
+        
+        # Mevcut dosyaları yedekle
+        for file in data_files:
+            if os.path.exists(file):
+                shutil.copy2(file, current_backup_dir)
+        
+        restored_files = []
+        
+        # ZIP dosyası kontrolü
+        for file in files:
+            if file.filename.endswith('.zip'):
+                # ZIP dosyasını çıkar
+                zip_data = file.read()
+                with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zip_file:
+                    for zip_info in zip_file.infolist():
+                        if zip_info.filename in data_files:
+                            # Dosyayı çıkar ve kaydet
+                            file_data = zip_file.read(zip_info.filename)
+                            with open(zip_info.filename, 'wb') as f:
+                                f.write(file_data)
+                            restored_files.append(zip_info.filename)
+            else:
+                # Tekil JSON dosyası
+                filename = file.filename
+                if filename in data_files:
+                    file.save(filename)
+                    restored_files.append(filename)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{len(restored_files)} dosya geri yüklendi.',
+            'restored_files': restored_files
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Geri yükleme hatası: {str(e)}'}), 500
+
 if __name__ == '__main__':
     # Teklif numarası benzersizliği için migration çalıştır
     migrate_existing_teklif_numbers()
     
-    # Render için port ayarı (Render'ın verdiği PORT değişkenini kullan, yoksa 10000 kullan)
-    port = int(os.environ.get('PORT', 10000))
+    # Mevcut teklif numaralarını 3 haneli formata dönüştür
+    convert_teklif_numbers_to_3_digit()
     
-    # Geliştirme modu kontrolü
-    debug = os.environ.get('FLASK_ENV') == 'development'
+    # Mevcut teklifleri 001'den başlayarak yeniden sırala
+    resequence_teklif_numbers()
+    
+    # Render için port ayarı (Render'ın verdiği PORT değişkenini kullan, yoksa 5001 kullan)
+    port = int(os.environ.get('PORT', 5001))
+    
+    # Geliştirme modu kontrolü - her zaman debug=True
+    debug = True
     
     # Uygulamayı başlat
     if __name__ == '__main__':
@@ -9322,5 +10807,7 @@ if __name__ == '__main__':
             host='0.0.0.0',
             port=port,
             debug=debug,
-            threaded=True
+            threaded=True,
+            use_reloader=True,
+            use_debugger=True
         )

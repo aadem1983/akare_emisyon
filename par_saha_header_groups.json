@@ -1,0 +1,13 @@
+{
+  "groups": [
+    { "key": "GENEL", "label": "TOZ, A.MET, SÜLF.A, HF, HCL, AMON., FORM., CR6, FOSF.A., HCN" },
+    { "key": "NEM", "label": "NEM" },
+    { "key": "YG", "label": "YG" },
+    { "key": "TOC", "label": "TOC" },
+    { "key": "VOC", "label": "VOC" },
+    { "key": "PM10", "label": "PM10" },
+    { "key": "CT", "label": "ÇT" },
+    { "key": "BOS1", "label": "boş" },
+    { "key": "BOS2", "label": "boş" }
+  ]
+}

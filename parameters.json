@@ -189,7 +189,7 @@
         "+3S": "106"
     },
     {
-        "Parametre Adı": "Amet",
+        "Parametre Adı": "AĞIR METAL",
         "Metot": "Epa 29",
         "İzo Oran": "",
         "Nozzle": "",
@@ -200,10 +200,15 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "e4f7d8f0-7521-4a02-bf6e-5618d50eff96"
+        "id": "e4f7d8f0-7521-4a02-bf6e-5618d50eff96",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
-        "Parametre Adı": "Amet",
+        "Parametre Adı": "AĞIR METAL",
         "Metot": "Ts 14384",
         "İzo Oran": "",
         "Nozzle": "",
@@ -214,10 +219,15 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "85864cc7-2b4e-45d5-a92b-e101ea610f17"
+        "id": "85864cc7-2b4e-45d5-a92b-e101ea610f17",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
-        "Parametre Adı": "Sülf.a",
+        "Parametre Adı": "SÜLFÜRİK ASİT",
         "Metot": "Epa 8",
         "İzo Oran": "",
         "Nozzle": "",
@@ -228,7 +238,12 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "ce906fd6-5df1-44f2-976f-6eb9a2a7b090"
+        "id": "ce906fd6-5df1-44f2-976f-6eb9a2a7b090",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
         "Parametre Adı": "Hf",
@@ -273,7 +288,7 @@
         "id": "1cebc233-29bf-4980-a945-c7a97696e5c8"
     },
     {
-        "Parametre Adı": "Amon",
+        "Parametre Adı": "AMONYAK",
         "Metot": "Scaqmd metot 207.1",
         "İzo Oran": "",
         "Nozzle": "",
@@ -284,10 +299,15 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "cca6d8a0-4811-4967-a038-10f6b262cc85"
+        "id": "cca6d8a0-4811-4967-a038-10f6b262cc85",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
-        "Parametre Adı": "Form.",
+        "Parametre Adı": "FORMALDEHİT",
         "Metot": "Epa metot 323",
         "İzo Oran": "",
         "Nozzle": "",
@@ -298,7 +318,12 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "4ed0fd4a-f679-4ace-a961-8f2c8fd750c0"
+        "id": "4ed0fd4a-f679-4ace-a961-8f2c8fd750c0",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
         "Parametre Adı": "Cr6",
@@ -315,7 +340,7 @@
         "id": "0f6859e4-2044-4fcf-8eaf-3c29a3a4c61b"
     },
     {
-        "Parametre Adı": "Fosa",
+        "Parametre Adı": "FOSFORİK ASİT",
         "Metot": "Nmx-aa-90-1986",
         "İzo Oran": "",
         "Nozzle": "",
@@ -326,10 +351,15 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "832c7a8a-771e-4bc4-a7e5-39deb973fd7c"
+        "id": "832c7a8a-771e-4bc4-a7e5-39deb973fd7c",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
-        "Parametre Adı": "Hcn",
+        "Parametre Adı": "HCN",
         "Metot": "Carb 426",
         "İzo Oran": "",
         "Nozzle": "",
@@ -340,7 +370,12 @@
         "L/DAK": "",
         "T.HAC": "",
         "LOQ": "",
-        "id": "61f15348-8ab5-4624-a16b-9564dc453265"
+        "id": "61f15348-8ab5-4624-a16b-9564dc453265",
+        "KK": "",
+        "-3S": "",
+        "-2S": "",
+        "+2S": "",
+        "+3S": ""
     },
     {
         "Parametre Adı": "Pm10",

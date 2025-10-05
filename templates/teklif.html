@@ -129,11 +129,12 @@
                                      <div class="col-md-2">
                                          <div class="mb-3">
                                              <label for="filterTeklifTipi" class="form-label">Teklif Tipi</label>
-                                             <select class="form-select" id="filterTeklifTipi">
-                                                 <option value="">Tümü</option>
-                                                 <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
-                                                 <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
-                                             </select>
+                                        <select class="form-select" id="filterTeklifTipi">
+                                            <option value="">Tümü</option>
+                                            <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
+                                            <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
+                                            <option value="İŞ BİRLİĞİ">İŞ BİRLİĞİ</option>
+                                        </select>
                                          </div>
                                      </div>
                                      <div class="col-md-2">
@@ -192,7 +193,7 @@
                                          <td>{{ teklif.teklif_no }}</td>
                                          <td>{{ teklif.firma_adi }}</td>
                                          <td>{{ teklif.teklif_tipi }}</td>
-                                         <td>{{ teklif.teklif_tarihi }}</td>
+                                         <td>{{ format_tarih_gg_aa_yyyy(teklif.teklif_tarihi) }}</td>
                                          <td class="text-end">{{ "%.2f"|format(teklif.toplam or 0) }} TL</td>
                                          <td class="text-end">{{ "%.2f"|format(teklif.indirim or 0) }} TL</td>
                                          <td class="text-end">{{ "%.2f"|format(teklif.netToplam or 0) }} TL</td>
@@ -249,11 +250,12 @@
                                  <div class="col-md-6">
                                      <div class="mb-3">
                                          <label for="teklifTipi" class="form-label">Teklif Tipi *</label>
-                                         <select class="form-select" id="teklifTipi" name="teklif_tipi" required>
-                                             <option value="">Seçiniz</option>
-                                             <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
-                                             <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
-                                         </select>
+                                        <select class="form-select" id="teklifTipi" name="teklif_tipi" required>
+                                            <option value="">Seçiniz</option>
+                                            <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
+                                            <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
+                                            <option value="İŞ BİRLİĞİ">İŞ BİRLİĞİ</option>
+                                        </select>
                                      </div>
                                  </div>
                                  <div class="col-md-6">
@@ -307,8 +309,16 @@
                              Yeni Teklif - 2. Aşama (Parametre Seçimi)
                          </h5>
                          
-                         <!-- Üst Buton -->
-                         <div class="d-flex justify-content-end mb-3">
+                         <!-- Üst Butonlar -->
+                         <div class="d-flex justify-content-end mb-3 gap-2">
+                             <button type="button" class="btn btn-info" onclick="bacaBilgileriniOkuVeParametreSec()">
+                                 <i class="fas fa-search me-1"></i>
+                                 Baca Bilgilerini Oku
+                             </button>
+                             <button type="button" class="btn btn-success" onclick="otomatikFiyatHesapla()">
+                                 <i class="fas fa-calculator me-1"></i>
+                                 Otomatik Fiyat Hesapla
+                             </button>
                              <button type="button" class="btn btn-primary" onclick="secilenParametreleriEkle()">
                                  <i class="fas fa-plus me-1"></i>
                                  Seçilen Parametreleri Ekle
@@ -341,10 +351,20 @@
                                  <i class="fas fa-arrow-left me-1"></i>
                                  1. Aşamaya Geri Dön
                              </button>
-                             <button type="button" class="btn btn-primary" onclick="secilenParametreleriEkle()">
-                                 <i class="fas fa-plus me-1"></i>
-                                 Seçilen Parametreleri Ekle
-                             </button>
+                             <div class="d-flex gap-2">
+                                 <button type="button" class="btn btn-info" onclick="bacaBilgileriniOkuVeParametreSec()">
+                                     <i class="fas fa-search me-1"></i>
+                                     Baca Bilgilerini Oku
+                                 </button>
+                                 <button type="button" class="btn btn-success" onclick="otomatikFiyatHesapla()">
+                                     <i class="fas fa-calculator me-1"></i>
+                                     Otomatik Fiyat Hesapla
+                                 </button>
+                                 <button type="button" class="btn btn-primary" onclick="secilenParametreleriEkle()">
+                                     <i class="fas fa-plus me-1"></i>
+                                     Seçilen Parametreleri Ekle
+                                 </button>
+                             </div>
                          </div>
                      </div>
 
@@ -363,8 +383,8 @@
                                          <th class="text-center" width="50">SIRA</th>
                                          <th>PARAMETRE ADI</th>
                                          <th>METOT</th>
-                                         <th>BİRİM FİYAT (TL)</th>
-                                         <th>ADET</th>
+                                         <th class="text-end">BİRİM FİYAT (TL)</th>
+                                         <th class="text-center">ADET</th>
                                          <th class="text-end">TOP.FİYAT (TL)</th>
                                          <th class="text-center" width="80">İŞLEM</th>
                                      </tr>
@@ -664,11 +684,12 @@
                                  <div class="col-md-6">
                                      <div class="mb-3">
                                          <label for="duzenleTeklifTipi" class="form-label">Teklif Tipi *</label>
-                                         <select class="form-select" id="duzenleTeklifTipi" required>
-                                             <option value="">Seçiniz</option>
-                                             <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
-                                             <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
-                                         </select>
+                                        <select class="form-select" id="duzenleTeklifTipi" required>
+                                            <option value="">Seçiniz</option>
+                                            <option value="KAPSAM İÇİ">KAPSAM İÇİ</option>
+                                            <option value="KAPSAM DIŞI">KAPSAM DIŞI</option>
+                                            <option value="İŞ BİRLİĞİ">İŞ BİRLİĞİ</option>
+                                        </select>
                                      </div>
                                  </div>
                                  <div class="col-md-6">
@@ -879,6 +900,16 @@ document.addEventListener('DOMContentLoaded', function() {
     setupLiveFiltering();
 });
 
+// Sayfa kapatıldığında rezerve numarayı serbest bırak
+window.addEventListener('beforeunload', function() {
+    if (reservedTeklifNo) {
+        // Synchronous request kullan (sayfa kapanırken async çalışmayabilir)
+        navigator.sendBeacon('/api/teklif/release_number', JSON.stringify({
+            teklif_no: reservedTeklifNo
+        }));
+    }
+});
+
 // Live filtering fonksiyonları
 function setupLiveFiltering() {
     let filterTimeout;
@@ -981,6 +1012,9 @@ function showYeniTeklifForm() {
 }
 
 function cancelTeklif() {
+    // Rezerve edilmiş teklif numarasını serbest bırak
+    releaseReservedTeklifNo();
+    
     document.getElementById('yeniTeklifForm').style.display = 'none';
     document.getElementById('teklifListesi').style.display = 'block';
     
@@ -993,7 +1027,36 @@ function cancelTeklif() {
     document.querySelector('#yeniTeklifForm h4').innerHTML = '<i class="fas fa-plus me-2"></i>Yeni Teklif';
 }
 
+// Rezerve edilmiş teklif numarası
+let reservedTeklifNo = null;
+
 function getNextTeklifNo() {
+    // Basit sistem - rezervasyon yok, sadece numara al
+    getNextTeklifNoOld();
+}
+
+function reserveTeklifNo() {
+    fetch('/api/teklif/reserve_number')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                reservedTeklifNo = data.reserved_number;
+                document.getElementById('teklifNo').value = reservedTeklifNo;
+                console.log('Teklif numarası rezerve edildi:', reservedTeklifNo);
+            } else {
+                console.error('Teklif numarası rezerve edilemedi:', data.message);
+                // Fallback olarak eski sistemi dene
+                getNextTeklifNoOld();
+            }
+        })
+        .catch(error => {
+            console.error('Rezervasyon hatası:', error);
+            // Fallback olarak eski sistemi dene
+            getNextTeklifNoOld();
+        });
+}
+
+function getNextTeklifNoOld() {
     fetch('/api/teklif/next_number')
         .then(response => response.json())
         .then(data => {
@@ -1006,6 +1069,34 @@ function getNextTeklifNo() {
         .catch(error => {
             console.error('Hata:', error);
         });
+}
+
+function releaseReservedTeklifNo() {
+    if (reservedTeklifNo) {
+        fetch('/api/teklif/release_number', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                teklif_no: reservedTeklifNo
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Rezerve teklif numarası serbest bırakıldı:', reservedTeklifNo);
+            } else {
+                console.error('Teklif numarası serbest bırakılamadı:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Serbest bırakma hatası:', error);
+        })
+        .finally(() => {
+            reservedTeklifNo = null;
+        });
+    }
 }
 
 function saveAsama1() {
@@ -1153,8 +1244,8 @@ function secilenParametreleriEkle() {
                     parametre: parametreAdi,
                     metot: metot,
                     birimFiyat: birimFiyat,
-                    adet: 0,
-                    topFiyat: 0
+                    adet: 1,
+                    topFiyat: birimFiyat
                 });
             }
         });
@@ -1199,18 +1290,18 @@ function createSecilenParametrelerTablosu() {
             <td class="text-center">${index + 1}</td>
             <td>${parametre.parametre}</td>
             <td>${parametre.metot}</td>
-            <td>
-                <input type="number" class="form-control form-control-sm birim-fiyat" 
-                       value="${parametre.birimFiyat}" step="0.01" min="0"
-                       onchange="birimFiyatDegisti(this, '${parametre.parametre}')">
+            <td class="text-end">
+                <input type="number" class="form-control form-control-sm" 
+                       value="${parametre.birimFiyat || 0}" step="0.01" min="0"
+                       onchange="birimFiyatDegisti(this, ${index})">
             </td>
-            <td>
-                <input type="number" class="form-control form-control-sm adet-input" 
-                       value="${parametre.adet || 0}" min="0" step="1"
-                       onchange="adetDegisti(this, '${parametre.parametre}')">
+            <td class="text-center">
+                <input type="number" class="form-control form-control-sm" 
+                       value="${parametre.adet || 1}" min="1" step="1"
+                       onchange="adetDegisti(this, ${index})">
             </td>
             <td class="text-end">
-                <span class="top-fiyat">${(parametre.topFiyat || 0).toFixed(2)}</span> TL
+                <span class="fw-bold text-success top-fiyat">${(parametre.topFiyat || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2})}</span> TL
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm" 
@@ -1229,6 +1320,36 @@ function createSecilenParametrelerTablosu() {
 function parametreyiKaldir(parametreAdi) {
     secilenParametreler = secilenParametreler.filter(p => p.parametre !== parametreAdi);
     createSecilenParametrelerTablosu();
+    updateOzet();
+}
+
+function adetDegisti(input, index) {
+    const adet = parseInt(input.value) || 1;
+    const birimFiyat = secilenParametreler[index].birimFiyat || 0;
+    
+    secilenParametreler[index].adet = adet;
+    secilenParametreler[index].topFiyat = birimFiyat * adet;
+    
+    // Toplam fiyatı güncelle
+    const row = input.closest('tr');
+    const topFiyatSpan = row.querySelector('.top-fiyat');
+    topFiyatSpan.textContent = (birimFiyat * adet).toLocaleString('tr-TR', {minimumFractionDigits: 2});
+    
+    updateOzet();
+}
+
+function birimFiyatDegisti(input, index) {
+    const yeniFiyat = parseFloat(input.value) || 0;
+    const adet = secilenParametreler[index].adet || 1;
+    
+    secilenParametreler[index].birimFiyat = yeniFiyat;
+    secilenParametreler[index].topFiyat = yeniFiyat * adet;
+    
+    // Toplam fiyatı güncelle
+    const row = input.closest('tr');
+    const topFiyatSpan = row.querySelector('.top-fiyat');
+    topFiyatSpan.textContent = (yeniFiyat * adet).toLocaleString('tr-TR', {minimumFractionDigits: 2});
+    
     updateOzet();
 }
 
@@ -1261,45 +1382,7 @@ function geriAsama1() {
     }
 }
 
-function birimFiyatDegisti(input, parametreAdi) {
-    const yeniFiyat = parseFloat(input.value) || 0;
-    
-    // Seçilen parametrelerde güncelle
-    const parametre = secilenParametreler.find(p => p.parametre === parametreAdi);
-    if (parametre) {
-        parametre.birimFiyat = yeniFiyat;
-        parametre.topFiyat = yeniFiyat * parametre.adet;
-    }
-    
-    // Tablodaki toplam fiyatı güncelle
-    const row = input.closest('tr');
-    const adetInput = row.querySelector('.adet-input');
-    const adet = parseInt(adetInput.value) || 0;
-    const topFiyatSpan = row.querySelector('.top-fiyat');
-    topFiyatSpan.textContent = (yeniFiyat * adet).toFixed(2);
-    
-    updateOzet();
-}
-
-function adetDegisti(input, parametreAdi) {
-    const adet = parseInt(input.value) || 0;
-    const row = input.closest('tr');
-    const birimFiyatInput = row.querySelector('.birim-fiyat');
-    const birimFiyat = parseFloat(birimFiyatInput.value) || 0;
-    const topFiyatSpan = row.querySelector('.top-fiyat');
-    
-    const topFiyat = birimFiyat * adet;
-    topFiyatSpan.textContent = topFiyat.toFixed(2);
-    
-    // Seçilen parametrelerde güncelle
-    const parametre = secilenParametreler.find(p => p.parametre === parametreAdi);
-    if (parametre) {
-        parametre.adet = adet;
-        parametre.topFiyat = topFiyat;
-    }
-    
-    updateOzet();
-}
+// Manuel fiyat değiştirme fonksiyonları kaldırıldı - artık otomatik hesaplama kullanılıyor
 
 function indirimUygula() {
     // İndirim oranını teklifVerileri'ne kaydet
@@ -1317,6 +1400,128 @@ function indirimUygula() {
         timer: 1500,
         showConfirmButton: false
     });
+}
+
+// Baca bilgilerini okuyup otomatik parametre seçimi yapan fonksiyon
+async function bacaBilgileriniOkuVeParametreSec() {
+    try {
+        // Firma adını al
+        const firmaAdi = document.getElementById('firmaAdi').value;
+        if (!firmaAdi) {
+            alert('Lütfen firma adını girin!');
+            return;
+        }
+        
+        // Baca bilgilerini API'den al
+        const response = await fetch(`/api/baca-bilgileri/${encodeURIComponent(firmaAdi)}`);
+        const data = await response.json();
+        
+        if (data.success && data.bacalar.length > 0) {
+            // Her baca için parametreleri topla
+            const tumParametreler = new Set();
+            
+            data.bacalar.forEach(baca => {
+                if (baca.parametreler && Array.isArray(baca.parametreler)) {
+                    baca.parametreler.forEach(parametre => {
+                        tumParametreler.add(parametre);
+                    });
+                }
+            });
+            
+            // Seçilen parametreleri checkbox'lara işaretle
+            const checkboxes = document.querySelectorAll('.parametre-secim-checkbox');
+            checkboxes.forEach(checkbox => {
+                if (tumParametreler.has(checkbox.value)) {
+                    checkbox.checked = true;
+                }
+            });
+            
+            // Başarı mesajı
+            Swal.fire({
+                icon: 'success',
+                title: 'Parametreler Otomatik Seçildi!',
+                text: `${tumParametreler.size} farklı parametre bulundu ve seçildi.`,
+                timer: 3000
+            });
+            
+        } else {
+            Swal.fire({
+                icon: 'info',
+                title: 'Bilgi',
+                text: 'Bu firma için baca bilgisi bulunamadı. Manuel parametre seçimi yapabilirsiniz.'
+            });
+        }
+        
+    } catch (error) {
+        console.error('Baca bilgileri okuma hatası:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Baca bilgileri okunurken bir hata oluştu.'
+        });
+    }
+}
+
+// Otomatik fiyat hesaplama fonksiyonu
+async function otomatikFiyatHesapla() {
+    try {
+        // Seçilen parametreleri hazırla
+        const secilenParametreler = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => ({
+            parametre: checkbox.value,
+            metot: checkbox.dataset.metot || '',
+            adet: 1 // Varsayılan olarak 1 adet
+        }));
+        
+        if (secilenParametreler.length === 0) {
+            alert('Lütfen en az bir parametre seçin!');
+            return;
+        }
+        
+        // API'ye gönder
+        const response = await fetch('/api/otomatik-fiyat-hesapla', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                parametreler: secilenParametreler
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Hesaplanan fiyatları secilenParametreler dizisine aktar
+            secilenParametreler.length = 0; // Diziyi temizle
+            secilenParametreler.push(...data.parametreler);
+            
+            // Tabloyu güncelle
+            createSecilenParametrelerTablosu();
+            updateOzet();
+            
+            // Başarı mesajı
+            Swal.fire({
+                icon: 'success',
+                title: 'Otomatik Fiyat Hesaplandı!',
+                text: data.message,
+                timer: 3000
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: data.message
+            });
+        }
+        
+    } catch (error) {
+        console.error('Otomatik fiyat hesaplama hatası:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Fiyat hesaplanırken bir hata oluştu.'
+        });
+    }
 }
 
 function updateOzet() {
@@ -3190,6 +3395,8 @@ function saveFinalTeklif() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Rezerve numarayı temizle (düzenleme modunda)
+                reservedTeklifNo = null;
                 Swal.fire({
                     icon: 'success',
                     title: 'Başarılı!',
@@ -3253,6 +3460,8 @@ function saveFinalTeklif() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Rezerve numarayı temizle (yeni teklif modunda)
+                reservedTeklifNo = null;
                 Swal.fire({
                     icon: 'success',
                     title: 'Başarılı!',
