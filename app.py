@@ -9224,8 +9224,15 @@ def create_word_teklif(teklif, firma):
         doc.add_paragraph()
         doc.add_paragraph()
         
-        # Teklif giriş metni (3. aşamadan gelen veri) - 1. sayfada
-        giris_metni = teklif.get('teklif_giris_metni', '')
+        # Teklif giriş metni (localStorage'dan gelen veri) - 1. sayfada
+        # localStorage_data'dan giriş metnini al
+        request_data = request.get_json() or {}
+        localStorage_data = request_data.get('localStorage', {})
+        giris_metni = localStorage_data.get('teklifGirisText', '')
+        
+        # Eğer localStorage'dan gelmediyse, teklif verisinden al
+        if not giris_metni:
+            giris_metni = teklif.get('teklif_giris_metni', '')
         
         # Eğer 3. aşamadan metin varsa onu kullan, yoksa varsayılan
         if not giris_metni or giris_metni.strip() == '':
@@ -9472,10 +9479,19 @@ Hafize Demet Fazli'''
         # 3. sayfa başlangıcında 1 satır boşluk
         doc.add_paragraph()
         
+        # Başlık ekleme - içerikte zaten var
+        
 
         
-        # Genel hükümler metni (3. aşamadan gelen veri) - İyileştirilmiş
-        genel_hukumler = teklif.get('genel_hukumler', '')
+        # Genel hükümler metni (localStorage'dan gelen veri) - İyileştirilmiş
+        # localStorage_data'dan genel hükümleri al
+        request_data = request.get_json() or {}
+        localStorage_data = request_data.get('localStorage', {})
+        genel_hukumler = localStorage_data.get('genelHukumlerText', '')
+        
+        # Eğer localStorage'dan gelmediyse, teklif verisinden al
+        if not genel_hukumler:
+            genel_hukumler = teklif.get('genel_hukumler', '')
         
         # HTML'den temiz metin çıkar - Akıllı temizleme (paragraf yapısını koru)
         def clean_html_to_text(html_content):
@@ -9539,158 +9555,410 @@ Hafize Demet Fazli'''
                 clean_text = re.sub(r'\s+', ' ', clean_text)
                 return clean_text.strip()
         
-        # Genel hükümleri ekle - Gelişmiş temizleme ve bold formatlama
-        print(f"DEBUG - Genel hükümler verisi: {genel_hukumler[:200]}...")
-        if genel_hukumler and genel_hukumler.strip():
-            # HTML içeriğini parse et ve bold formatlamayı koru
-            from bs4 import BeautifulSoup
-            import re
-            
-            try:
-                # Word field tag'lerini temizle - Daha agresif
-                clean_html = genel_hukumler
-                clean_html = re.sub(r'\[if\s+!supportLists\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'\[if\s+supportLists\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'\[if\s+!mso\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'\[if\s+mso\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'<!--\[if[^>]*>.*?<!\[endif\]-->', '', clean_html, flags=re.DOTALL)
-                clean_html = re.sub(r'<!--.*?-->', '', clean_html, flags=re.DOTALL)
-                clean_html = re.sub(r'style="[^"]*"', '', clean_html)
-                clean_html = re.sub(r'class="[^"]*"', '', clean_html)
-                clean_html = re.sub(r'lang="[^"]*"', '', clean_html)
+        # Genel hükümler - GENEL_HUKUM.docx dosyasından al
+        try:
+            # GENEL_HUKUM.docx dosyasını oku
+            genel_hukum_doc_path = 'static/images/GENEL_HUKUM.docx'
+            if os.path.exists(genel_hukum_doc_path):
+                print(f"DEBUG - GENEL_HUKUM.docx dosyası bulundu, içerik alınıyor...")
                 
-                soup = BeautifulSoup(clean_html, 'html.parser')
+                # Word belgesini aç ve içeriği al
+                from docx import Document as DocxDocument
+                genel_hukum_doc = DocxDocument(genel_hukum_doc_path)
                 
-                # <p> tag'lerini bul ve işle
-                for p_tag in soup.find_all('p'):
-                    text = p_tag.get_text().strip()
-                    if text and len(text) > 3:
-                        # Paragraf oluştur
+                # Tüm paragrafları al
+                for paragraph in genel_hukum_doc.paragraphs:
+                    if paragraph.text.strip():
                         p = doc.add_paragraph()
                         
-                        # Yuvarlak madde işareti ekle (Bold)
-                        bullet_run = p.add_run('• ')
-                        bullet_run.font.name = 'Times New Roman'
-                        bullet_run.font.size = Pt(11)
-                        bullet_run.font.bold = True
+                        # Paragraf metnini al
+                        paragraph_text = paragraph.text.strip()
                         
-                        # HTML içeriğini işle - Daha akıllı parsing
-                        def process_element(element):
-                            if element.name is None:  # Text node
-                                text = element.strip()
-                                if text:
-                                    # Özel karakterleri temizle
-                                    text = text.replace('&nbsp;', ' ')
-                                    text = text.replace('&amp;', '&')
-                                    text = text.replace('&lt;', '<')
-                                    text = text.replace('&gt;', '>')
-                                    text = text.replace('&quot;', '"')
-                                    text = text.replace('&apos;', "'")
-                                    text = re.sub(r'\s+', ' ', text)
-                                    
-                                    if text.strip():
-                                        run = p.add_run(text.strip() + ' ')
-                                        # Font ve stil ayarları - Normal metin
-                                        run.font.name = 'Times New Roman'
-                                        run.font.size = Pt(11)
-                                        run.font.bold = False
-                            elif element.name in ['strong', 'b']:  # Bold tag
-                                text = element.get_text().strip()
-                                if text:
-                                    # Özel karakterleri temizle
-                                    text = text.replace('&nbsp;', ' ')
-                                    text = text.replace('&amp;', '&')
-                                    text = text.replace('&lt;', '<')
-                                    text = text.replace('&gt;', '>')
-                                    text = text.replace('&quot;', '"')
-                                    text = text.replace('&apos;', "'")
-                                    text = re.sub(r'\s+', ' ', text)
-                                    
-                                    if text.strip():
-                                        run = p.add_run(text.strip() + ' ')
-                                        # Font ve stil ayarları - Bold metin
-                                        run.font.name = 'Times New Roman'
-                                        run.font.size = Pt(11)
-                                        run.font.bold = True
-                            else:
-                                # Diğer elementler için recursive işleme
-                                for child in element.children:
-                                    process_element(child)
-                        
-                        # Tüm elementleri işle
-                        for element in p_tag.children:
-                            process_element(element)
+                        # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                        if 'GENEL HÜKÜMLER' in paragraph_text and paragraph_text.startswith('1.'):
+                            # Başlık olarak ekle (madde işareti olmadan)
+                            title_run = p.add_run(paragraph_text)
+                            title_run.font.name = 'Times New Roman'
+                            title_run.font.size = Pt(11)
+                            title_run.font.bold = True
+                            title_run.font.color.rgb = RGBColor(0, 0, 0)
+                        else:
+                            # Normal madde olarak ekle
+                            # Yuvarlak madde işareti ekle (Bold)
+                            bullet_run = p.add_run('• ')
+                            bullet_run.font.name = 'Times New Roman'
+                            bullet_run.font.size = Pt(11)
+                            bullet_run.font.bold = True
+                            bullet_run.font.color.rgb = RGBColor(0, 0, 0)
+                            
+                            # Metin ekle
+                            text_run = p.add_run(paragraph_text)
+                            text_run.font.name = 'Times New Roman'
+                            text_run.font.size = Pt(11)
+                            text_run.font.bold = False
+                            text_run.font.color.rgb = RGBColor(0, 0, 0)
                         
                         # Paragraf formatını ayarla
-                        p.paragraph_format.space_after = Pt(6)  # Paragraf sonrası boşluk 1.5 satır
-                        p.paragraph_format.space_before = Pt(0)  # Paragraf öncesi boşluk sıfır
-                        p.paragraph_format.line_spacing = 1.5  # Satır aralığı 1.5
+                        p.paragraph_format.space_after = Pt(12)
+                        p.paragraph_format.space_before = Pt(0)
+                        p.paragraph_format.line_spacing = 1.15
+                        p.paragraph_format.first_line_indent = Inches(0)
+                        p.paragraph_format.left_indent = Inches(0)
+                        p.paragraph_format.right_indent = Inches(0)
                 
-                # Eğer <p> tag'i yoksa, fallback olarak basit temizleme yap
-                if not soup.find_all('p'):
-                    clean_text = re.sub(r'<[^>]+>', '', clean_html)
-                    clean_text = clean_text.replace('&nbsp;', ' ')
-                    clean_text = clean_text.replace('<br>', '\n')
-                    clean_text = clean_text.replace('<br/>', '\n')
-                    clean_text = clean_text.replace('<br />', '\n')
-                    
-                    # Satırları temizle ve paragraflara böl
-                    lines = [line.strip() for line in clean_text.split('\n') if line.strip()]
-                    if lines:
-                        for line in lines:
-                            if line:
+                print(f"DEBUG - GENEL_HUKUM.docx içeriği başarıyla eklendi")
+                
+            else:
+                print(f"DEBUG - GENEL_HUKUM.docx dosyası bulunamadı, localStorage'dan alınıyor...")
+                # Fallback: localStorage'dan al
+                localStorage_data = request_data.get('localStorage', {})
+                genel_hukumler = localStorage_data.get('genelHukumlerText', '')
+                
+                # Eğer localStorage'dan gelmediyse, teklif verisinden al
+                if not genel_hukumler:
+                    genel_hukumler = teklif.get('genel_hukumler', '')
+                
+                print(f"DEBUG - Genel hükümler verisi: {genel_hukumler[:200]}...")
+                
+                if genel_hukumler and genel_hukumler.strip():
+                    try:
+                        from bs4 import BeautifulSoup
+                        import re
+                        
+                        # HTML'i temizle ve parse et
+                        soup = BeautifulSoup(genel_hukumler, 'html.parser')
+                        
+                        # Önce <ul> ve <li> tag'lerini kontrol et
+                        ul_tags = soup.find_all('ul')
+                        
+                        if ul_tags:
+                            # <ul> tag'i varsa, <li> elementlerini işle
+                            for ul in ul_tags:
+                                li_tags = ul.find_all('li')
+                                for i, li_tag in enumerate(li_tags):
+                                    text = li_tag.get_text().strip()
+                                    if not text or len(text) < 3:
+                                        continue
+                                    
+                                    # Paragraf oluştur
+                                    p = doc.add_paragraph()
+                                    
+                                    # Yuvarlak madde işareti ekle (Bold)
+                                    bullet_run = p.add_run('• ')
+                                    bullet_run.font.name = 'Times New Roman'
+                                    bullet_run.font.size = Pt(11)
+                                    bullet_run.font.bold = True
+                                    bullet_run.font.color.rgb = RGBColor(0, 0, 0)
+                                    
+                                    # Metin ekle
+                                    text_run = p.add_run(text)
+                                    text_run.font.name = 'Times New Roman'
+                                    text_run.font.size = Pt(11)
+                                    text_run.font.bold = False
+                                    text_run.font.color.rgb = RGBColor(0, 0, 0)
+                                    
+                                    # Paragraf formatını ayarla
+                                    p.paragraph_format.space_after = Pt(12)
+                                    p.paragraph_format.space_before = Pt(0)
+                                    p.paragraph_format.line_spacing = 1.15
+                                    p.paragraph_format.first_line_indent = Inches(0)
+                                    p.paragraph_format.left_indent = Inches(0)
+                                    p.paragraph_format.right_indent = Inches(0)
+                            
+                            # <strong> tag'lerini de kontrol et (başlık için)
+                            strong_tags = soup.find_all('strong')
+                            for strong_tag in strong_tags:
+                                text = strong_tag.get_text().strip()
+                                if 'GENEL HÜKÜMLER' in text:
+                                    # Başlık olarak ekle (madde işareti olmadan)
+                                    p = doc.add_paragraph()
+                                    title_run = p.add_run(text)
+                                    title_run.font.name = 'Times New Roman'
+                                    title_run.font.size = Pt(11)
+                                    title_run.font.bold = True
+                                    title_run.font.color.rgb = RGBColor(0, 0, 0)
+                                    
+                                    # Paragraf formatını ayarla
+                                    p.paragraph_format.space_after = Pt(12)
+                                    p.paragraph_format.space_before = Pt(0)
+                                    p.paragraph_format.line_spacing = 1.15
+                                    p.paragraph_format.first_line_indent = Inches(0)
+                                    p.paragraph_format.left_indent = Inches(0)
+                                    p.paragraph_format.right_indent = Inches(0)
+                                    break
+                        
+                        # Tüm <p> tag'lerini bul
+                        paragraphs = soup.find_all('p')
+                        
+                        if paragraphs:
+                            # Her paragrafı işle
+                            for i, p_tag in enumerate(paragraphs):
+                                text = p_tag.get_text().strip()
+                                if not text or len(text) < 3:
+                                    continue
+                                
+                                # Paragraf oluştur
                                 p = doc.add_paragraph()
                                 
+                                # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                                if i == 0 and 'GENEL HÜKÜMLER' in text:
+                                    # Başlık olarak ekle (madde işareti olmadan)
+                                    title_run = p.add_run(text)
+                                    title_run.font.name = 'Times New Roman'
+                                    title_run.font.size = Pt(11)
+                                    title_run.font.bold = True
+                                    title_run.font.color.rgb = RGBColor(0, 0, 0)
+                                else:
+                                    # Normal madde olarak ekle
+                                    # Yuvarlak madde işareti ekle (Bold)
+                                    bullet_run = p.add_run('• ')
+                                    bullet_run.font.name = 'Times New Roman'
+                                    bullet_run.font.size = Pt(11)
+                                    bullet_run.font.bold = True
+                                    bullet_run.font.color.rgb = RGBColor(0, 0, 0)
+                                    
+                                    # Metin ekle
+                                    text_run = p.add_run(text)
+                                    text_run.font.name = 'Times New Roman'
+                                    text_run.font.size = Pt(11)
+                                    text_run.font.bold = False
+                                    text_run.font.color.rgb = RGBColor(0, 0, 0)
+                                
+                                # Paragraf formatını ayarla
+                                p.paragraph_format.space_after = Pt(12)
+                                p.paragraph_format.space_before = Pt(0)
+                                p.paragraph_format.line_spacing = 1.15
+                                p.paragraph_format.first_line_indent = Inches(0)
+                                p.paragraph_format.left_indent = Inches(0)
+                                p.paragraph_format.right_indent = Inches(0)
+                        
+                        else:
+                            # <p> tag'i yoksa, düz metni satırlara böl
+                            clean_text = soup.get_text()
+                            lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
+                            
+                            for i, line in enumerate(lines):
+                                p = doc.add_paragraph()
+                                
+                                # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                                if i == 0 and 'GENEL HÜKÜMLER' in line:
+                                    # Başlık olarak ekle (madde işareti olmadan)
+                                    title_run = p.add_run(line)
+                                    title_run.font.name = 'Times New Roman'
+                                    title_run.font.size = Pt(11)
+                                    title_run.font.bold = True
+                                    title_run.font.color.rgb = RGBColor(0, 0, 0)
+                                else:
+                                    # Normal madde olarak ekle
+                                    # Yuvarlak madde işareti ekle (Bold)
+                                    bullet_run = p.add_run('• ')
+                                    bullet_run.font.name = 'Times New Roman'
+                                    bullet_run.font.size = Pt(11)
+                                    bullet_run.font.bold = True
+                                    bullet_run.font.color.rgb = RGBColor(0, 0, 0)
+                                    
+                                    # Metin ekle
+                                    text_run = p.add_run(line)
+                                    text_run.font.name = 'Times New Roman'
+                                    text_run.font.size = Pt(11)
+                                    text_run.font.bold = False
+                                    text_run.font.color.rgb = RGBColor(0, 0, 0)
+                                
+                                # Paragraf formatını ayarla
+                                p.paragraph_format.space_after = Pt(12)
+                                p.paragraph_format.space_before = Pt(0)
+                                p.paragraph_format.line_spacing = 1.15
+                                p.paragraph_format.first_line_indent = Inches(0)
+                                p.paragraph_format.left_indent = Inches(0)
+                                p.paragraph_format.right_indent = Inches(0)
+                        
+                    except Exception as e:
+                        print(f"localStorage genel hükümler formatlaması hatası: {e}")
+                        # Fallback: Basit madde işaretli liste
+                        clean_text = re.sub(r'<[^>]+>', '', genel_hukumler)
+                        lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
+                        
+                        for i, line in enumerate(lines):
+                            p = doc.add_paragraph()
+                            
+                            # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                            if i == 0 and 'GENEL HÜKÜMLER' in line:
+                                # Başlık olarak ekle (madde işareti olmadan)
+                                title_run = p.add_run(line)
+                                title_run.font.name = 'Times New Roman'
+                                title_run.font.size = Pt(11)
+                                title_run.font.bold = True
+                                title_run.font.color.rgb = RGBColor(0, 0, 0)
+                            else:
+                                # Normal madde olarak ekle
                                 # Yuvarlak madde işareti ekle (Bold)
                                 bullet_run = p.add_run('• ')
                                 bullet_run.font.name = 'Times New Roman'
                                 bullet_run.font.size = Pt(11)
                                 bullet_run.font.bold = True
+                                bullet_run.font.color.rgb = RGBColor(0, 0, 0)
                                 
                                 # Metin ekle
                                 text_run = p.add_run(line)
                                 text_run.font.name = 'Times New Roman'
                                 text_run.font.size = Pt(11)
                                 text_run.font.bold = False
-                                
-                                p.paragraph_format.space_after = Pt(6)
-                                p.paragraph_format.space_before = Pt(0)
-                                p.paragraph_format.line_spacing = 1.5
-                                
-            except Exception as e:
-                print(f"Genel hükümler formatlaması hatası: {e}")
-                # Fallback: Basit temizleme
-                clean_text = re.sub(r'<[^>]+>', '', genel_hukumler)
-                clean_text = re.sub(r'\[if\s+!supportLists\][\s\S]*?\[endif\]', '', clean_text)
-                clean_text = re.sub(r'\[if\s+supportLists\][\s\S]*?\[endif\]', '', clean_text)
-                clean_text = re.sub(r'<!--\[if[^>]*>.*?<!\[endif\]-->', '', clean_text, flags=re.DOTALL)
-                clean_text = re.sub(r'<!--.*?-->', '', clean_text, flags=re.DOTALL)
-                clean_text = clean_text.replace('&nbsp;', ' ')
-                clean_text = clean_text.replace('<br>', '\n')
-                clean_text = clean_text.replace('<br/>', '\n')
-                clean_text = clean_text.replace('<br />', '\n')
-                
-                lines = [line.strip() for line in clean_text.split('\n') if line.strip()]
-                if lines:
-                    for line in lines:
-                        if line:
+                                text_run.font.color.rgb = RGBColor(0, 0, 0)
+                            
+                            # Paragraf formatını ayarla
+                            p.paragraph_format.space_after = Pt(12)
+                            p.paragraph_format.space_before = Pt(0)
+                            p.paragraph_format.line_spacing = 1.15
+                            p.paragraph_format.first_line_indent = Inches(0)
+                            p.paragraph_format.left_indent = Inches(0)
+                            p.paragraph_format.right_indent = Inches(0)
+                    
+        except Exception as e:
+            print(f"GENEL_HUKUM.docx okuma hatası: {e}")
+            # Fallback: localStorage'dan al
+            localStorage_data = request_data.get('localStorage', {})
+            genel_hukumler = localStorage_data.get('genelHukumlerText', '')
+            
+            # Eğer localStorage'dan gelmediyse, teklif verisinden al
+            if not genel_hukumler:
+                genel_hukumler = teklif.get('genel_hukumler', '')
+            
+            print(f"DEBUG - Genel hükümler verisi: {genel_hukumler[:200]}...")
+            
+            if genel_hukumler and genel_hukumler.strip():
+                try:
+                    from bs4 import BeautifulSoup
+                    import re
+                    
+                    # HTML'i temizle ve parse et
+                    soup = BeautifulSoup(genel_hukumler, 'html.parser')
+                    
+                    # Tüm <p> tag'lerini bul
+                    paragraphs = soup.find_all('p')
+                    
+                    if paragraphs:
+                        # Her paragrafı işle
+                        for i, p_tag in enumerate(paragraphs):
+                            text = p_tag.get_text().strip()
+                            if not text or len(text) < 3:
+                                continue
+                            
+                            # Paragraf oluştur
                             p = doc.add_paragraph()
                             
+                            # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                            if i == 0 and 'GENEL HÜKÜMLER' in text:
+                                # Başlık olarak ekle (madde işareti olmadan)
+                                title_run = p.add_run(text)
+                                title_run.font.name = 'Times New Roman'
+                                title_run.font.size = Pt(11)
+                                title_run.font.bold = True
+                                title_run.font.color.rgb = RGBColor(0, 0, 0)
+                            else:
+                                # Normal madde olarak ekle
+                                # Yuvarlak madde işareti ekle (Bold)
+                                bullet_run = p.add_run('• ')
+                                bullet_run.font.name = 'Times New Roman'
+                                bullet_run.font.size = Pt(11)
+                                bullet_run.font.bold = True
+                                bullet_run.font.color.rgb = RGBColor(0, 0, 0)
+                                
+                                # Metin ekle
+                                text_run = p.add_run(text)
+                                text_run.font.name = 'Times New Roman'
+                                text_run.font.size = Pt(11)
+                                text_run.font.bold = False
+                                text_run.font.color.rgb = RGBColor(0, 0, 0)
+                            
+                            # Paragraf formatını ayarla
+                            p.paragraph_format.space_after = Pt(12)
+                            p.paragraph_format.space_before = Pt(0)
+                            p.paragraph_format.line_spacing = 1.15
+                            p.paragraph_format.first_line_indent = Inches(0)
+                            p.paragraph_format.left_indent = Inches(0)
+                            p.paragraph_format.right_indent = Inches(0)
+                    
+                    else:
+                        # <p> tag'i yoksa, düz metni satırlara böl
+                        clean_text = soup.get_text()
+                        lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
+                        
+                        for i, line in enumerate(lines):
+                            p = doc.add_paragraph()
+                            
+                            # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                            if i == 0 and 'GENEL HÜKÜMLER' in line:
+                                # Başlık olarak ekle (madde işareti olmadan)
+                                title_run = p.add_run(line)
+                                title_run.font.name = 'Times New Roman'
+                                title_run.font.size = Pt(11)
+                                title_run.font.bold = True
+                                title_run.font.color.rgb = RGBColor(0, 0, 0)
+                            else:
+                                # Normal madde olarak ekle
+                                # Yuvarlak madde işareti ekle (Bold)
+                                bullet_run = p.add_run('• ')
+                                bullet_run.font.name = 'Times New Roman'
+                                bullet_run.font.size = Pt(11)
+                                bullet_run.font.bold = True
+                                bullet_run.font.color.rgb = RGBColor(0, 0, 0)
+                                
+                                # Metin ekle
+                                text_run = p.add_run(line)
+                                text_run.font.name = 'Times New Roman'
+                                text_run.font.size = Pt(11)
+                                text_run.font.bold = False
+                                text_run.font.color.rgb = RGBColor(0, 0, 0)
+                            
+                            # Paragraf formatını ayarla
+                            p.paragraph_format.space_after = Pt(12)
+                            p.paragraph_format.space_before = Pt(0)
+                            p.paragraph_format.line_spacing = 1.15
+                            p.paragraph_format.first_line_indent = Inches(0)
+                            p.paragraph_format.left_indent = Inches(0)
+                            p.paragraph_format.right_indent = Inches(0)
+                            
+                except Exception as e:
+                    print(f"Genel hükümler formatlaması hatası: {e}")
+                    # Fallback: Basit madde işaretli liste
+                    clean_text = re.sub(r'<[^>]+>', '', genel_hukumler)
+                    lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
+                    
+                    for i, line in enumerate(lines):
+                        p = doc.add_paragraph()
+                        
+                        # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                        if i == 0 and 'GENEL HÜKÜMLER' in line:
+                            # Başlık olarak ekle (madde işareti olmadan)
+                            title_run = p.add_run(line)
+                            title_run.font.name = 'Times New Roman'
+                            title_run.font.size = Pt(11)
+                            title_run.font.bold = True
+                            title_run.font.color.rgb = RGBColor(0, 0, 0)
+                        else:
+                            # Normal madde olarak ekle
                             # Yuvarlak madde işareti ekle (Bold)
                             bullet_run = p.add_run('• ')
                             bullet_run.font.name = 'Times New Roman'
                             bullet_run.font.size = Pt(11)
                             bullet_run.font.bold = True
+                            bullet_run.font.color.rgb = RGBColor(0, 0, 0)
                             
                             # Metin ekle
                             text_run = p.add_run(line)
                             text_run.font.name = 'Times New Roman'
                             text_run.font.size = Pt(11)
                             text_run.font.bold = False
-                            
-                            p.paragraph_format.space_after = Pt(6)
-                            p.paragraph_format.space_before = Pt(0)
-                            p.paragraph_format.line_spacing = 1.5
+                            text_run.font.color.rgb = RGBColor(0, 0, 0)
+                        
+                        # Paragraf formatını ayarla
+                        p.paragraph_format.space_after = Pt(12)
+                        p.paragraph_format.space_before = Pt(0)
+                        p.paragraph_format.line_spacing = 1.15
+                        p.paragraph_format.first_line_indent = Inches(0)
+                        p.paragraph_format.left_indent = Inches(0)
+                        p.paragraph_format.right_indent = Inches(0)
+        
         
         # Geçici dosya oluştur ve kaydet
         temp_file_path = None
@@ -10637,6 +10905,7 @@ def api_admin_restore():
 
 def cleanup_old_backups():
     """7 günden eski yedekleri temizler"""
+    import shutil
     backup_dir = 'backups'
     if not os.path.exists(backup_dir):
         return
@@ -10704,6 +10973,51 @@ def api_admin_backup_download():
         
     except Exception as e:
         return jsonify({'success': False, 'error': f'Yedekleme hatası: {str(e)}'}), 500
+
+@app.route('/api/forms/genel-hukum-docx', methods=['GET'])
+def api_forms_genel_hukum_docx():
+    """GENEL_HUKUM.docx dosyasının içeriğini okuyup HTML formatında döndürür"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Oturum açmanız gerekiyor'}), 401
+    
+    try:
+        # GENEL_HUKUM.docx dosyasını oku
+        genel_hukum_doc_path = 'static/images/GENEL_HUKUM.docx'
+        if not os.path.exists(genel_hukum_doc_path):
+            return jsonify({'success': False, 'error': 'GENEL_HUKUM.docx dosyası bulunamadı'}), 404
+        
+        from docx import Document as DocxDocument
+        
+        # Word belgesini aç ve içeriği al
+        genel_hukum_doc = DocxDocument(genel_hukum_doc_path)
+        
+        # HTML içeriği oluştur
+        html_content = ""
+        
+        for paragraph in genel_hukum_doc.paragraphs:
+            if paragraph.text.strip():
+                paragraph_text = paragraph.text.strip()
+                
+                # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
+                if 'GENEL HÜKÜMLER' in paragraph_text and paragraph_text.startswith('1.'):
+                    html_content += f'<strong>{paragraph_text}</strong>\n'
+                else:
+                    # Normal madde olarak ekle
+                    html_content += f'<li><strong>{paragraph_text}</strong></li>\n'
+        
+        # HTML'i <ul> tag'i ile sar
+        if html_content:
+            html_content = f'<ul>\n{html_content}</ul>'
+        
+        return jsonify({
+            'success': True,
+            'content': html_content,
+            'message': 'GENEL_HUKUM.docx içeriği başarıyla okundu'
+        })
+        
+    except Exception as e:
+        print(f"GENEL_HUKUM.docx okuma hatası: {e}")
+        return jsonify({'success': False, 'error': f'Dosya okuma hatası: {str(e)}'}), 500
 
 @app.route('/api/admin/restore-upload', methods=['POST'])
 def api_admin_restore_upload():

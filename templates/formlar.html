@@ -1731,9 +1731,13 @@
                                                 </div>
                                                 <div class="form-control rich-text-editor" id="genelHukumlerText" contenteditable="true" style="min-height: 400px; max-height: 600px; overflow-y: auto;" placeholder="Genel hükümler metnini buraya yapıştırın..."></div>
                                                 <div class="mt-3">
-                                                    <button type="button" class="btn btn-primary" onclick="maddeleriGuncelle()">
-                                                        <i class="fas fa-save me-1"></i>
+                                                    <button type="button" class="btn btn-primary me-2" onclick="maddeleriGuncelle()">
+                                                        <i class="fas fa-sync me-1"></i>
                                                         Maddeleri Güncelle
+                                                    </button>
+                                                    <button type="button" class="btn btn-success" onclick="maddeleriKaydet()">
+                                                        <i class="fas fa-save me-1"></i>
+                                                        Kaydet
                                                     </button>
                                                 </div>
                                             </div>
@@ -3837,14 +3841,76 @@ function maddeleriGuncelle() {
         return;
     }
     
-    const hukumlerIcerigi = genelHukumlerElement.innerHTML;
-    
-    if (!hukumlerIcerigi || hukumlerIcerigi.trim() === '' || hukumlerIcerigi.trim() === '<div><br></div>') {
-        alert('Güncellenecek içerik bulunamadı! Lütfen genel hükümler metnini yazın.');
+    // GENEL_HUKUM.docx dosyasından içeriği çek
+    fetch('/api/forms/genel-hukum-docx')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // GENEL_HUKUM.docx içeriğini editöre yükle
+                genelHukumlerElement.innerHTML = data.content;
+                
+                // localStorage'a kaydet
+                localStorage.setItem('genelHukumlerText', data.content);
+                
+                // Başarı mesajı
+                const button = event.target;
+                const originalText = button.innerHTML;
+                const originalClass = button.className;
+                
+                button.innerHTML = '<i class="fas fa-check me-1"></i>GENEL_HUKUM.docx\'den Yüklendi!';
+                button.className = 'btn btn-success';
+                
+                // 3 saniye sonra orijinal haline döndür
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.className = originalClass;
+                }, 3000);
+                
+                // Bilgi mesajı göster
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
+                infoDiv.innerHTML = `
+                    <strong>Başarılı!</strong> GENEL_HUKUM.docx dosyasından içerik yüklendi ve localStorage'a kaydedildi. 
+                    Artık teklif sayfasında Word çıktısında bu güncel içerik görünecek.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                // Butonu içeren div'in altına ekle
+                button.parentElement.appendChild(infoDiv);
+                
+                // 5 saniye sonra mesajı kaldır
+                setTimeout(() => {
+                    if (infoDiv.parentElement) {
+                        infoDiv.remove();
+                    }
+                }, 5000);
+                
+                console.log('GENEL_HUKUM.docx içeriği başarıyla yüklendi');
+            } else {
+                alert('Hata: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('GENEL_HUKUM.docx dosyası okunurken hata oluştu!');
+        });
+}
+
+function maddeleriKaydet() {
+    const genelHukumlerElement = document.getElementById('genelHukumlerText');
+    if (!genelHukumlerElement) {
+        alert('Genel hükümler alanı bulunamadı!');
         return;
     }
     
-    // localStorage'a kaydet (hem otomatik kayıt hem de manuel güncelleme için)
+    const hukumlerIcerigi = genelHukumlerElement.innerHTML;
+    
+    if (!hukumlerIcerigi || hukumlerIcerigi.trim() === '' || hukumlerIcerigi.trim() === '<div><br></div>') {
+        alert('Kaydedilecek içerik bulunamadı! Lütfen genel hükümler metnini yazın.');
+        return;
+    }
+    
+    // localStorage'a kaydet
     localStorage.setItem('genelHukumlerText', hukumlerIcerigi);
     
     // Başarı mesajı
@@ -3868,7 +3934,7 @@ function maddeleriGuncelle() {
     infoDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
     infoDiv.innerHTML = `
         <strong>Başarılı!</strong> Genel hükümler metni kaydedildi. 
-        Artık teklif sayfasında "Varsayılan Hükümleri Yükle" butonuna bastığınızda bu metin gelecek.
+        Artık teklif sayfasında Word çıktısında bu içerik görünecek.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     
@@ -3911,7 +3977,7 @@ function loadSavedContent() {
 <p>• Teklifimiz 30 gün geçerlidir.</p>`;
     
     // Varsayılan genel hükümler metni
-    const defaultGenelHukumler = `<strong>GENEL HÜKÜMLER</strong>
+    const defaultGenelHukumler = `<strong>1. GENEL HÜKÜMLER</strong>
 <ul>
     <li><strong>Fiyatlara KDV dahil değildir.</strong></li>
     <li><strong>Teklifimizin geçerlilik süresi 30 gündür.</strong></li>
