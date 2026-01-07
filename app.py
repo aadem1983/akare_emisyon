@@ -50,11 +50,10 @@ def load_docx():
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
         DOCX_AVAILABLE = True
-        print(f"DEBUG: load_docx başarılı, DOCX_AVAILABLE = {DOCX_AVAILABLE}")
         return Document, Inches, Pt, RGBColor, WD_ALIGN_PARAGRAPH, WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
     except ImportError as e:
         DOCX_AVAILABLE = False
-        print(f"DEBUG: load_docx hatası: {e}")
+        print(f"HATA: python-docx kütüphanesi yüklü değil: {e}")
         return None, None, None, None, None, None, None
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -559,7 +558,6 @@ def reserve_teklif_no():
                 # Bu numarayı rezerve et (kullanılmış olarak işaretle)
                 all_used_numbers.add(new_teklif_no)
                 save_used_teklif_numbers(all_used_numbers)
-                print(f"Teklif numarası rezerve edildi: {new_teklif_no}")
                 return new_teklif_no
             number += 1
             
@@ -582,10 +580,8 @@ def release_teklif_no(teklif_no):
         if teklif_no in used_numbers:
             used_numbers.remove(teklif_no)
             save_used_teklif_numbers(used_numbers)
-            print(f"Teklif numarası serbest bırakıldı: {teklif_no}")
             return True
         else:
-            print(f"Teklif numarası zaten serbest: {teklif_no}")
             return False
             
     except Exception as e:
@@ -606,10 +602,9 @@ def migrate_existing_teklif_numbers():
         
         # Kaydet
         save_used_teklif_numbers(used_numbers)
-        print(f"Migration tamamlandı: {len(used_numbers)} teklif numarası kaydedildi")
         
     except Exception as e:
-        print(f"Migration hatası: {e}")
+        return
 
 def convert_teklif_numbers_to_new_format():
     """Eski teklif numaralarını (TE26-001) yeni formata (2026/TE-001) dönüştürür"""
@@ -640,7 +635,6 @@ def convert_teklif_numbers_to_new_format():
                             new_number = f"{full_year}/TE-{number.zfill(3)}"
                             teklif['teklif_no'] = new_number
                             updated_count += 1
-                            print(f"Teklif numarası güncellendi: {teklif_no} -> {new_number}")
         
         if updated_count > 0:
             # Güncellenmiş teklifleri kaydet
@@ -674,9 +668,6 @@ def convert_teklif_numbers_to_new_format():
                     new_used_numbers.add(num)
             
             save_used_teklif_numbers(new_used_numbers)
-            print(f"Teklif numarası formatı dönüştürüldü: {updated_count} teklif güncellendi")
-        else:
-            print("Dönüştürülecek teklif numarası bulunamadı")
             
     except Exception as e:
         print(f"Teklif numarası dönüştürme hatası: {e}")
@@ -1614,15 +1605,10 @@ def add_measurement():
         return redirect(url_for('login'))
     
     if request.method == 'POST':
-        print("=== ÖLÇÜM EKLEME DEBUG ===")
-        print("Form verileri:", dict(request.form))
         
         # Çoklu personel seçimini al ve virgülle birleştir
         selected_personnel = request.form.getlist('olcumPersoneli')
-        print("Seçilen personeller (getlist):", selected_personnel)
-        
         personnel_str = ', '.join(selected_personnel) if selected_personnel else ''
-        print("Personel string:", personnel_str)
         
         new_measurement = {
             'id': str(uuid4()),
@@ -2589,7 +2575,6 @@ def delete_teklif():
             used_numbers = load_used_teklif_numbers()
             used_numbers.add(silinen_teklif['teklif_no'])
             save_used_teklif_numbers(used_numbers)
-            print(f"Silinen teklif numarası kalıcı olarak kaydedildi: {silinen_teklif['teklif_no']}")
         
         # Teklifi listeden kaldır
         teklifler = [t for t in teklifler if t.get('id') != teklif_id]
@@ -2692,16 +2677,13 @@ def get_parametre_fiyati(parametre_adi, yil):
     }
     
     eslestirilen_parametre = parametre_eslestirme.get(parametre_adi, parametre_adi)
-    print(f"DEBUG: Parametre '{parametre_adi}' -> '{eslestirilen_parametre}' için {yil} yılı fiyatı aranıyor")
     
     for fiyat_kaydi in asgari_fiyatlar:
         if fiyat_kaydi['parametre'] == eslestirilen_parametre:
             yillik_fiyatlar = fiyat_kaydi.get('yillik', {})
             fiyat = yillik_fiyatlar.get(str(yil), 0)
-            print(f"DEBUG: Bulundu! {eslestirilen_parametre} -> {yil}: {fiyat} TL")
             return fiyat
     
-    print(f"DEBUG: Parametre '{eslestirilen_parametre}' bulunamadı!")
     return 0
 
 @app.route('/api/parametre-fiyatlari', methods=['GET'])
@@ -3401,24 +3383,19 @@ def delete_selected_firma_olcum():
     
     try:
         data = request.get_json()
-        print(f"Gelen veri: {data}")  # Debug için log
         ids = data.get('ids', []) if data else []
-        print(f"Silinecek ID'ler: {ids}")  # Debug için log
         
         if not ids:
             return jsonify({'success': False, 'error': 'Silinecek kayıt seçilmedi'}), 400
         
         firma_olcumler = load_firma_olcum()
         original_count = len(firma_olcumler)
-        print(f"Orijinal kayıt sayısı: {original_count}")  # Debug için log
         
         # Seçilen kayıtları sil
         firma_olcumler = [o for o in firma_olcumler if o['id'] not in ids]
-        print(f"Silme sonrası kayıt sayısı: {len(firma_olcumler)}")  # Debug için log
         
         if save_firma_olcum(firma_olcumler):
             deleted_count = original_count - len(firma_olcumler)
-            print(f"Silinen kayıt sayısı: {deleted_count}")  # Debug için log
             return jsonify({'success': True, 'message': f'{deleted_count} kayıt başarıyla silindi'})
         else:
             return jsonify({'success': False, 'error': 'Kayıtlar silinirken hata oluştu'}), 500
@@ -9424,14 +9401,12 @@ def api_parametre_olcumleri_pdf_export():
 @app.route('/api/teklif/yazdir/<teklif_id>', methods=['POST'])
 def yazdir_teklif(teklif_id):
     """Teklifi Word formatında yazdırır"""
-    print(f"\n{'='*60}\n🚀 YAZDIR_TEKLIF ÇAĞRILDI - ID: {teklif_id}\n{'='*60}")
     if not session.get('logged_in'):
         return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
     
     try:
         data = request.get_json()
         format_type = data.get('format', 'word')  # word veya pdf
-        print(f"📝 Format: {format_type}")
         
         # Teklif verilerini yükle
         teklifler = load_teklif()
