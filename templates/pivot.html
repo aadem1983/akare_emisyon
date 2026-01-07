@@ -178,22 +178,18 @@
       head.innerHTML = '<th class="text-start">METRİK</th>' + adetHeaders + tlHeaders;
       
       const rows = [];
-      function row(title, getter, fmt){
-        // Adet sütunları (sayısal değerler)
+      function row2(title, adetGetter, tlGetter){
         const adetCols = years.map(y=>{
-          const v = getter(data.data[y]||{});
+          const v = adetGetter ? adetGetter(data.data[y]||{}) : '-';
           return `<td class="text-end adet-column">${v ?? '-'}</td>`;
         }).join('');
-        
-        // TL sütunları (formatlı para birimi)
         const tlCols = years.map(y=>{
-          const v = getter(data.data[y]||{});
+          const v = tlGetter ? tlGetter(data.data[y]||{}) : '-';
           if (v === null || v === undefined || v === '-') {
             return `<td class="text-end tl-column">-</td>`;
           }
           return `<td class="text-end tl-column">${Number(v).toFixed(2)}</td>`;
         }).join('');
-        
         rows.push(`<tr><td>${title}</td>${adetCols}${tlCols}</tr>`);
       }
       
@@ -286,230 +282,224 @@
       kapsamDisiTeklifRow();
       isBirligiTeklifRow();
       
-      
       // PARAMETRE
-      rows.push('<tr class="table-light"><td colspan="'+(years.length*2+1)+'"><strong>PARAMETRE</strong></td></tr>');
-      
-      // TOP. BACA SAYISI - özel fonksiyon (TL sütununda kabul olan tekliflerin toplam tutarı)
-      function topBacaSayisiRow() {
+    rows.push('<tr class="table-light"><td colspan="'+(years.length*2+1)+'"><strong>PARAMETRE</strong></td></tr>');
+    
+    // TOP. BACA SAYISI - TL sütununu 0 bırak
+    row2('TOP. BACA SAYISI', d=>d.summary?.toplam_baca_adedi, _=>0);
+    row2('TOP. PARAMETRE SAYISI', d=>d.summary?.toplam_parametre_adedi, d=>d.summary?.toplam_parametre_tutari || 0);
+    
+    // Dinamik parametre sayıları - kabul olan tekliflerden hesapla
+    const all_params = new Set();
+    years.forEach(year => {
+      const yearData = data.data[year];
+      if (yearData && yearData.summary && yearData.summary.parametre_sayilari) {
+        Object.keys(yearData.summary.parametre_sayilari).forEach(param => {
+          all_params.add(param);
+        });
+      }
+    });
+    
+    // Parametreleri sayıya göre azalan sıraya koy ve göster
+    const sorted_params = Array.from(all_params).sort((a, b) => {
+      // İlk yıldaki sayılara göre sırala
+      const year1Data = data.data[years[0]];
+      const countA = year1Data?.summary?.parametre_sayilari?.[a] || 0;
+      const countB = year1Data?.summary?.parametre_sayilari?.[b] || 0;
+      return countB - countA; // Azalan sıralama
+    });
+    
+    // Yerel fallback asgari fiyat tablosu (örnek: 2025). API başarısız olursa kullanılır.
+    const asgariFiyatlarFallback = {
+      'TOZ': 6655,
+      'YG': 3855,
+      'YANMA GAZI': 3855,
+      'AMET': 19000,
+      'AĞIR METAL': 19000,
+      'SÜLF.A': 6290,
+      'SÜLFÜRİK ASİT': 6290,
+      'VOC': 13170,
+      'TOC': 13170,
+      'HIZ': 1430,
+      'NEM': 1430,
+      'HF': 7505,
+      'HCL': 7505,
+      'AMONYAK': 6645,
+      'FORMALDEHİT': 6685,
+      'CR+6': 6290,
+      'FOSFORİK ASİT': 6290,
+      'HCN': 6810,
+      'DİOKSİN FURAN': 83950,
+      'PAH': 42220,
+      'PM10': 7370,
+      'ÇÖKEN TOZ': 6640,
+      'MODELLEME': 10560
+    };
+
+    function normKey(s){
+      return String(s||'').toUpperCase().trim();
+    }
+    
+    sorted_params.forEach(param => {
+      // Tüm parametreler için özel hesaplama (TL sütununda parametre asgari fiyatı × parametre sayısı)
+      function parametreSayisiRow() {
         const adetCols = years.map(y=>{
           const yearData = data.data[y];
-          return `<td class="text-end adet-column">${yearData?.summary?.toplam_baca_adedi || '-'}</td>`;
+          return `<td class="text-end adet-column">${yearData?.summary?.parametre_sayilari?.[param] || 0}</td>`;
         }).join('');
         
         const tlCols = years.map(y=>{
           const yearData = data.data[y];
-          const kabulTutari = yearData?.summary?.kabul_tutari || 0;
-          return `<td class="text-end tl-column">${kabulTutari.toFixed(2)}</td>`;
+          const paramAdet = yearData?.summary?.parametre_sayilari?.[param] || 0;
+          // Prefer backend computed TL (adet × asgari fiyat) if available
+          const tlFromBackend = yearData?.parametre_tl?.[param];
+          if (tlFromBackend !== undefined && tlFromBackend !== null) {
+            return `<td class="text-end tl-column">${Number(tlFromBackend || 0).toFixed(2)}</td>`;
+          }
+          // Otherwise compute from per-year asgari fiyat map
+          const map = asgariFiyatlarByYear?.[String(y)] || {};
+          const pkey = normKey(param);
+          const paramAsgariFiyat = (map[pkey] !== undefined) ? map[pkey] : (asgariFiyatlarFallback[pkey] || asgariFiyatlarFallback[param] || 0);
+          const tl = paramAdet * Number(paramAsgariFiyat || 0);
+          return `<td class="text-end tl-column">${tl.toFixed(2)}</td>`;
         }).join('');
         
-        rows.push(`<tr><td>TOP. BACA SAYISI</td>${adetCols}${tlCols}</tr>`);
+        rows.push(`<tr><td>TOP. ${param} SAYISI</td>${adetCols}${tlCols}</tr>`);
       }
-      
-      topBacaSayisiRow();
-      row('TOP. PARAMETRE SAYISI', d=>d.summary?.toplam_parametre_adedi);
-      
-      // Dinamik parametre sayıları - kabul olan tekliflerden hesapla
-      const all_params = new Set();
-      years.forEach(year => {
-        const yearData = data.data[year];
-        if (yearData && yearData.summary && yearData.summary.parametre_sayilari) {
-          Object.keys(yearData.summary.parametre_sayilari).forEach(param => {
-            all_params.add(param);
-          });
-        }
-      });
-      
-      // Parametreleri sayıya göre azalan sıraya koy ve göster
-      const sorted_params = Array.from(all_params).sort((a, b) => {
-        // İlk yıldaki sayılara göre sırala
-        const year1Data = data.data[years[0]];
-        const countA = year1Data?.summary?.parametre_sayilari?.[a] || 0;
-        const countB = year1Data?.summary?.parametre_sayilari?.[b] || 0;
-        return countB - countA; // Azalan sıralama
-      });
-      
-      // Yerel fallback asgari fiyat tablosu (örnek: 2025). API başarısız olursa kullanılır.
-      const asgariFiyatlarFallback = {
-        'TOZ': 6655,
-        'YG': 3855,
-        'YANMA GAZI': 3855,
-        'AMET': 19000,
-        'AĞIR METAL': 19000,
-        'SÜLF.A': 6290,
-        'SÜLFÜRİK ASİT': 6290,
-        'VOC': 13170,
-        'TOC': 13170,
-        'HIZ': 1430,
-        'NEM': 1430,
-        'HF': 7505,
-        'HCL': 7505,
-        'AMONYAK': 6645,
-        'FORMALDEHİT': 6685,
-        'CR+6': 6290,
-        'FOSFORİK ASİT': 6290,
-        'HCN': 6810,
-        'DİOKSİN FURAN': 83950,
-        'PAH': 42220,
-        'PM10': 7370,
-        'ÇÖKEN TOZ': 6640,
-        'MODELLEME': 10560
-      };
-      
-      sorted_params.forEach(param => {
-        // Tüm parametreler için özel hesaplama (TL sütununda parametre asgari fiyatı × parametre sayısı)
-        function parametreSayisiRow() {
-          const adetCols = years.map(y=>{
-            const yearData = data.data[y];
-            return `<td class="text-end adet-column">${yearData?.summary?.parametre_sayilari?.[param] || 0}</td>`;
-          }).join('');
-          
-          const tlCols = years.map(y=>{
-            const yearData = data.data[y];
-            const paramAdet = yearData?.summary?.parametre_sayilari?.[param] || 0;
-            const paramAsgariFiyat = asgariFiyatlarFallback[param] || 0;
-            const paramTutari = paramAdet * paramAsgariFiyat;
-            return `<td class="text-end tl-column">${paramTutari.toFixed(2)}</td>`;
-          }).join('');
-          
-          rows.push(`<tr><td>TOP. ${param} SAYISI</td>${adetCols}${tlCols}</tr>`);
-        }
-        parametreSayisiRow();
-      });
-      
-      // PERSONEL PERFORMANS
-      rows.push('<tr class="table-light"><td colspan="'+(years.length*2+1)+'"><strong>PERSONEL PERFORMANS</strong></td></tr>');
-      
-      // Dinamik personel performansı - baca bilgileri kayıtlarından gelen personeller
-      const all_personel = new Set();
-      years.forEach(year => {
-        const yearData = data.data[year];
-        if (yearData && yearData.summary && yearData.summary.personel_performans) {
-          Object.keys(yearData.summary.personel_performans).forEach(personel => {
-            all_personel.add(personel);
-          });
-        }
-      });
-      
-      // Personel performansını göster (Adet sütununda sayı, TL sütununda 0)
-      // Personelleri adet sayısına göre azalan sıraya koy
-      const sorted_personel = Array.from(all_personel).sort((a, b) => {
-        // İlk yıldaki sayılara göre sırala
-        const year1Data = data.data[years[0]];
-        const countA = year1Data?.summary?.personel_performans?.[a] || 0;
-        const countB = year1Data?.summary?.personel_performans?.[b] || 0;
-        return countB - countA; // Azalan sıralama
-      });
-      
-      sorted_personel.forEach(personel => {
-        function personelPerformansRow() {
-          const adetCols = years.map(y=>{
-            const yearData = data.data[y];
-            const personelAdet = yearData?.summary?.personel_performans?.[personel] || 0;
-            return `<td class="text-end adet-column">${personelAdet}</td>`;
-          }).join('');
-          
-          const tlCols = years.map(y=>{
-            const yearData = data.data[y];
-            const personelTutari = yearData?.summary?.personel_tutarlar?.[personel] || 0;
-            return `<td class="text-end tl-column">${personelTutari.toFixed(2)}</td>`;
-          }).join('');
-          
-          rows.push(`<tr><td>${personel} BACA SAYISI</td>${adetCols}${tlCols}</tr>`);
-        }
-        personelPerformansRow();
-      });
-      
-      // PERSONEL PARAMETRE PERFORMANS
-      rows.push('<tr class="table-light"><td colspan="'+(years.length*2+1)+'"><strong>PERSONEL PARAMETRE PERFORMANS</strong></td></tr>');
-      
-      // Personel parametre kombinasyonlarını topla
-      const all_combinations = new Set();
-      years.forEach(year => {
-        const yearData = data.data[year];
-        if (yearData && yearData.summary && yearData.summary.personel_parametre_performans) {
-          Object.keys(yearData.summary.personel_parametre_performans).forEach(combination => {
-            all_combinations.add(combination);
-          });
-        }
-      });
-      
-      // Kombinasyonları parametre adına göre grupla
-      const parametreGroups = {};
-      Array.from(all_combinations).forEach(combination => {
-        const [parametre, personel] = combination.split('-');
-        if (!parametreGroups[parametre]) {
-          parametreGroups[parametre] = [];
-        }
-        parametreGroups[parametre].push(combination);
-      });
-      
-      // Parametre adlarına göre sırala
-      const sortedParametreler = Object.keys(parametreGroups).sort();
-      
-      // Parametre fiyatlarını almak için yardımcı fonksiyon
-      function getParametreFiyati(parametre, year) {
-        // Parametre adını eşleştir
-        const parametreMap = {
-          'TOZ': 'TOZ',
-          'YANMA GAZI': 'YANMA GAZI',
-          'YG': 'YANMA GAZI',
-          'VOC': 'VOC',
-          'AĞIR METAL': 'AĞIR METAL',
-          'AMET': 'AĞIR METAL',
-          'NEM': 'NEM',
-          'SÜLFÜRİK ASİT': 'SÜLFÜRİK ASİT',
-          'SÜLF.A': 'SÜLFÜRİK ASİT',
-          'PM10': 'PM10',
-          'ÇT': 'ÇÖKEN TOZ',
-          'Çt': 'ÇÖKEN TOZ',
-          'CR6': 'CR+6',
-          'Cr6': 'CR+6',
-          'TOC': 'TOC',
-          'HF': 'HF',
-          'HCL': 'HCL',
-          'AMONYAK': 'AMONYAK',
-          'FORMALDEHİT': 'FORMALDEHİT',
-          'FOSFORİK ASİT': 'FOSFORİK ASİT',
-          'HCN': 'HCN',
-          'PAH': 'PAH',
-          'DİOKSİN FURAN': 'DİOKSİN FURAN'
-        };
-        const mapped = (parametreMap[parametre] || parametre || '').toUpperCase().trim();
-        // Önce API'den gelen yıla özel haritadan oku
-        const apiMap = asgariFiyatlarByYear[year] || {};
-        const apiFiyat = apiMap[mapped];
-        if(typeof apiFiyat === 'number' && !isNaN(apiFiyat) && apiFiyat > 0){
-          return apiFiyat;
-        }
-        // Fallback yerel tablo
-        return asgariFiyatlarFallback[mapped] || 0;
+      parametreSayisiRow();
+    });
+    
+    // PERSONEL PERFORMANS
+    rows.push('<tr class="table-light"><td colspan="'+(years.length*2+1)+'"><strong>PERSONEL PERFORMANS</strong></td></tr>');
+    
+    // Dinamik personel performansı - baca bilgileri kayıtlarından gelen personeller
+    const all_personel = new Set();
+    years.forEach(year => {
+      const yearData = data.data[year];
+      if (yearData && yearData.summary && yearData.summary.personel_performans) {
+        Object.keys(yearData.summary.personel_performans).forEach(personel => {
+          all_personel.add(personel);
+        });
       }
-      
-      // Her parametre grubu için satırları oluştur
-      sortedParametreler.forEach(parametre => {
-        const combinations = parametreGroups[parametre];
+    });
+    
+    // Personel performansını göster (Adet sütununda sayı, TL sütununda 0)
+    // Personelleri adet sayısına göre azalan sıraya koy
+    const sorted_personel = Array.from(all_personel).sort((a, b) => {
+      // İlk yıldaki sayılara göre sırala
+      const year1Data = data.data[years[0]];
+      const countA = year1Data?.summary?.personel_performans?.[a] || 0;
+      const countB = year1Data?.summary?.personel_performans?.[b] || 0;
+      return countB - countA; // Azalan sıralama
+    });
+    
+    sorted_personel.forEach(personel => {
+      function personelPerformansRow() {
+        const adetCols = years.map(y=>{
+          const yearData = data.data[y];
+          const personelAdet = yearData?.summary?.personel_performans?.[personel] || 0;
+          return `<td class="text-end adet-column">${personelAdet}</td>`;
+        }).join('');
         
-        combinations.forEach(combination => {
+        const tlCols = years.map(y=>{
+          const yearData = data.data[y];
+          const personelTutari = yearData?.summary?.personel_tutarlar?.[personel] || 0;
+          return `<td class="text-end tl-column">${personelTutari.toFixed(2)}</td>`;
+        }).join('');
+        
+        rows.push(`<tr><td>${personel} BACA SAYISI</td>${adetCols}${tlCols}</tr>`);
+      }
+      personelPerformansRow();
+    });
+    
+    // PERSONEL PARAMETRE PERFORMANS
+    rows.push('<tr class="table-light"><td colspan="'+(years.length*2+1)+'"><strong>PERSONEL PARAMETRE PERFORMANS</strong></td></tr>');
+    
+    // Personel parametre kombinasyonlarını topla
+    const all_combinations = new Set();
+    years.forEach(year => {
+      const yearData = data.data[year];
+      if (yearData && yearData.summary && yearData.summary.personel_parametre_performans) {
+        Object.keys(yearData.summary.personel_parametre_performans).forEach(combination => {
+          all_combinations.add(combination);
+        });
+      }
+    });
+    
+    // Kombinasyonları parametre adına göre grupla
+    const parametreGroups = {};
+    Array.from(all_combinations).forEach(combination => {
+      const [parametre, personel] = combination.split('-');
+      if (!parametreGroups[parametre]) {
+        parametreGroups[parametre] = [];
+      }
+      parametreGroups[parametre].push(combination);
+    });
+    
+    // Parametre adlarına göre sırala
+    const sortedParametreler = Object.keys(parametreGroups).sort();
+    
+    // Parametre fiyatlarını almak için yardımcı fonksiyon
+    function getParametreFiyati(parametre, year) {
+      // Parametre adını eşleştir
+      const parametreMap = {
+        'TOZ': 'TOZ',
+        'YANMA GAZI': 'YANMA GAZI',
+        'YG': 'YANMA GAZI',
+        'VOC': 'VOC',
+        'AĞIR METAL': 'AĞIR METAL',
+        'AMET': 'AĞIR METAL',
+        'NEM': 'NEM',
+        'SÜLFÜRİK ASİT': 'SÜLFÜRİK ASİT',
+        'SÜLF.A': 'SÜLFÜRİK ASİT',
+        'PM10': 'PM10',
+        'ÇT': 'ÇÖKEN TOZ',
+        'Çt': 'ÇÖKEN TOZ',
+        'CR6': 'CR+6',
+        'Cr6': 'CR+6',
+        'TOC': 'TOC',
+        'HF': 'HF',
+        'HCL': 'HCL',
+        'AMONYAK': 'AMONYAK',
+        'FORMALDEHİT': 'FORMALDEHİT',
+        'FOSFORİK ASİT': 'FOSFORİK ASİT',
+        'HCN': 'HCN',
+        'PAH': 'PAH',
+        'DİOKSİN FURAN': 'DİOKSİN FURAN'
+      };
+      const mapped = (parametreMap[parametre] || parametre || '').toUpperCase().trim();
+      // Önce API'den gelen yıla özel haritadan oku
+      const apiMap = asgariFiyatlarByYear[year] || {};
+      const apiFiyat = apiMap[mapped];
+      if(typeof apiFiyat === 'number' && !isNaN(apiFiyat) && apiFiyat > 0){
+        return apiFiyat;
+      }
+      // Fallback yerel tablo
+      return asgariFiyatlarFallback[mapped] || 0;
+    }
+
+    // Her personel-parametre kombinasyonu için satırları oluştur
+    sortedParametreler.forEach(parametre => {
+      const combinations = parametreGroups[parametre] || [];
+      combinations.forEach(combination => {
         const adetCols = years.map(y=>{
           const yearData = data.data[y];
           const adet = yearData?.summary?.personel_parametre_performans?.[combination] || 0;
           return `<td class="text-end adet-column">${adet}</td>`;
         }).join('');
-        
+
         const tlCols = years.map(y=>{
           const yearData = data.data[y];
           const adet = yearData?.summary?.personel_parametre_performans?.[combination] || 0;
-          // Parametre adını ve fiyatını bul
-          const [parametre, personel] = combination.split('-');
-          const fiyat = getParametreFiyati(parametre, y);
+          const [pname] = String(combination || '').split('-');
+          const fiyat = getParametreFiyati(pname, y);
           const toplamFiyat = adet * fiyat;
           return `<td class="text-end tl-column">${toplamFiyat.toFixed(2)}</td>`;
         }).join('');
-        
+
         rows.push(`<tr><td>${combination}</td>${adetCols}${tlCols}</tr>`);
-        });
       });
+    });
       
       body.innerHTML = rows.join('');
       

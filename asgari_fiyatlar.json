@@ -1,35 +1,330 @@
 [
-  { "parametre": "TABAN FİYAT", "metot": "Metot", "yillik": { "2025": 9264.99 } },
-  { "parametre": "YOL", "metot": "Metot", "yillik": { "2025": 0 } },
-  { "parametre": "TOZ", "metot": "Epa 5/Epa 17/Ts En 13284-1", "yillik": { "2025": 6655 } },
-  { "parametre": "YANMA GAZI", "metot": "So2/No/Co/O2", "yillik": { "2025": 3855 } },
-  { "parametre": "VOC", "metot": "TS 13649", "yillik": { "2025": 13170 } },
-  { "parametre": "TOC", "metot": "TS EN 12619", "yillik": { "2025": 13170 } },
-  { "parametre": "HIZ", "metot": "EPA Metot 2/ TS ISO 10780", "yillik": { "2025": 1430 } },
-  { "parametre": "NEM", "metot": "EPA 4 - İŞLETME İÇİ METOT", "yillik": { "2025": 1430 } },
-  { "parametre": "AĞIR METAL", "metot": "EPA 29/TS 14384", "yillik": { "2025": 19000 } },
-  { "parametre": "SÜLFÜRİK ASİT", "metot": "EPA 8", "yillik": { "2025": 6290 } },
-  { "parametre": "HF", "metot": "ISO 15713/EPA 13A", "yillik": { "2025": 7505 } },
-  { "parametre": "HCL", "metot": "TS EN 1911", "yillik": { "2025": 7505 } },
-  { "parametre": "AMONYAK", "metot": "SCAWMD METOT 207.1", "yillik": { "2025": 6645 } },
-  { "parametre": "İSLİLİK", "metot": "EPA METOT323", "yillik": { "2025": 710 } },
-  { "parametre": "FORMALDEHİT", "metot": "CARB 425", "yillik": { "2025": 6685 } },
-  { "parametre": "CR+6", "metot": "Nmx-aa-90-1986", "yillik": { "2025": 6290 } },
-  { "parametre": "FOSFORİK ASİT", "metot": "Metot", "yillik": { "2025": 6290 } },
-  { "parametre": "HCN", "metot": "EPA 29/TS 14384", "yillik": { "2025": 6810 } },
-  { "parametre": "DİOKSİN FURAN", "metot": "EPA 23/TS EN 1948", "yillik": { "2025": 83950 } },
-  { "parametre": "PAH", "metot": "ISO 11338-1/2", "yillik": { "2025": 42220 } },
-  { "parametre": "PM10", "metot": "EPA 40 CFR 50 APPJ", "yillik": { "2025": 7370 } },
-  { "parametre": "ÇÖKEN TOZ", "metot": "TS 2342", "yillik": { "2025": 6640 } },
-  { "parametre": "MODELLEME", "metot": "Metot", "yillik": { "2025": 10560 } },
-  { "parametre": "ANALİZ-VOC", "metot": "TS 13649", "yillik": { "2025": 10210 } },
-  { "parametre": "ANALİZ-AĞIR METAL", "metot": "EPA 29/TS 14384", "yillik": { "2025": 14070 } },
-  { "parametre": "ANALİZ-SÜLFÜRİK ASİT", "metot": "EPA 8", "yillik": { "2025": 2000 } },
-  { "parametre": "ANALİZ-HF", "metot": "ISO 15713/EPA 13A", "yillik": { "2025": 2000 } },
-  { "parametre": "ANALİZ-HCL", "metot": "TS EN 1911", "yillik": { "2025": 2000 } },
-  { "parametre": "ANALİZ-AMONYAK", "metot": "SCAWMD METOT 207.1", "yillik": { "2025": 2335 } },
-  { "parametre": "ANALİZ-FOSFORİK ASİT", "metot": "Nmx-aa-90-1986", "yillik": { "2025": 2000 } },
-  { "parametre": "ANALİZ-HCN", "metot": "CARB 426", "yillik": { "2025": 2520 } },
-  { "parametre": "ANALİZ-CR+6", "metot": "CARB 425", "yillik": { "2025": 2000 } }
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "TABAN FİYAT ( 1-5 ARASI BACA)",
+    "metot": "---",
+    "yillik": {
+      "2025": 9265.0,
+      "2026": 12750.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "TABAN FİYAT ( 6-20 ARASI BACA)",
+    "metot": "---",
+    "yillik": {
+      "2026": 15940.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "TABAN FİYAT ( 20 BACA ÜSTÜ)",
+    "metot": "---",
+    "yillik": {
+      "2026": 19130.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "YOL",
+    "metot": "---",
+    "yillik": {
+      "2025": 11.0,
+      "2026": 15.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) RAPORLAMA",
+    "metot": "---",
+    "yillik": {
+      "2026": 10.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) TOZ",
+    "metot": "Epa 5/Epa 17/Ts En 13284-1/Ts 9096",
+    "yillik": {
+      "2025": 6655.0,
+      "2026": 9400.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) YANMA GAZI",
+    "metot": "So2/No/Co/O2",
+    "yillik": {
+      "2025": 3855.0,
+      "2026": 5780.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) VOC",
+    "metot": "TS 13649",
+    "yillik": {
+      "2025": 13170.0,
+      "2026": 18125.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) TOC",
+    "metot": "TS EN 12619",
+    "yillik": {
+      "2025": 13170.0,
+      "2026": 18125.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) HIZ",
+    "metot": "EPA Metot 2 / TS ISO 10780",
+    "yillik": {
+      "2025": 1430.0,
+      "2026": 2150.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) NEM",
+    "metot": "EPA 4 - İŞLETME İÇİ METOT",
+    "yillik": {
+      "2025": 1430.0,
+      "2026": 2860.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) AĞIR METAL",
+    "metot": "EPA 29/TS 14384",
+    "yillik": {
+      "2025": 19000.0,
+      "2026": 26365.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) SÜLFÜRİK ASİT",
+    "metot": "EPA 8",
+    "yillik": {
+      "2025": 6290.0,
+      "2026": 9000.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) HF",
+    "metot": "IOS 15713/EPA 13A",
+    "yillik": {
+      "2025": 7505.0,
+      "2026": 10425.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) HCL",
+    "metot": "ITS EN 1911",
+    "yillik": {
+      "2025": 7505.0,
+      "2026": 10425.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) AMONYAK",
+    "metot": "SCAWMD METOT 207.1",
+    "yillik": {
+      "2025": 6645.0,
+      "2026": 9215.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) İSLİLİK",
+    "metot": "TS 9503",
+    "yillik": {
+      "2025": 710.0,
+      "2026": 975.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) FORMALDEHİT",
+    "metot": "EPA METOT323",
+    "yillik": {
+      "2025": 6685.0,
+      "2026": 9545.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) CR+6",
+    "metot": "CARB 425",
+    "yillik": {
+      "2025": 6290.0,
+      "2026": 9000.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) FOSFORİK ASİT",
+    "metot": "Nmx-aa-90-1986",
+    "yillik": {
+      "2025": 6290.0,
+      "2026": 9000.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) HCN",
+    "metot": "CARB 426",
+    "yillik": {
+      "2025": 6810.0,
+      "2026": 9470.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) DİOKSİN FURAN",
+    "metot": "TS EN 1948-1",
+    "yillik": {
+      "2025": 83950.0,
+      "2026": 114605.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) PAH",
+    "metot": "ISO 11338-1/2",
+    "yillik": {
+      "2025": 42220.0,
+      "2026": 56680.0
+    }
+  },
+  {
+    "kapsam": "İMİSYON",
+    "parametre": "(İ) PM10",
+    "metot": "EPA 40 cfr 50 appj",
+    "yillik": {
+      "2025": 7370.0,
+      "2026": 10145.0
+    }
+  },
+  {
+    "kapsam": "İMİSYON",
+    "parametre": "(İ) ÇÖKEN TOZ",
+    "metot": "TS 2342",
+    "yillik": {
+      "2025": 6640.0,
+      "2026": 9140.0
+    }
+  },
+  {
+    "kapsam": "İMİSYON",
+    "parametre": "(İ) MODELLEME",
+    "metot": "---",
+    "yillik": {
+      "2025": 10560.0,
+      "2026": 14535.0
+    }
+  },
+  {
+    "kapsam": "İMİSYON",
+    "parametre": "(İ) RAPORLAMA",
+    "metot": "---",
+    "yillik": {
+      "2026": 10.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-VOC",
+    "metot": "ITS 13649",
+    "yillik": {
+      "2025": 10210.0,
+      "2026": 14055.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-AĞIR METAL",
+    "metot": "EPA 29/TS 14384",
+    "yillik": {
+      "2025": 14070.0,
+      "2026": 19365.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-SÜLFÜRİK ASİT",
+    "metot": "EPA 8",
+    "yillik": {
+      "2025": 2000.0,
+      "2026": 3000.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-HF",
+    "metot": "IOS 15713/EPA 13A",
+    "yillik": {
+      "2025": 3215.0,
+      "2026": 4425.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-HCL",
+    "metot": "ITS EN 1911",
+    "yillik": {
+      "2025": 3215.0,
+      "2026": 4425.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-AMONYAK",
+    "metot": "SCAWMD METOT 207.1",
+    "yillik": {
+      "2025": 2335.0,
+      "2026": 3215.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-FOSFORİK ASİT",
+    "metot": "Nmx-aa-90-1986",
+    "yillik": {
+      "2025": 2000.0,
+      "2026": 3000.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-HCN",
+    "metot": "CARB 426",
+    "yillik": {
+      "2025": 2520.0,
+      "2026": 3470.0
+    }
+  },
+  {
+    "kapsam": "İŞBİR",
+    "parametre": "(E) ANALİZ-CR+6",
+    "metot": "CARB 425",
+    "yillik": {
+      "2025": 2000.0,
+      "2026": 3000.0
+    }
+  },
+  {
+    "kapsam": "EMİSYON",
+    "parametre": "(E) ANALİZ RAPORLAMA",
+    "metot": "",
+    "yillik": {
+      "2026": 10.0
+    }
+  }
 ]
-

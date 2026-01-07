@@ -9,6 +9,7 @@ from uuid import uuid4
 import tempfile
 from datetime import datetime
 from io import BytesIO
+from copy import deepcopy
 
 # Lazy loading - sadece gerektiğinde yükle
 pandas_loaded = False
@@ -79,7 +80,9 @@ if DATA_DIR:
         print(f"DATA_DIR oluşturulamadı: {DATA_DIR}, hata: {_e}")
 
 def data_path(filename: str) -> str:
-    return os.path.join(DATA_DIR, filename) if DATA_DIR else filename
+    # If DATA_DIR is not set, use a stable absolute path under the project root.
+    # Otherwise, relative paths depend on current working directory and data can appear to "reset" after restart.
+    return os.path.join(DATA_DIR, filename) if DATA_DIR else os.path.join(app.root_path, filename)
 
 USERS_FILE = data_path('users.json')
 EMISSIONS_FILE = data_path('emissions.json')
@@ -96,6 +99,8 @@ BACA_PARALAR_FILE = data_path('baca_paralar.json')
 PARAMETRE_SAHABIL_FILE = data_path('parametre_sahabil.json')
 PARAMETRE_FIELDS_FILE = data_path('parametre_fields.json')
 ASGARI_FIYATLAR_FILE = data_path('asgari_fiyatlar.json')
+ASGARI_FIYAT_UI_STATE_FILE = data_path('asgari_fiyat_ui_state.json')
+TEKLIF_PARAMETRE_SECIM_UI_STATE_FILE = data_path('teklif_parametre_secim_ui_state.json')
 PAR_SAHA_HEADERS_FILE = data_path('par_saha_header_groups.json')
 FORMS_FILE = data_path('forms.json')
 IL_ILCE_FILE = data_path('il-ilce.json')
@@ -115,7 +120,7 @@ def ensure_data_files():
             'par_saha_header_groups.json'
         ]
         for fname in base_files:
-            src = fname  # repo kökü
+            src = os.path.join(app.root_path, fname)  # proje kökü
             dst = data_path(fname)
             # DATA_DIR'de yoksa ve repo kökünde varsa kopyala
             if not os.path.exists(dst) and os.path.exists(src):
@@ -161,15 +166,135 @@ def save_emissions(emissions_data):
 
 def load_parameters():
     """Parametreleri JSON dosyasından yükler."""
-    if not os.path.exists(PARAMETERS_FILE):
+    try:
+        if not os.path.exists(PARAMETERS_FILE):
+            print(f"load_parameters: file not found: {PARAMETERS_FILE}")
+            return []
+        with open(PARAMETERS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        try:
+            print(f"load_parameters: loaded {len(data) if isinstance(data, list) else 'n/a'} items from {PARAMETERS_FILE}")
+        except Exception:
+            pass
+        return data
+    except Exception as e:
+        print(f"load_parameters error: {e} file={PARAMETERS_FILE}")
         return []
-    with open(PARAMETERS_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+
+def _atomic_write_json(file_path: str, data_obj, indent: int = 4, ensure_ascii: bool = False) -> bool:
+    try:
+        dir_name = os.path.dirname(file_path)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+        import tempfile
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8', dir=(dir_name or None), suffix='.tmp') as tf:
+                tmp_path = tf.name
+                json.dump(data_obj, tf, indent=indent, ensure_ascii=ensure_ascii)
+                tf.flush()
+                try:
+                    os.fsync(tf.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, file_path)
+            return True
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"atomic_write_json error: {e} file={file_path}")
+        return False
 
 def save_parameters(parameters_data):
     """Parametreleri JSON dosyasına kaydeder."""
-    with open(PARAMETERS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(parameters_data, f, indent=4, ensure_ascii=False)
+    ok = _atomic_write_json(PARAMETERS_FILE, parameters_data, indent=4, ensure_ascii=False)
+    try:
+        if ok:
+            print(f"save_parameters: saved {len(parameters_data) if isinstance(parameters_data, list) else 'n/a'} items to {PARAMETERS_FILE}")
+    except Exception:
+        pass
+    return bool(ok)
+
+
+@app.route('/api/debug/storage')
+def api_debug_storage():
+    """Debug endpoint: shows resolved storage paths and file stats."""
+    try:
+        def _stat(p):
+            try:
+                if not p:
+                    return None
+                if not os.path.exists(p):
+                    return {'exists': False, 'path': p}
+                st = os.stat(p)
+                return {
+                    'exists': True,
+                    'path': p,
+                    'size': st.st_size,
+                    'mtime': datetime.fromtimestamp(st.st_mtime).isoformat()
+                }
+            except Exception as _e:
+                return {'exists': False, 'path': p, 'error': str(_e)}
+
+        return jsonify({
+            'success': True,
+            'DATA_DIR': DATA_DIR,
+            'app_root_path': app.root_path,
+            'files': {
+                'PARAMETERS_FILE': _stat(PARAMETERS_FILE),
+                'FIRMA_KAYIT_FILE': _stat(FIRMA_KAYIT_FILE),
+                'TEKLIF_FILE': _stat(TEKLIF_FILE),
+                'ASGARI_FIYATLAR_FILE': _stat(ASGARI_FIYATLAR_FILE),
+                'PARAMETRE_FIELDS_FILE': _stat(PARAMETRE_FIELDS_FILE)
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/debug/parameters')
+def api_debug_parameters():
+    """Debug endpoint: shows parameters.json path, file stats and loaded count."""
+    try:
+        def _stat(p):
+            try:
+                if not p:
+                    return None
+                if not os.path.exists(p):
+                    return {'exists': False, 'path': p}
+                st = os.stat(p)
+                return {
+                    'exists': True,
+                    'path': p,
+                    'size': st.st_size,
+                    'mtime': datetime.fromtimestamp(st.st_mtime).isoformat()
+                }
+            except Exception as _e:
+                return {'exists': False, 'path': p, 'error': str(_e)}
+
+        params = load_parameters()
+        sample_ids = []
+        try:
+            for p in (params or [])[:20]:
+                if isinstance(p, dict) and 'id' in p:
+                    sample_ids.append(p.get('id'))
+        except Exception:
+            pass
+
+        return jsonify({
+            'success': True,
+            'DATA_DIR': DATA_DIR,
+            'app_root_path': app.root_path,
+            'PARAMETERS_FILE': _stat(PARAMETERS_FILE),
+            'loaded_count': len(params) if isinstance(params, list) else None,
+            'sample_ids': sample_ids
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 def load_measurements():
     """Ölçüm verilerini JSON dosyasından yükler."""
@@ -369,10 +494,10 @@ def save_used_teklif_numbers(used_numbers):
         return False
 
 def generate_teklif_no():
-    """Yeni teklif numarası oluşturur (TE25-01, TE26-01 formatında) - BENZERSİZ GARANTİLİ"""
+    """Yeni teklif numarası oluşturur (YYYY/TE-XXX formatında) - BENZERSİZ GARANTİLİ"""
     try:
         current_year = datetime.now().year
-        year_suffix = str(current_year)[-2:]  # 25, 26, 27...
+        teklif_prefix = f"{current_year}/TE-"
         
         # Mevcut teklifleri yükle
         teklifler = load_teklif()
@@ -383,11 +508,14 @@ def generate_teklif_no():
             teklif_no = teklif.get('teklif_no', '')
             if teklif_no:
                 used_numbers.add(teklif_no)
+
+        # Sadece bu yıla ait teklif numaralarını dikkate al
+        used_numbers = {n for n in used_numbers if isinstance(n, str) and n.startswith(teklif_prefix)}
         
         # Bu yıl için kullanılmamış en küçük numarayı bul (3 haneli format)
         number = 1
         while True:
-            new_teklif_no = f'TE{year_suffix}-{number:03d}'
+            new_teklif_no = f"{teklif_prefix}{number:03d}"
             if new_teklif_no not in used_numbers:
                 return new_teklif_no
             number += 1
@@ -400,35 +528,37 @@ def generate_teklif_no():
         print(f"Teklif numarası oluşturulurken hata: {e}")
     # Hata durumunda varsayılan format (3 haneli)
     current_year = datetime.now().year
-    year_suffix = str(current_year)[-2:]
-    return f'TE{year_suffix}-001'
+    return f"{current_year}/TE-001"
 
 def reserve_teklif_no():
     """Teklif numarasını rezerve eder (henüz kullanılmamış, sadece rezerve)"""
     try:
         current_year = datetime.now().year
-        year_suffix = str(current_year)[-2:]
+        teklif_prefix = f"{current_year}/TE-"
         
         # Mevcut teklifleri yükle
         teklifler = load_teklif()
         
         # Kullanılmış tüm numaraları yükle
-        used_numbers = load_used_teklif_numbers()
+        all_used_numbers = load_used_teklif_numbers()
         
         # Mevcut tekliflerdeki numaraları da ekle
         for teklif in teklifler:
             teklif_no = teklif.get('teklif_no', '')
             if teklif_no:
-                used_numbers.add(teklif_no)
+                all_used_numbers.add(teklif_no)
+
+        # Sadece bu yıla ait teklif numaralarını dikkate al
+        used_numbers_year = {n for n in all_used_numbers if isinstance(n, str) and n.startswith(teklif_prefix)}
         
         # Bu yıl için kullanılmamış en küçük numarayı bul ve rezerve et (3 haneli format)
         number = 1
         while True:
-            new_teklif_no = f'TE{year_suffix}-{number:03d}'
-            if new_teklif_no not in used_numbers:
+            new_teklif_no = f"{teklif_prefix}{number:03d}"
+            if new_teklif_no not in used_numbers_year:
                 # Bu numarayı rezerve et (kullanılmış olarak işaretle)
-                used_numbers.add(new_teklif_no)
-                save_used_teklif_numbers(used_numbers)
+                all_used_numbers.add(new_teklif_no)
+                save_used_teklif_numbers(all_used_numbers)
                 print(f"Teklif numarası rezerve edildi: {new_teklif_no}")
                 return new_teklif_no
             number += 1
@@ -441,8 +571,7 @@ def reserve_teklif_no():
         print(f"Teklif numarası rezerve edilirken hata: {e}")
         # Hata durumunda varsayılan numara (3 haneli)
         current_year = datetime.now().year
-        year_suffix = str(current_year)[-2:]
-        return f'TE{year_suffix}-001'
+        return f"{current_year}/TE-001"
 
 def release_teklif_no(teklif_no):
     """Rezerve edilmiş teklif numarasını serbest bırakır (vazgeçme durumunda)"""
@@ -482,27 +611,36 @@ def migrate_existing_teklif_numbers():
     except Exception as e:
         print(f"Migration hatası: {e}")
 
-def convert_teklif_numbers_to_3_digit():
-    """Mevcut teklif numaralarını 3 haneli formata dönüştürür"""
+def convert_teklif_numbers_to_new_format():
+    """Eski teklif numaralarını (TE26-001) yeni formata (2026/TE-001) dönüştürür"""
     try:
         teklifler = load_teklif()
         updated_count = 0
         
         for teklif in teklifler:
             teklif_no = teklif.get('teklif_no', '')
-            if teklif_no and '-' in teklif_no:
-                # TE25-89 -> TE25-089 formatına dönüştür
+            if teklif_no and teklif_no.startswith('TE') and '-' in teklif_no:
+                # TE26-001 -> 2026/TE-001 formatına dönüştür
                 parts = teklif_no.split('-')
                 if len(parts) == 2:
-                    prefix = parts[0]  # TE25
-                    number = parts[1]  # 89
+                    prefix = parts[0]  # TE26
+                    number = parts[1]  # 001
                     
-                    # Eğer 2 haneli ise 3 haneli yap
-                    if len(number) == 2:
-                        new_number = f"{prefix}-{number.zfill(3)}"  # TE25-089
-                        teklif['teklif_no'] = new_number
-                        updated_count += 1
-                        print(f"Teklif numarası güncellendi: {teklif_no} -> {new_number}")
+                    # Yıl suffix'ini çıkar (TE26 -> 26)
+                    if prefix.startswith('TE') and len(prefix) == 4:
+                        year_suffix = prefix[2:]  # 26
+                        
+                        # 2 haneli yılı 4 haneli yıla çevir
+                        year_int = int(year_suffix)
+                        if year_int >= 0 and year_int <= 99:
+                            # 00-99 arası: 2000-2099 olarak kabul et
+                            full_year = 2000 + year_int
+                            
+                            # Yeni format: YYYY/TE-XXX
+                            new_number = f"{full_year}/TE-{number.zfill(3)}"
+                            teklif['teklif_no'] = new_number
+                            updated_count += 1
+                            print(f"Teklif numarası güncellendi: {teklif_no} -> {new_number}")
         
         if updated_count > 0:
             # Güncellenmiş teklifleri kaydet
@@ -513,11 +651,23 @@ def convert_teklif_numbers_to_3_digit():
             new_used_numbers = set()
             
             for num in used_numbers:
-                if '-' in num:
+                if num.startswith('TE') and '-' in num:
                     parts = num.split('-')
-                    if len(parts) == 2 and len(parts[1]) == 2:
-                        new_num = f"{parts[0]}-{parts[1].zfill(3)}"
-                        new_used_numbers.add(new_num)
+                    if len(parts) == 2:
+                        prefix = parts[0]
+                        number = parts[1]
+                        
+                        if prefix.startswith('TE') and len(prefix) == 4:
+                            year_suffix = prefix[2:]
+                            year_int = int(year_suffix)
+                            if year_int >= 0 and year_int <= 99:
+                                full_year = 2000 + year_int
+                                new_num = f"{full_year}/TE-{number.zfill(3)}"
+                                new_used_numbers.add(new_num)
+                            else:
+                                new_used_numbers.add(num)
+                        else:
+                            new_used_numbers.add(num)
                     else:
                         new_used_numbers.add(num)
                 else:
@@ -554,7 +704,7 @@ def resequence_teklif_numbers():
             teklif['teklif_no'] = new_number
             new_used_numbers.add(new_number)
             
-            print(f"Teklif sıralandı: {old_number} -> {new_number} ({teklif.get('firma_adi', 'Bilinmeyen')})")
+            pass
         
         # Güncellenmiş teklifleri kaydet
         save_teklif(teklifler)
@@ -562,7 +712,7 @@ def resequence_teklif_numbers():
         # Kullanılmış numaralar listesini güncelle
         save_used_teklif_numbers(new_used_numbers)
         
-        print(f"Teklif sıralaması tamamlandı: {len(teklifler)} teklif 001'den başlayarak sıralandı")
+        pass
         
     except Exception as e:
         print(f"Teklif sıralama hatası: {e}")
@@ -611,6 +761,190 @@ def get_genel_hukumler():
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+
+@app.route('/api/asgari_fiyatlar/save_table', methods=['POST'])
+def api_save_asgari_fiyatlar_table():
+    """Asgari fiyat tablosunu (çoklu yıl sütunları) toplu kaydeder."""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+
+    try:
+        data = request.get_json(silent=True) or {}
+        years = data.get('years')
+        rows = data.get('rows')
+
+        if not isinstance(years, list) or not years:
+            return jsonify({'success': False, 'message': 'years alanı liste olmalı'}), 400
+        if not isinstance(rows, list):
+            return jsonify({'success': False, 'message': 'rows alanı liste olmalı'}), 400
+
+        cleaned = []
+
+        def _to_float(v):
+            if v is None:
+                return None
+            s = str(v).strip()
+            if s == '':
+                return None
+            try:
+                return float(s.replace(',', '.'))
+            except Exception:
+                return None
+
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            kapsam = str(r.get('kapsam', '')).strip()
+            parametre = str(r.get('parametre', '')).strip()
+            metot = str(r.get('metot', '')).strip()
+            yillar = r.get('yillar', [])
+            if not parametre:
+                continue
+            if not isinstance(yillar, list):
+                yillar = []
+
+            if not kapsam:
+                kapsam = 'EMİSYON'
+
+            yillik = {}
+            for i, y in enumerate(years):
+                val = yillar[i] if i < len(yillar) else None
+                fval = _to_float(val)
+                if fval is not None:
+                    yillik[str(y)] = fval
+
+            cleaned.append({
+                'kapsam': kapsam,
+                'parametre': parametre,
+                'metot': metot,
+                'yillik': yillik
+            })
+
+        ok = save_asgari_fiyatlar(cleaned)
+        return jsonify({'success': bool(ok), 'message': 'Asgari fiyat tablosu kaydedildi.' if ok else 'Kaydetme hatası'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'}), 500
+
+
+@app.route('/api/asgari_fiyatlar/full', methods=['GET'])
+def api_get_asgari_fiyatlar_full():
+    """Asgari fiyatların ham halini (yıllık alanlarıyla) döndürür."""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    try:
+        raw = load_asgari_fiyatlar()
+        return jsonify({'success': True, 'data': raw})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'}), 500
+
+
+def load_asgari_fiyat_ui_state():
+    try:
+        if not os.path.exists(ASGARI_FIYAT_UI_STATE_FILE):
+            return {}
+        with open(ASGARI_FIYAT_UI_STATE_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"Asgari fiyat UI state yüklenirken hata: {e}")
+        return {}
+
+
+def save_asgari_fiyat_ui_state(data):
+    try:
+        if not isinstance(data, dict):
+            data = {}
+        return bool(_atomic_write_json(ASGARI_FIYAT_UI_STATE_FILE, data, indent=2, ensure_ascii=False))
+    except Exception as e:
+        print(f"Asgari fiyat UI state kaydedilirken hata: {e}")
+        return False
+
+
+def load_teklif_parametre_secim_ui_state():
+    try:
+        if not os.path.exists(TEKLIF_PARAMETRE_SECIM_UI_STATE_FILE):
+            return {}
+        with open(TEKLIF_PARAMETRE_SECIM_UI_STATE_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"Teklif parametre seçim UI state yüklenirken hata: {e}")
+        return {}
+
+
+def save_teklif_parametre_secim_ui_state(data):
+    try:
+        if not isinstance(data, dict):
+            data = {}
+        return bool(_atomic_write_json(TEKLIF_PARAMETRE_SECIM_UI_STATE_FILE, data, indent=2, ensure_ascii=False))
+    except Exception as e:
+        print(f"Teklif parametre seçim UI state kaydedilirken hata: {e}")
+        return False
+
+
+@app.route('/api/ui_state/asgari_fiyat', methods=['GET'])
+def api_get_ui_state_asgari_fiyat():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    try:
+        st = load_asgari_fiyat_ui_state()
+        return jsonify({'success': True, 'data': st})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'}), 500
+
+
+@app.route('/api/ui_state/asgari_fiyat', methods=['POST'])
+def api_set_ui_state_asgari_fiyat():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    try:
+        payload = request.get_json(silent=True) or {}
+        if not isinstance(payload, dict):
+            return jsonify({'success': False, 'message': 'Geçersiz veri'}), 400
+        # Beklenen yapı: {col_widths: {"3": 200, ...}}
+        col_widths = payload.get('col_widths')
+        if col_widths is not None and not isinstance(col_widths, dict):
+            return jsonify({'success': False, 'message': 'col_widths sözlük olmalı'}), 400
+        current = load_asgari_fiyat_ui_state()
+        current['col_widths'] = col_widths or {}
+        current['updated_at'] = datetime.now().isoformat()
+        ok = save_asgari_fiyat_ui_state(current)
+        return jsonify({'success': bool(ok)})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'}), 500
+
+
+@app.route('/api/ui_state/teklif_parametre_secim', methods=['GET'])
+def api_get_ui_state_teklif_parametre_secim():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    try:
+        st = load_teklif_parametre_secim_ui_state()
+        return jsonify({'success': True, 'data': st})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'}), 500
+
+
+@app.route('/api/ui_state/teklif_parametre_secim', methods=['POST'])
+def api_set_ui_state_teklif_parametre_secim():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'}), 401
+    try:
+        payload = request.get_json(silent=True) or {}
+        if not isinstance(payload, dict):
+            return jsonify({'success': False, 'message': 'Geçersiz veri'}), 400
+        col_widths = payload.get('col_widths')
+        if col_widths is not None and not isinstance(col_widths, dict):
+            return jsonify({'success': False, 'message': 'col_widths sözlük olmalı'}), 400
+        current = load_teklif_parametre_secim_ui_state()
+        current['col_widths'] = col_widths or {}
+        current['updated_at'] = datetime.now().isoformat()
+        ok = save_teklif_parametre_secim_ui_state(current)
+        return jsonify({'success': bool(ok)})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'}), 500
 
 def format_date_with_day(dt_str):
     try:
@@ -2265,6 +2599,48 @@ def delete_teklif():
         else:
             return jsonify({'success': False, 'message': 'Teklif silinirken hata oluştu'})
             
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+@app.route('/api/teklif/delete_bulk', methods=['POST'])
+def delete_teklif_bulk():
+    """Birden fazla teklifi siler - NUMARA BENZERSİZLİĞİ GARANTİLİ"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+
+    try:
+        data = request.get_json() or {}
+        teklif_ids = data.get('teklif_ids')
+
+        if not isinstance(teklif_ids, list) or not teklif_ids:
+            return jsonify({'success': False, 'message': 'teklif_ids liste olmalı ve boş olmamalı'})
+
+        teklifler = load_teklif()
+        id_set = set(str(x) for x in teklif_ids if x is not None)
+
+        # Silinecek teklif numaralarını used_numbers'a ekle
+        used_numbers = load_used_teklif_numbers()
+        deleted_count = 0
+
+        for t in teklifler:
+            try:
+                if str(t.get('id')) in id_set:
+                    deleted_count += 1
+                    teklif_no = t.get('teklif_no')
+                    if teklif_no:
+                        used_numbers.add(teklif_no)
+            except Exception:
+                pass
+
+        save_used_teklif_numbers(used_numbers)
+
+        # Teklifleri listeden kaldır
+        teklifler_new = [t for t in teklifler if str(t.get('id')) not in id_set]
+
+        if save_teklif(teklifler_new):
+            return jsonify({'success': True, 'message': f'{deleted_count} teklif başarıyla silindi ve numaraları korundu'})
+        return jsonify({'success': False, 'message': 'Teklifler silinirken hata oluştu'})
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
 
@@ -6267,13 +6643,13 @@ def load_asgari_fiyatlar():
         return []
 
 def save_asgari_fiyatlar(data):
-    try:
-        with open(ASGARI_FIYATLAR_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Asgari fiyatlar kaydedilirken hata: {e}")
-        return False
+    ok = _atomic_write_json(ASGARI_FIYATLAR_FILE, data, indent=2, ensure_ascii=False)
+    if not ok:
+        try:
+            print("Asgari fiyatlar kaydedilemedi")
+        except Exception:
+            pass
+    return bool(ok)
 
 def load_par_saha_headers():
     """PAR_SAHA başlıklarını yükler."""
@@ -6289,22 +6665,14 @@ def load_par_saha_headers():
 def save_par_saha_headers(data):
     """PAR_SAHA başlıklarını kaydeder."""
     try:
-        with open(PAR_SAHA_HEADERS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
+        return bool(_atomic_write_json(PAR_SAHA_HEADERS_FILE, data, indent=2, ensure_ascii=False))
     except Exception as e:
         print(f"PAR SAHA header kaydedilirken hata: {e}")
         return False
 
 def save_parametre_fields(parametre_fields_data):
     """Parametre alanlarını JSON dosyasına kaydeder."""
-    try:
-        with open(PARAMETRE_FIELDS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(parametre_fields_data, f, indent=4, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Parametre alanları kaydedilirken hata: {e}")
-        return False
+    return bool(_atomic_write_json(PARAMETRE_FIELDS_FILE, parametre_fields_data, indent=2, ensure_ascii=False))
 
 def load_forms():
     """Form verilerini JSON dosyasından yükler."""
@@ -6319,13 +6687,7 @@ def load_forms():
 
 def save_forms(forms_data):
     """Form verilerini JSON dosyasına kaydeder."""
-    try:
-        with open(FORMS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(forms_data, f, indent=4, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Form verileri kaydedilirken hata: {e}")
-        return False
+    return bool(_atomic_write_json(FORMS_FILE, forms_data, indent=4, ensure_ascii=False))
 
 @app.route('/api/baca_bilgileri/bulk_delete', methods=['POST'])
 def api_bulk_delete_baca_bilgileri():
@@ -8504,6 +8866,18 @@ def replace_placeholders_in_document(doc, data):
                         paragraph.text = paragraph.text.replace(placeholder1, str(value))
                     elif placeholder2 in paragraph.text:
                         paragraph.text = paragraph.text.replace(placeholder2, str(value))
+            # Header tablolarını da kontrol et
+            for table in section.header.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            for key, value in data.items():
+                                placeholder1 = f"{{{{{key}}}}}"
+                                placeholder2 = f"{{{key}}}"
+                                if placeholder1 in paragraph.text:
+                                    paragraph.text = paragraph.text.replace(placeholder1, str(value))
+                                elif placeholder2 in paragraph.text:
+                                    paragraph.text = paragraph.text.replace(placeholder2, str(value))
         
         # Footer
         if section.footer:
@@ -8516,6 +8890,18 @@ def replace_placeholders_in_document(doc, data):
                         paragraph.text = paragraph.text.replace(placeholder1, str(value))
                     elif placeholder2 in paragraph.text:
                         paragraph.text = paragraph.text.replace(placeholder2, str(value))
+            # Footer tablolarını da kontrol et
+            for table in section.footer.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            for key, value in data.items():
+                                placeholder1 = f"{{{{{key}}}}}"
+                                placeholder2 = f"{{{key}}}"
+                                if placeholder1 in paragraph.text:
+                                    paragraph.text = paragraph.text.replace(placeholder1, str(value))
+                                elif placeholder2 in paragraph.text:
+                                    paragraph.text = paragraph.text.replace(placeholder2, str(value))
 
 def merge_word_documents(documents):
     """Birden fazla Word dokümanını tek bir dokümanda birleştirir."""
@@ -9038,12 +9424,14 @@ def api_parametre_olcumleri_pdf_export():
 @app.route('/api/teklif/yazdir/<teklif_id>', methods=['POST'])
 def yazdir_teklif(teklif_id):
     """Teklifi Word formatında yazdırır"""
+    print(f"\n{'='*60}\n🚀 YAZDIR_TEKLIF ÇAĞRILDI - ID: {teklif_id}\n{'='*60}")
     if not session.get('logged_in'):
         return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
     
     try:
         data = request.get_json()
         format_type = data.get('format', 'word')  # word veya pdf
+        print(f"📝 Format: {format_type}")
         
         # Teklif verilerini yükle
         teklifler = load_teklif()
@@ -9070,1087 +9458,915 @@ def yazdir_teklif(teklif_id):
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
 
-def create_word_teklif(teklif, firma):
-    """Word formatında teklif oluşturur - Basitleştirilmiş format"""
+def create_word_teklif(teklif, firma, return_file_info: bool = False):
     try:
         Document, Inches, Pt, RGBColor, WD_ALIGN_PARAGRAPH, WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL = load_docx()
-        
         if not DOCX_AVAILABLE:
             return jsonify({'success': False, 'message': 'Word dosyası oluşturma için gerekli kütüphane yüklü değil'})
-        
-        # Yeni Word dokümanı oluştur - daha basit yaklaşım
-        doc = Document()
-        
-        # Sayfa kenar boşluklarını ayarla
-        sections = doc.sections
-        for section in sections:
-            section.top_margin = Inches(0.5)
-            section.bottom_margin = Inches(0.5)
-            section.left_margin = Inches(0.5)
-            section.right_margin = Inches(0.5)
-        
-        # Header (üst bilgi) ekle
-        try:
-            header_img_path = 'static/images/tek_ust1.jpg'
-            if os.path.exists(header_img_path):
-                # Header section'a resim ekle
-                section = doc.sections[0]
-                header = section.header
-                header_paragraph = header.paragraphs[0]
-                header_run = header_paragraph.add_run()
-                header_run.add_picture(header_img_path, width=Inches(7.5))
-                header_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        except Exception as e:
-            print(f"Header resmi eklenirken hata: {e}")
-        
-        # Footer (alt bilgi) - Sayfa numarası ekle
-        try:
-            section = doc.sections[0]
-            footer = section.footer
-            footer_paragraph = footer.paragraphs[0]
-            footer_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            # Sayfa numarası ekle - basit yöntem
-            footer_run = footer_paragraph.add_run()
-            footer_run.add_text("Sayfa ")
-            # Word'ün otomatik sayfa numarası field'ını ekle
-            from docx.oxml.shared import qn
-            from docx.oxml import OxmlElement
-            
-            # PAGE field ekle
-            fldChar1 = OxmlElement('w:fldChar')
-            fldChar1.set(qn('w:fldCharType'), 'begin')
-            fldChar1.set(qn('w:dirty'), 'true')
-            footer_run._r.append(fldChar1)
-            
-            instrText = OxmlElement('w:instrText')
-            instrText.text = "PAGE"
-            footer_run._r.append(instrText)
-            
-            fldChar2 = OxmlElement('w:fldChar')
-            fldChar2.set(qn('w:fldCharType'), 'end')
-            footer_run._r.append(fldChar2)
-            
-            footer_run.add_text(" / ")
-            
-            # NUMPAGES field ekle
-            fldChar3 = OxmlElement('w:fldChar')
-            fldChar3.set(qn('w:fldCharType'), 'begin')
-            fldChar3.set(qn('w:dirty'), 'true')
-            footer_run._r.append(fldChar3)
-            
-            instrText2 = OxmlElement('w:instrText')
-            instrText2.text = "NUMPAGES"
-            footer_run._r.append(instrText2)
-            
-            fldChar4 = OxmlElement('w:fldChar')
-            fldChar4.set(qn('w:fldCharType'), 'end')
-            footer_run._r.append(fldChar4)
-            
-        except Exception as e:
-            print(f"Footer eklenirken hata: {e}")
-            # Fallback: basit metin
+
+        from docx.oxml.shared import qn
+        from docx.oxml import OxmlElement
+
+        def set_labeled_table_value(doc_obj, label, value):
+            label_norm = (label or '').strip().rstrip(':')
+            value_str = '' if value is None else str(value)
+            for table in doc_obj.tables:
+                try:
+                    for row in table.rows:
+                        cells = row.cells
+                        if not cells:
+                            continue
+                        # Find label in first cell
+                        if label_norm.lower() in (cells[0].text or '').strip().rstrip(':').lower():
+                            # Templates use: [0]=label, [1]=short code, [2]=value
+                            if len(cells) >= 3:
+                                target = cells[2]
+                            elif len(cells) == 2:
+                                target = cells[1]
+                            else:
+                                target = cells[-1]
+                            target.text = value_str
+                            return True
+                except Exception:
+                    continue
+            return False
+
+        def _norm(s: str) -> str:
+            return (s or '').strip().lower()
+
+        def _is_break_or_empty_block(el) -> bool:
+            """True if block is an empty paragraph or paragraph containing only page/section break markers."""
             try:
-                footer_paragraph = doc.sections[0].footer.paragraphs[0]
-                footer_paragraph.text = "Sayfa 1 / 5"
-                footer_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            except:
-                pass
-        
-        # 1. SAYFA - TEKLİF FORMU
-        
-        # TEKLİF FORMU başlığı kaldırıldı
-        
-        # 3 satır boşluk ekle
-        doc.add_paragraph()
-        doc.add_paragraph()
-        doc.add_paragraph()
-        
-        # Firma bilgileri tablosu (3 sütunlu - 4 cm, 0.5 cm, 13 cm) - Kenarlıksız
-        firma_tablo = doc.add_table(rows=8, cols=3)
-        # Kenarlıkları kaldır - basit yöntem
-        firma_tablo.style = None  # Varsayılan stil kaldır
-        
-        # Sütun genişliklerini ve satır yüksekliklerini ayarla
-        for row in firma_tablo.rows:
-            row.cells[0].width = Inches(1.57)  # 4 cm
-            row.cells[1].width = Inches(0.2)   # 0.5 cm
-            row.cells[2].width = Inches(5.12)  # 13 cm
-            row.height = Inches(0.37)  # Satır yüksekliği 9.5 mm
-        
-        # Sol sütun - Etiketler
-        etiketler = [
-            "Firma Adı",
-            "Firma Yetkili",
-            "Firma Adresi",
-            "Tel / E-Posta",
-            "Talep",
-            "Teklif Kodu",
-            "Sayfa Adedi",
-            "Tarih"
-        ]
-        
-        # Değerler - Sayfa adedi şimdilik boş, sonra doldurulacak
-        tel_email = f"{firma.get('telefon', '') if firma else ''} / {firma.get('email', '') if firma else ''}"
-        degerler = [
-            firma.get('firmaAdi', '') if firma else '',
-            firma.get('yetkiliAdi', '') if firma else '',
-            firma.get('adres', '') if firma else '',
-            tel_email,
-            teklif.get('teklif_tipi', ''),
-            teklif.get('teklif_no', ''),
-            "",  # Sayfa adedi sonra doldurulacak
-            teklif.get('teklif_tarihi', '')
-        ]
-        
-        # Tabloyu doldur
-        for i in range(8):
-            # Sol sütun - etiketler (kalın ve altı çizili)
-            left_cell = firma_tablo.rows[i].cells[0]
-            left_paragraph = left_cell.paragraphs[0]
-            left_run = left_paragraph.add_run(etiketler[i])
-            left_run.bold = True
-            left_run.underline = True
-            
-            # Orta sütun - ":" işareti (0.5 cm)
-            middle_cell = firma_tablo.rows[i].cells[1]
-            middle_cell.text = ":"
-            
-            # Sağ sütun - değerler
-            right_cell = firma_tablo.rows[i].cells[2]
-            right_cell.text = str(degerler[i]) if degerler[i] else ''
-        
-        # Tablo ile metin arası 2 satır boşluk
-        doc.add_paragraph()
-        doc.add_paragraph()
-        
-        # Teklif giriş metni (localStorage'dan gelen veri) - 1. sayfada
-        # localStorage_data'dan giriş metnini al
-        request_data = request.get_json() or {}
-        localStorage_data = request_data.get('localStorage', {})
-        giris_metni = localStorage_data.get('teklifGirisText', '')
-        
-        # Eğer localStorage'dan gelmediyse, teklif verisinden al
-        if not giris_metni:
-            giris_metni = teklif.get('teklif_giris_metni', '')
-        
-        # Eğer 3. aşamadan metin varsa onu kullan, yoksa varsayılan
-        if not giris_metni or giris_metni.strip() == '':
-            giris_metni = '''Sayın Yetkili;
+                if not el.tag.endswith('}p'):
+                    return False
+                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+                texts = [t.text for t in el.xpath('.//w:t', namespaces=ns) if getattr(t, 'text', None)]
+                if any((tx or '').strip() for tx in texts):
+                    return False
+                if el.xpath('.//w:drawing', namespaces=ns) or el.xpath('.//w:pict', namespaces=ns):
+                    return False
+                # treat all-empty paragraph as removable
+                return True
+            except Exception:
+                return False
 
-Talebiniz doğrultusunda hazırlanan fiyat teklifimiz bilginize sunulmuştur.
-
-Laboratuvarımız çalışmalarını "TÜRKAK Akreditasyon Belgesi" ve "Çevre Analizleri Yeterlilik Belgesi" kapsamında gerçekleştirmektedir.
-
-Teklifimizi uygun bulacağınızı umar, iyi çalışmalar dilerim.
-
-Saygılarımızla
-
-Teklifi Hazırlayan
-Hafize Demet Fazli'''
-        
-        # HTML içeriğini bold formatlamayı koruyarak ekle
-        print(f"DEBUG - Giriş metni verisi: {giris_metni[:200]}...")
-        if giris_metni:
-            # HTML içeriğini parse et ve bold formatlamayı koru
-            from bs4 import BeautifulSoup
-            import re
-            
+        def _strip_break_markers_in_paragraph(p_el):
             try:
-                # Word field tag'lerini temizle - Daha agresif
-                clean_html = giris_metni
-                clean_html = re.sub(r'\[if\s+!supportLists\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'\[if\s+supportLists\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'\[if\s+!mso\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'\[if\s+mso\][\s\S]*?\[endif\]', '', clean_html)
-                clean_html = re.sub(r'<!--\[if[^>]*>.*?<!\[endif\]-->', '', clean_html, flags=re.DOTALL)
-                clean_html = re.sub(r'<!--.*?-->', '', clean_html, flags=re.DOTALL)
-                clean_html = re.sub(r'style="[^"]*"', '', clean_html)
-                clean_html = re.sub(r'class="[^"]*"', '', clean_html)
-                clean_html = re.sub(r'lang="[^"]*"', '', clean_html)
-                
-                soup = BeautifulSoup(clean_html, 'html.parser')
-                
-                # Paragraf oluştur
-                p = doc.add_paragraph()
-                
-                # HTML içeriğini işle - Daha akıllı parsing
-                def process_element(element):
-                    if element.name is None:  # Text node
-                        text = element.strip()
-                        if text:
-                            # Özel karakterleri temizle
-                            text = text.replace('&nbsp;', ' ')
-                            text = text.replace('&amp;', '&')
-                            text = text.replace('&lt;', '<')
-                            text = text.replace('&gt;', '>')
-                            text = text.replace('&quot;', '"')
-                            text = text.replace('&apos;', "'")
-                            text = re.sub(r'\s+', ' ', text)
-                            
-                            if text.strip():
-                                run = p.add_run(text.strip() + ' ')
-                                # Font ve stil ayarları - Normal metin
-                                run.font.name = 'Times New Roman'
-                                run.font.size = Pt(11)
-                                run.font.bold = False
-                    elif element.name in ['strong', 'b']:  # Bold tag
-                        text = element.get_text().strip()
-                        if text:
-                            # Özel karakterleri temizle
-                            text = text.replace('&nbsp;', ' ')
-                            text = text.replace('&amp;', '&')
-                            text = text.replace('&lt;', '<')
-                            text = text.replace('&gt;', '>')
-                            text = text.replace('&quot;', '"')
-                            text = text.replace('&apos;', "'")
-                            text = re.sub(r'\s+', ' ', text)
-                            
-                            if text.strip():
-                                run = p.add_run(text.strip() + ' ')
-                                # Font ve stil ayarları - Bold metin
-                                run.font.name = 'Times New Roman'
-                                run.font.size = Pt(11)
-                                run.font.bold = True
-                    else:
-                        # Diğer elementler için recursive işleme
-                        for child in element.children:
-                            process_element(child)
-                
-                # Tüm elementleri işle
-                for element in soup.children:
-                    process_element(element)
-                
-                # Eğer hiç içerik yoksa, fallback olarak basit temizleme yap
-                if not p.runs:
-                    clean_text = re.sub(r'<[^>]+>', '', clean_html)
-                    clean_text = clean_text.replace('&nbsp;', ' ')
-                    clean_text = clean_text.replace('<br>', '\n')
-                    clean_text = clean_text.replace('<br/>', '\n')
-                    clean_text = clean_text.replace('<br />', '\n')
-                    
-                    # Satırları temizle ve birleştir
-                    lines = [line.strip() for line in clean_text.split('\n') if line.strip()]
-                    if lines:
-                        paragraph_text = ' '.join(lines)
-                        p = doc.add_paragraph(paragraph_text)
-                        # Font ve stil ayarları - Fallback
-                        for run in p.runs:
-                            run.font.name = 'Times New Roman'
-                            run.font.size = Pt(11)
-                            run.font.bold = False
-                        
-            except Exception as e:
-                print(f"Giriş metni formatlaması hatası: {e}")
-                # Fallback: Basit temizleme
-                clean_text = re.sub(r'<[^>]+>', '', giris_metni)
-                clean_text = re.sub(r'\[if\s+!supportLists\][\s\S]*?\[endif\]', '', clean_text)
-                clean_text = re.sub(r'\[if\s+supportLists\][\s\S]*?\[endif\]', '', clean_text)
-                clean_text = re.sub(r'<!--\[if[^>]*>.*?<!\[endif\]-->', '', clean_text, flags=re.DOTALL)
-                clean_text = re.sub(r'<!--.*?-->', '', clean_text, flags=re.DOTALL)
-                clean_text = clean_text.replace('&nbsp;', ' ')
-                clean_text = clean_text.replace('<br>', '\n')
-                clean_text = clean_text.replace('<br/>', '\n')
-                clean_text = clean_text.replace('<br />', '\n')
-                
-                lines = [line.strip() for line in clean_text.split('\n') if line.strip()]
-                if lines:
-                    paragraph_text = ' '.join(lines)
-                    p = doc.add_paragraph(paragraph_text)
-                    # Font ve stil ayarları - Fallback
-                    for run in p.runs:
-                        run.font.name = 'Times New Roman'
-                        run.font.size = Pt(11)
-                        run.font.bold = False
-        
-        # Sayfa sonu ekle
-        doc.add_page_break()
-        
-        # 2. sayfa başlangıcında 1 satır boşluk
-        doc.add_paragraph()
-        
-        # 2. SAYFA - ÖLÇÜM METOTLARI VE GENEL HÜKÜMLER
-        
-        # ÖLÇÜM METOTLARI VE ÜCRETLENDİRME başlığı
-        olcum_baslik = doc.add_heading('ÖLÇÜM METOTLARI VE ÜCRETLENDİRME', level=1)
-        olcum_baslik.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Parametre tablosu
-        parametreler = teklif.get('parametreler', [])
-        if parametreler:
-            parametre_tablo = doc.add_table(rows=1, cols=5)
-            parametre_tablo.style = 'Table Grid'
-            
-            # Tablo başlıkları
-            hdr_cells = parametre_tablo.rows[0].cells
-            hdr_cells[0].text = 'Ölçülecek\nParametre'
-            hdr_cells[1].text = 'Ölçüm\nMetodu'
-            hdr_cells[2].text = 'Adet'
-            hdr_cells[3].text = 'Birim\nFiyatı'
-            hdr_cells[4].text = 'Toplam\nFiyat'
-            
-            # Başlık hücrelerini kalın yap ve hizalama ayarla
-            for i, cell in enumerate(hdr_cells):
-                cell.paragraphs[0].runs[0].bold = True
-                # Birim Fiyat ve Toplam Fiyat sütunlarını sağdan hizala
-                if i == 3 or i == 4:  # Birim Fiyat ve Toplam Fiyat sütunları
-                    cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            
-            # Sütun genişliklerini ayarla
-            # Ölçülecek Parametre: 4.5cm, Ölçüm Metodu: 6.5cm, Adet: 1cm, Birim Fiyat: 3.5cm, Toplam Fiyat: 3.5cm
-            for row in parametre_tablo.rows:
-                row.cells[0].width = Inches(1.77)  # 4.5 cm
-                row.cells[1].width = Inches(2.56)  # 6.5 cm  
-                row.cells[2].width = Inches(0.39)  # 1 cm (aynı)
-                row.cells[3].width = Inches(1.38)  # 3.5 cm
-                row.cells[4].width = Inches(1.38)  # 3.5 cm
-                row.height = Inches(0.37)  # 9.5 mm
-            
-            # Parametre verilerini ekle
-            for parametre in parametreler:
-                if parametre.get('adet', 0) > 0:  # Sadece adet > 0 olanları ekle
-                    new_row = parametre_tablo.add_row()
-                    new_row.height = Inches(0.37)  # Yeni satırın yüksekliği 9.5 mm
-                    
-                    # Yeni satır için de sütun genişliklerini ayarla
-                    new_row.cells[0].width = Inches(1.77)  # 4.5 cm
-                    new_row.cells[1].width = Inches(2.56)  # 6.5 cm  
-                    new_row.cells[2].width = Inches(0.39)  # 1 cm (aynı)
-                    new_row.cells[3].width = Inches(1.38)  # 3.5 cm
-                    new_row.cells[4].width = Inches(1.38)  # 3.5 cm
-                    
-                    row_cells = new_row.cells
-                    row_cells[0].text = parametre.get('parametre', '')
-                    row_cells[1].text = parametre.get('metot', '')
-                    row_cells[2].text = str(parametre.get('adet', 0))
-                    row_cells[3].text = f"{parametre.get('birimFiyat', 0):.2f}"
-                    row_cells[4].text = f"{parametre.get('topFiyat', 0):.2f}"
-                    
-                    # Birim Fiyat ve Toplam Fiyat sütunlarını sağdan hizala
-                    row_cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                    row_cells[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            
-            # Toplam bilgileri için 3 satır ekle (tablo içinde)
-            # Toplam satırı
-            toplam_row = parametre_tablo.add_row()
-            toplam_row.height = Inches(0.37)
-            toplam_row.cells[0].merge(toplam_row.cells[1])
-            toplam_row.cells[0].merge(toplam_row.cells[2])
-            toplam_row.cells[0].merge(toplam_row.cells[3])  # Birim Fiyatı da dahil et
-            toplam_row.cells[0].text = "Toplam:"
-            toplam_row.cells[0].paragraphs[0].runs[0].bold = True
-            toplam_row.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            toplam_row.cells[4].text = f"{teklif.get('toplam', 0):.2f} TL"  # Toplam Fiyat sütunu
-            toplam_row.cells[4].paragraphs[0].runs[0].bold = True
-            toplam_row.cells[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            
-            # İndirim Tutarı satırı
-            indirim_row = parametre_tablo.add_row()
-            indirim_row.height = Inches(0.37)
-            indirim_row.cells[0].merge(indirim_row.cells[1])
-            indirim_row.cells[0].merge(indirim_row.cells[2])
-            indirim_row.cells[0].merge(indirim_row.cells[3])  # Birim Fiyatı da dahil et
-            indirim_row.cells[0].text = "İndirim Tutarı:"
-            indirim_row.cells[0].paragraphs[0].runs[0].bold = True
-            indirim_row.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            indirim_row.cells[4].text = f"{teklif.get('indirim', 0):.2f} TL"  # Toplam Fiyat sütunu
-            indirim_row.cells[4].paragraphs[0].runs[0].bold = True
-            indirim_row.cells[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            
-            # Toplam Tutar satırı
-            net_toplam_row = parametre_tablo.add_row()
-            net_toplam_row.height = Inches(0.37)
-            net_toplam_row.cells[0].merge(net_toplam_row.cells[1])
-            net_toplam_row.cells[0].merge(net_toplam_row.cells[2])
-            net_toplam_row.cells[0].merge(net_toplam_row.cells[3])  # Birim Fiyatı da dahil et
-            net_toplam_row.cells[0].text = "Toplam Tutar:"
-            net_toplam_row.cells[0].paragraphs[0].runs[0].bold = True
-            net_toplam_row.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            net_toplam_row.cells[4].text = f"{teklif.get('netToplam', 0):.2f} TL"  # Toplam Fiyat sütunu
-            net_toplam_row.cells[4].paragraphs[0].runs[0].bold = True
-            net_toplam_row.cells[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        
-        # 2. sayfa bitiminde 1 satır boşluk bırak ve sayfa sonu ekle
-        doc.add_paragraph()
-        doc.add_page_break()
-        
-        # 3. SAYFA - GENEL HÜKÜMLER
-        
-        # 3. sayfa başlangıcında 1 satır boşluk
-        doc.add_paragraph()
-        
-        # Başlık ekleme - içerikte zaten var
-        
-
-        
-        # Genel hükümler metni (localStorage'dan gelen veri) - İyileştirilmiş
-        # localStorage_data'dan genel hükümleri al
-        request_data = request.get_json() or {}
-        localStorage_data = request_data.get('localStorage', {})
-        genel_hukumler = localStorage_data.get('genelHukumlerText', '')
-        
-        # Eğer localStorage'dan gelmediyse, teklif verisinden al
-        if not genel_hukumler:
-            genel_hukumler = teklif.get('genel_hukumler', '')
-        
-        # HTML'den temiz metin çıkar - Akıllı temizleme (paragraf yapısını koru)
-        def clean_html_to_text(html_content):
-            if not html_content:
-                return ""
-            
-            import re
-            from bs4 import BeautifulSoup
-            
-            try:
-                # BeautifulSoup ile HTML'i parse et
-                soup = BeautifulSoup(html_content, 'html.parser')
-                
-                # Paragraf yapısını koruyarak temizle
-                paragraphs = []
-                
-                # <p> tag'lerini bul ve işle
-                for p in soup.find_all('p'):
-                    text = p.get_text().strip()
-                    if text and len(text) > 3:
-                        paragraphs.append(text)
-                
-                # Eğer <p> tag'i yoksa, genel metni al
-                if not paragraphs:
-                    text = soup.get_text()
-                    # Satırları temizle
-                    lines = []
-                    for line in text.split('\n'):
-                        line = line.strip()
-                        if line and len(line) > 3:
-                            lines.append(line)
-                    paragraphs = lines
-                
-                # Word'den gelen özel karakterleri temizle
-                clean_paragraphs = []
-                for para in paragraphs:
-                    para = para.replace('&nbsp;', ' ')
-                    para = para.replace('&amp;', '&')
-                    para = para.replace('&lt;', '<')
-                    para = para.replace('&gt;', '>')
-                    para = para.replace('&quot;', '"')
-                    para = para.replace('&apos;', "'")
-                    
-                    # Fazla boşlukları temizle
-                    para = re.sub(r'\s+', ' ', para)
-                    
-                    if para.strip():
-                        clean_paragraphs.append(para.strip())
-                
-                # Paragrafları birleştir (her paragraf ayrı satır)
-                return '\n\n'.join(clean_paragraphs)
-                
-            except Exception as e:
-                print(f"HTML temizleme hatası: {e}")
-                # Fallback: basit regex temizleme
-                clean_text = re.sub(r'<[^>]+>', '', html_content)
-                clean_text = clean_text.replace('&nbsp;', ' ')
-                clean_text = clean_text.replace('<br>', '\n')
-                clean_text = clean_text.replace('<br/>', '\n')
-                clean_text = clean_text.replace('<br />', '\n')
-                clean_text = re.sub(r'\s+', ' ', clean_text)
-                return clean_text.strip()
-        
-        # Genel hükümler - GENEL_HUKUM.docx dosyasından al
-        try:
-            # GENEL_HUKUM.docx dosyasını oku
-            genel_hukum_doc_path = 'static/images/GENEL_HUKUM.docx'
-            if os.path.exists(genel_hukum_doc_path):
-                print(f"DEBUG - GENEL_HUKUM.docx dosyası bulundu, içerik alınıyor...")
-                
-                # Word belgesini aç ve içeriği al
-                from docx import Document as DocxDocument
-                genel_hukum_doc = DocxDocument(genel_hukum_doc_path)
-                
-                # Tüm paragrafları al
-                for paragraph in genel_hukum_doc.paragraphs:
-                    if paragraph.text.strip():
-                        p = doc.add_paragraph()
-                        
-                        # Paragraf metnini al
-                        paragraph_text = paragraph.text.strip()
-                        
-                        # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                        if 'GENEL HÜKÜMLER' in paragraph_text and paragraph_text.startswith('1.'):
-                            # Başlık olarak ekle (madde işareti olmadan)
-                            title_run = p.add_run(paragraph_text)
-                            title_run.font.name = 'Times New Roman'
-                            title_run.font.size = Pt(11)
-                            title_run.font.bold = True
-                            title_run.font.color.rgb = RGBColor(0, 0, 0)
-                        else:
-                            # Normal madde olarak ekle
-                            # Yuvarlak madde işareti ekle (Bold)
-                            bullet_run = p.add_run('• ')
-                            bullet_run.font.name = 'Times New Roman'
-                            bullet_run.font.size = Pt(11)
-                            bullet_run.font.bold = True
-                            bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                            
-                            # Metin ekle
-                            text_run = p.add_run(paragraph_text)
-                            text_run.font.name = 'Times New Roman'
-                            text_run.font.size = Pt(11)
-                            text_run.font.bold = False
-                            text_run.font.color.rgb = RGBColor(0, 0, 0)
-                        
-                        # Paragraf formatını ayarla
-                        p.paragraph_format.space_after = Pt(12)
-                        p.paragraph_format.space_before = Pt(0)
-                        p.paragraph_format.line_spacing = 1.15
-                        p.paragraph_format.first_line_indent = Inches(0)
-                        p.paragraph_format.left_indent = Inches(0)
-                        p.paragraph_format.right_indent = Inches(0)
-                
-                print(f"DEBUG - GENEL_HUKUM.docx içeriği başarıyla eklendi")
-                
-            else:
-                print(f"DEBUG - GENEL_HUKUM.docx dosyası bulunamadı, localStorage'dan alınıyor...")
-                # Fallback: localStorage'dan al
-                localStorage_data = request_data.get('localStorage', {})
-                genel_hukumler = localStorage_data.get('genelHukumlerText', '')
-                
-                # Eğer localStorage'dan gelmediyse, teklif verisinden al
-                if not genel_hukumler:
-                    genel_hukumler = teklif.get('genel_hukumler', '')
-                
-                print(f"DEBUG - Genel hükümler verisi: {genel_hukumler[:200]}...")
-                
-                if genel_hukumler and genel_hukumler.strip():
+                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+                for pb in list(p_el.xpath('.//w:pPr/w:pageBreakBefore', namespaces=ns)):
                     try:
-                        from bs4 import BeautifulSoup
-                        import re
-                        
-                        # HTML'i temizle ve parse et
-                        soup = BeautifulSoup(genel_hukumler, 'html.parser')
-                        
-                        # Önce <ul> ve <li> tag'lerini kontrol et
-                        ul_tags = soup.find_all('ul')
-                        
-                        if ul_tags:
-                            # <ul> tag'i varsa, <li> elementlerini işle
-                            for ul in ul_tags:
-                                li_tags = ul.find_all('li')
-                                for i, li_tag in enumerate(li_tags):
-                                    text = li_tag.get_text().strip()
-                                    if not text or len(text) < 3:
-                                        continue
-                                    
-                                    # Paragraf oluştur
-                                    p = doc.add_paragraph()
-                                    
-                                    # Yuvarlak madde işareti ekle (Bold)
-                                    bullet_run = p.add_run('• ')
-                                    bullet_run.font.name = 'Times New Roman'
-                                    bullet_run.font.size = Pt(11)
-                                    bullet_run.font.bold = True
-                                    bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                                    
-                                    # Metin ekle
-                                    text_run = p.add_run(text)
-                                    text_run.font.name = 'Times New Roman'
-                                    text_run.font.size = Pt(11)
-                                    text_run.font.bold = False
-                                    text_run.font.color.rgb = RGBColor(0, 0, 0)
-                                    
-                                    # Paragraf formatını ayarla
-                                    p.paragraph_format.space_after = Pt(12)
-                                    p.paragraph_format.space_before = Pt(0)
-                                    p.paragraph_format.line_spacing = 1.15
-                                    p.paragraph_format.first_line_indent = Inches(0)
-                                    p.paragraph_format.left_indent = Inches(0)
-                                    p.paragraph_format.right_indent = Inches(0)
-                            
-                            # <strong> tag'lerini de kontrol et (başlık için)
-                            strong_tags = soup.find_all('strong')
-                            for strong_tag in strong_tags:
-                                text = strong_tag.get_text().strip()
-                                if 'GENEL HÜKÜMLER' in text:
-                                    # Başlık olarak ekle (madde işareti olmadan)
-                                    p = doc.add_paragraph()
-                                    title_run = p.add_run(text)
-                                    title_run.font.name = 'Times New Roman'
-                                    title_run.font.size = Pt(11)
-                                    title_run.font.bold = True
-                                    title_run.font.color.rgb = RGBColor(0, 0, 0)
-                                    
-                                    # Paragraf formatını ayarla
-                                    p.paragraph_format.space_after = Pt(12)
-                                    p.paragraph_format.space_before = Pt(0)
-                                    p.paragraph_format.line_spacing = 1.15
-                                    p.paragraph_format.first_line_indent = Inches(0)
-                                    p.paragraph_format.left_indent = Inches(0)
-                                    p.paragraph_format.right_indent = Inches(0)
-                                    break
-                        
-                        # Tüm <p> tag'lerini bul
-                        paragraphs = soup.find_all('p')
-                        
-                        if paragraphs:
-                            # Her paragrafı işle
-                            for i, p_tag in enumerate(paragraphs):
-                                text = p_tag.get_text().strip()
-                                if not text or len(text) < 3:
+                        pb.getparent().remove(pb)
+                    except Exception:
+                        pass
+                for sp in list(p_el.xpath('.//w:pPr/w:sectPr', namespaces=ns)):
+                    try:
+                        sp.getparent().remove(sp)
+                    except Exception:
+                        pass
+                for br in list(p_el.xpath('.//w:br[@w:type="page"]', namespaces=ns)):
+                    try:
+                        br.getparent().remove(br)
+                    except Exception:
+                        pass
+                for lrp in list(p_el.xpath('.//w:lastRenderedPageBreak', namespaces=ns)):
+                    try:
+                        lrp.getparent().remove(lrp)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        def _clean_template_breaks(doc_obj):
+            """Aggressively clean leading/trailing empty/break-only paragraphs and remove break markers
+            that can produce visible 'Sayfa Sonu' and extra blank pages when merged.
+            """
+            try:
+                body = doc_obj.element.body
+                children = list(body.iterchildren())
+
+                # Remove leading empty paragraphs
+                for child in children:
+                    if child.tag.endswith('}sectPr'):
+                        continue
+                    if _is_break_or_empty_block(child):
+                        try:
+                            body.remove(child)
+                        except Exception:
+                            pass
+                        continue
+                    # first real block: strip break markers inside it
+                    if child.tag.endswith('}p'):
+                        _strip_break_markers_in_paragraph(child)
+                    break
+
+                # Remove trailing empty paragraphs
+                while True:
+                    last = None
+                    for child in reversed(list(body.iterchildren())):
+                        if child.tag.endswith('}sectPr'):
+                            continue
+                        last = child
+                        break
+                    if last is None:
+                        break
+                    if last.tag.endswith('}p'):
+                        _strip_break_markers_in_paragraph(last)
+                        if _is_break_or_empty_block(last):
+                            try:
+                                body.remove(last)
+                            except Exception:
+                                pass
+                            continue
+                    break
+            except Exception:
+                pass
+
+        def _apply_header_image_only(doc_obj):
+            header_img_path = os.path.join(app.root_path, 'static', 'images', 'tek_ust1.jpg')
+            if not os.path.exists(header_img_path):
+                return
+            for section in doc_obj.sections:
+                try:
+                    header = section.header
+                    if header is None:
+                        continue
+                    try:
+                        for el in list(header._element):
+                            header._element.remove(el)
+                    except Exception:
+                        pass
+                    try:
+                        header.is_linked_to_previous = False
+                    except Exception:
+                        pass
+                    hp = header.add_paragraph('')
+                    hp.paragraph_format.space_before = Pt(0)
+                    hp.paragraph_format.space_after = Pt(0)
+                    hp.paragraph_format.line_spacing = 1.0
+                    hr = hp.add_run()
+                    hr.add_picture(header_img_path, width=Inches(7.5))
+                    hp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    spacer = header.add_paragraph('')
+                    spacer.paragraph_format.space_before = Pt(0)
+                    spacer.paragraph_format.space_after = Pt(0)
+                    spacer.paragraph_format.line_spacing = 1.0
+                    spacer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                except Exception:
+                    pass
+
+        def _bump_doc_font_sizes(doc_obj, delta_pt: float = 1.0):
+            try:
+                def _bump_runs_in_paragraphs(paragraphs):
+                    for p in paragraphs or []:
+                        for r in getattr(p, 'runs', []) or []:
+                            try:
+                                if r.font is None or r.font.size is None:
                                     continue
-                                
-                                # Paragraf oluştur
-                                p = doc.add_paragraph()
-                                
-                                # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                                if i == 0 and 'GENEL HÜKÜMLER' in text:
-                                    # Başlık olarak ekle (madde işareti olmadan)
-                                    title_run = p.add_run(text)
-                                    title_run.font.name = 'Times New Roman'
-                                    title_run.font.size = Pt(11)
-                                    title_run.font.bold = True
-                                    title_run.font.color.rgb = RGBColor(0, 0, 0)
-                                else:
-                                    # Normal madde olarak ekle
-                                    # Yuvarlak madde işareti ekle (Bold)
-                                    bullet_run = p.add_run('• ')
-                                    bullet_run.font.name = 'Times New Roman'
-                                    bullet_run.font.size = Pt(11)
-                                    bullet_run.font.bold = True
-                                    bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                                    
-                                    # Metin ekle
-                                    text_run = p.add_run(text)
-                                    text_run.font.name = 'Times New Roman'
-                                    text_run.font.size = Pt(11)
-                                    text_run.font.bold = False
-                                    text_run.font.color.rgb = RGBColor(0, 0, 0)
-                                
-                                # Paragraf formatını ayarla
-                                p.paragraph_format.space_after = Pt(12)
-                                p.paragraph_format.space_before = Pt(0)
-                                p.paragraph_format.line_spacing = 1.15
-                                p.paragraph_format.first_line_indent = Inches(0)
-                                p.paragraph_format.left_indent = Inches(0)
-                                p.paragraph_format.right_indent = Inches(0)
+                                cur = r.font.size.pt
+                                if cur is None:
+                                    continue
+                                r.font.size = Pt(float(cur) + float(delta_pt))
+                            except Exception:
+                                pass
+
+                _bump_runs_in_paragraphs(getattr(doc_obj, 'paragraphs', []) or [])
+
+                for t in getattr(doc_obj, 'tables', []) or []:
+                    try:
+                        for row in t.rows:
+                            for cell in row.cells:
+                                _bump_runs_in_paragraphs(getattr(cell, 'paragraphs', []) or [])
+                    except Exception:
+                        continue
+
+                for section in getattr(doc_obj, 'sections', []) or []:
+                    try:
+                        hdr = getattr(section, 'header', None)
+                        ftr = getattr(section, 'footer', None)
+                        if hdr is not None:
+                            _bump_runs_in_paragraphs(getattr(hdr, 'paragraphs', []) or [])
+                            for t in getattr(hdr, 'tables', []) or []:
+                                for row in t.rows:
+                                    for cell in row.cells:
+                                        _bump_runs_in_paragraphs(getattr(cell, 'paragraphs', []) or [])
+                        if ftr is not None:
+                            _bump_runs_in_paragraphs(getattr(ftr, 'paragraphs', []) or [])
+                            for t in getattr(ftr, 'tables', []) or []:
+                                for row in t.rows:
+                                    for cell in row.cells:
+                                        _bump_runs_in_paragraphs(getattr(cell, 'paragraphs', []) or [])
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        def _set_specific_font_size(doc_obj, from_pt: float, to_pt: float):
+            try:
+                def _apply(paragraphs):
+                    for p in paragraphs or []:
+                        for r in getattr(p, 'runs', []) or []:
+                            try:
+                                if r.font is None or r.font.size is None:
+                                    continue
+                                cur = r.font.size.pt
+                                if cur is None:
+                                    continue
+                                if abs(float(cur) - float(from_pt)) < 0.25:
+                                    r.font.size = Pt(float(to_pt))
+                            except Exception:
+                                pass
+
+                _apply(getattr(doc_obj, 'paragraphs', []) or [])
+
+                for t in getattr(doc_obj, 'tables', []) or []:
+                    try:
+                        for row in t.rows:
+                            for cell in row.cells:
+                                _apply(getattr(cell, 'paragraphs', []) or [])
+                    except Exception:
+                        continue
+
+                for section in getattr(doc_obj, 'sections', []) or []:
+                    try:
+                        hdr = getattr(section, 'header', None)
+                        ftr = getattr(section, 'footer', None)
+                        if hdr is not None:
+                            _apply(getattr(hdr, 'paragraphs', []) or [])
+                            for t in getattr(hdr, 'tables', []) or []:
+                                for row in t.rows:
+                                    for cell in row.cells:
+                                        _apply(getattr(cell, 'paragraphs', []) or [])
+                        if ftr is not None:
+                            _apply(getattr(ftr, 'paragraphs', []) or [])
+                            for t in getattr(ftr, 'tables', []) or []:
+                                for row in t.rows:
+                                    for cell in row.cells:
+                                        _apply(getattr(cell, 'paragraphs', []) or [])
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        def _set_footer_distance_cm(doc_obj, cm: float = 0.8):
+            try:
+                dist_in = float(cm) / 2.54
+                for section in getattr(doc_obj, 'sections', []) or []:
+                    try:
+                        section.footer_distance = Inches(dist_in)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        def _apply_footer_paging(doc_obj, teklif_no: str = '', teklif_tarihi: str = ''):
+            """Resimdeki gibi footer: 1 satır tablo, 3 sütun (Sol: Sayı, Orta: Firma, Sağ: Form kodu + sayfa)"""
+            try:
+                teklif_no = (teklif_no or '').strip()
+                
+                for section in doc_obj.sections:
+                    try:
+                        footer = section.footer
+                        footer.is_linked_to_previous = False
                         
-                        else:
-                            # <p> tag'i yoksa, düz metni satırlara böl
-                            clean_text = soup.get_text()
-                            lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
-                            
-                            for i, line in enumerate(lines):
-                                p = doc.add_paragraph()
-                                
-                                # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                                if i == 0 and 'GENEL HÜKÜMLER' in line:
-                                    # Başlık olarak ekle (madde işareti olmadan)
-                                    title_run = p.add_run(line)
-                                    title_run.font.name = 'Times New Roman'
-                                    title_run.font.size = Pt(11)
-                                    title_run.font.bold = True
-                                    title_run.font.color.rgb = RGBColor(0, 0, 0)
-                                else:
-                                    # Normal madde olarak ekle
-                                    # Yuvarlak madde işareti ekle (Bold)
-                                    bullet_run = p.add_run('• ')
-                                    bullet_run.font.name = 'Times New Roman'
-                                    bullet_run.font.size = Pt(11)
-                                    bullet_run.font.bold = True
-                                    bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                                    
-                                    # Metin ekle
-                                    text_run = p.add_run(line)
-                                    text_run.font.name = 'Times New Roman'
-                                    text_run.font.size = Pt(11)
-                                    text_run.font.bold = False
-                                    text_run.font.color.rgb = RGBColor(0, 0, 0)
-                                
-                                # Paragraf formatını ayarla
-                                p.paragraph_format.space_after = Pt(12)
-                                p.paragraph_format.space_before = Pt(0)
-                                p.paragraph_format.line_spacing = 1.15
-                                p.paragraph_format.first_line_indent = Inches(0)
-                                p.paragraph_format.left_indent = Inches(0)
-                                p.paragraph_format.right_indent = Inches(0)
+                        # Mevcut içeriği temizle
+                        for p in list(footer.paragraphs):
+                            p._element.getparent().remove(p._element)
+                        for t in list(footer.tables):
+                            t._element.getparent().remove(t._element)
+                        
+                        # 1 satır, 3 sütun tablo
+                        table = footer.add_table(rows=1, cols=3)
+                        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                        
+                        # Sütun genişlikleri
+                        widths = [Inches(2.0), Inches(3.5), Inches(2.0)]
+                        for idx, cell in enumerate(table.rows[0].cells):
+                            cell.width = widths[idx]
+                        
+                        # Sol hücre: Sayı
+                        cell_left = table.rows[0].cells[0]
+                        p_left = cell_left.paragraphs[0]
+                        p_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                        run_left = p_left.add_run(f"Sayı:{teklif_no}")
+                        run_left.font.bold = True
+                        run_left.font.color.rgb = RGBColor(0, 0, 128)
+                        run_left.font.size = Pt(9)
+                        
+                        # Orta hücre: Firma bilgileri (3 satır)
+                        cell_center = table.rows[0].cells[1]
+                        p_center = cell_center.paragraphs[0]
+                        p_center.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        
+                        run1 = p_center.add_run("AKARE ÇEVRE LABORATUVAR VE DAN. HİZM. TİC.LTD.ŞTİ Kirazlıyalı Mah. Süleyman Demirel Cad. No:28/A")
+                        run1.font.bold = True
+                        run1.font.color.rgb = RGBColor(0, 0, 128)
+                        run1.font.size = Pt(9)
+                        
+                        p_center.add_run("\n")
+                        
+                        run2 = p_center.add_run("Körfez V.D 013 065 1290 Körfez-KOCAELİ")
+                        run2.font.bold = True
+                        run2.font.color.rgb = RGBColor(0, 0, 128)
+                        run2.font.size = Pt(9)
+                        
+                        p_center.add_run("\n")
+                        
+                        run3 = p_center.add_run("info@akarecevre.com  www.akarecevre.com")
+                        run3.font.bold = True
+                        run3.font.color.rgb = RGBColor(0, 0, 128)
+                        run3.font.size = Pt(9)
+                        
+                        # Sağ hücre: Form kodu ve sayfa numarası
+                        cell_right = table.rows[0].cells[2]
+                        p_right = cell_right.paragraphs[0]
+                        p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                        
+                        run_form = p_right.add_run("AÇ.F.102/Rev04/14.08.2025")
+                        run_form.font.bold = True
+                        run_form.font.color.rgb = RGBColor(0, 0, 128)
+                        run_form.font.size = Pt(9)
+                        
+                        p_right.add_run("  ")
+                        
+                        # Sayfa numarası
+                        run_page = p_right.add_run()
+                        run_page.font.bold = True
+                        run_page.font.color.rgb = RGBColor(0, 0, 128)
+                        run_page.font.size = Pt(9)
+                        
+                        fldChar1 = OxmlElement('w:fldChar')
+                        fldChar1.set(qn('w:fldCharType'), 'begin')
+                        run_page._r.append(fldChar1)
+                        instrText = OxmlElement('w:instrText')
+                        instrText.text = 'PAGE'
+                        run_page._r.append(instrText)
+                        fldChar2 = OxmlElement('w:fldChar')
+                        fldChar2.set(qn('w:fldCharType'), 'end')
+                        run_page._r.append(fldChar2)
+                        
+                        run_page.add_text('/')
+                        
+                        fldChar3 = OxmlElement('w:fldChar')
+                        fldChar3.set(qn('w:fldCharType'), 'begin')
+                        run_page._r.append(fldChar3)
+                        instrText2 = OxmlElement('w:instrText')
+                        instrText2.text = 'NUMPAGES'
+                        run_page._r.append(instrText2)
+                        fldChar4 = OxmlElement('w:fldChar')
+                        fldChar4.set(qn('w:fldCharType'), 'end')
+                        run_page._r.append(fldChar4)
+                        
+                        # Tablo kenarlıklarını kaldır
+                        for cell in table.rows[0].cells:
+                            tcPr = cell._element.get_or_add_tcPr()
+                            tcBorders = OxmlElement('w:tcBorders')
+                            for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+                                border = OxmlElement(f'w:{border_name}')
+                                border.set(qn('w:val'), 'none')
+                                tcBorders.append(border)
+                            tcPr.append(tcBorders)
                         
                     except Exception as e:
-                        print(f"localStorage genel hükümler formatlaması hatası: {e}")
-                        # Fallback: Basit madde işaretli liste
-                        clean_text = re.sub(r'<[^>]+>', '', genel_hukumler)
-                        lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
-                        
-                        for i, line in enumerate(lines):
-                            p = doc.add_paragraph()
-                            
-                            # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                            if i == 0 and 'GENEL HÜKÜMLER' in line:
-                                # Başlık olarak ekle (madde işareti olmadan)
-                                title_run = p.add_run(line)
-                                title_run.font.name = 'Times New Roman'
-                                title_run.font.size = Pt(11)
-                                title_run.font.bold = True
-                                title_run.font.color.rgb = RGBColor(0, 0, 0)
-                            else:
-                                # Normal madde olarak ekle
-                                # Yuvarlak madde işareti ekle (Bold)
-                                bullet_run = p.add_run('• ')
-                                bullet_run.font.name = 'Times New Roman'
-                                bullet_run.font.size = Pt(11)
-                                bullet_run.font.bold = True
-                                bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                                
-                                # Metin ekle
-                                text_run = p.add_run(line)
-                                text_run.font.name = 'Times New Roman'
-                                text_run.font.size = Pt(11)
-                                text_run.font.bold = False
-                                text_run.font.color.rgb = RGBColor(0, 0, 0)
-                            
-                            # Paragraf formatını ayarla
-                            p.paragraph_format.space_after = Pt(12)
-                            p.paragraph_format.space_before = Pt(0)
-                            p.paragraph_format.line_spacing = 1.15
-                            p.paragraph_format.first_line_indent = Inches(0)
-                            p.paragraph_format.left_indent = Inches(0)
-                            p.paragraph_format.right_indent = Inches(0)
-                    
-        except Exception as e:
-            print(f"GENEL_HUKUM.docx okuma hatası: {e}")
-            # Fallback: localStorage'dan al
-            localStorage_data = request_data.get('localStorage', {})
-            genel_hukumler = localStorage_data.get('genelHukumlerText', '')
-            
-            # Eğer localStorage'dan gelmediyse, teklif verisinden al
-            if not genel_hukumler:
-                genel_hukumler = teklif.get('genel_hukumler', '')
-            
-            print(f"DEBUG - Genel hükümler verisi: {genel_hukumler[:200]}...")
-            
-            if genel_hukumler and genel_hukumler.strip():
-                try:
-                    from bs4 import BeautifulSoup
-                    import re
-                    
-                    # HTML'i temizle ve parse et
-                    soup = BeautifulSoup(genel_hukumler, 'html.parser')
-                    
-                    # Tüm <p> tag'lerini bul
-                    paragraphs = soup.find_all('p')
-                    
-                    if paragraphs:
-                        # Her paragrafı işle
-                        for i, p_tag in enumerate(paragraphs):
-                            text = p_tag.get_text().strip()
-                            if not text or len(text) < 3:
-                                continue
-                            
-                            # Paragraf oluştur
-                            p = doc.add_paragraph()
-                            
-                            # İlk paragraf "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                            if i == 0 and 'GENEL HÜKÜMLER' in text:
-                                # Başlık olarak ekle (madde işareti olmadan)
-                                title_run = p.add_run(text)
-                                title_run.font.name = 'Times New Roman'
-                                title_run.font.size = Pt(11)
-                                title_run.font.bold = True
-                                title_run.font.color.rgb = RGBColor(0, 0, 0)
-                            else:
-                                # Normal madde olarak ekle
-                                # Yuvarlak madde işareti ekle (Bold)
-                                bullet_run = p.add_run('• ')
-                                bullet_run.font.name = 'Times New Roman'
-                                bullet_run.font.size = Pt(11)
-                                bullet_run.font.bold = True
-                                bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                                
-                                # Metin ekle
-                                text_run = p.add_run(text)
-                                text_run.font.name = 'Times New Roman'
-                                text_run.font.size = Pt(11)
-                                text_run.font.bold = False
-                                text_run.font.color.rgb = RGBColor(0, 0, 0)
-                            
-                            # Paragraf formatını ayarla
-                            p.paragraph_format.space_after = Pt(12)
-                            p.paragraph_format.space_before = Pt(0)
-                            p.paragraph_format.line_spacing = 1.15
-                            p.paragraph_format.first_line_indent = Inches(0)
-                            p.paragraph_format.left_indent = Inches(0)
-                            p.paragraph_format.right_indent = Inches(0)
-                    
-                    else:
-                        # <p> tag'i yoksa, düz metni satırlara böl
-                        clean_text = soup.get_text()
-                        lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
-                        
-                        for i, line in enumerate(lines):
-                            p = doc.add_paragraph()
-                            
-                            # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                            if i == 0 and 'GENEL HÜKÜMLER' in line:
-                                # Başlık olarak ekle (madde işareti olmadan)
-                                title_run = p.add_run(line)
-                                title_run.font.name = 'Times New Roman'
-                                title_run.font.size = Pt(11)
-                                title_run.font.bold = True
-                                title_run.font.color.rgb = RGBColor(0, 0, 0)
-                            else:
-                                # Normal madde olarak ekle
-                                # Yuvarlak madde işareti ekle (Bold)
-                                bullet_run = p.add_run('• ')
-                                bullet_run.font.name = 'Times New Roman'
-                                bullet_run.font.size = Pt(11)
-                                bullet_run.font.bold = True
-                                bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                                
-                                # Metin ekle
-                                text_run = p.add_run(line)
-                                text_run.font.name = 'Times New Roman'
-                                text_run.font.size = Pt(11)
-                                text_run.font.bold = False
-                                text_run.font.color.rgb = RGBColor(0, 0, 0)
-                            
-                            # Paragraf formatını ayarla
-                            p.paragraph_format.space_after = Pt(12)
-                            p.paragraph_format.space_before = Pt(0)
-                            p.paragraph_format.line_spacing = 1.15
-                            p.paragraph_format.first_line_indent = Inches(0)
-                            p.paragraph_format.left_indent = Inches(0)
-                            p.paragraph_format.right_indent = Inches(0)
-                            
-                except Exception as e:
-                    print(f"Genel hükümler formatlaması hatası: {e}")
-                    # Fallback: Basit madde işaretli liste
-                    clean_text = re.sub(r'<[^>]+>', '', genel_hukumler)
-                    lines = [line.strip() for line in clean_text.split('\n') if line.strip() and len(line.strip()) > 3]
-                    
-                    for i, line in enumerate(lines):
-                        p = doc.add_paragraph()
-                        
-                        # İlk satır "1. GENEL HÜKÜMLER" ise başlık olarak işle
-                        if i == 0 and 'GENEL HÜKÜMLER' in line:
-                            # Başlık olarak ekle (madde işareti olmadan)
-                            title_run = p.add_run(line)
-                            title_run.font.name = 'Times New Roman'
-                            title_run.font.size = Pt(11)
-                            title_run.font.bold = True
-                            title_run.font.color.rgb = RGBColor(0, 0, 0)
-                        else:
-                            # Normal madde olarak ekle
-                            # Yuvarlak madde işareti ekle (Bold)
-                            bullet_run = p.add_run('• ')
-                            bullet_run.font.name = 'Times New Roman'
-                            bullet_run.font.size = Pt(11)
-                            bullet_run.font.bold = True
-                            bullet_run.font.color.rgb = RGBColor(0, 0, 0)
-                            
-                            # Metin ekle
-                            text_run = p.add_run(line)
-                            text_run.font.name = 'Times New Roman'
-                            text_run.font.size = Pt(11)
-                            text_run.font.bold = False
-                            text_run.font.color.rgb = RGBColor(0, 0, 0)
-                        
-                        # Paragraf formatını ayarla
-                        p.paragraph_format.space_after = Pt(12)
-                        p.paragraph_format.space_before = Pt(0)
-                        p.paragraph_format.line_spacing = 1.15
-                        p.paragraph_format.first_line_indent = Inches(0)
-                        p.paragraph_format.left_indent = Inches(0)
-                        p.paragraph_format.right_indent = Inches(0)
-        
-        
-        # Geçici dosya oluştur ve kaydet
-        temp_file_path = None
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as temp_file:
-                temp_file_path = temp_file.name
-            
-            # Belgeyi kaydet
-            doc.save(temp_file_path)
-            
-            # Sayfa adedi güncelle - daha doğru hesaplama
+                        continue
+            except Exception:
+                pass
+
+        def _remove_all_section_breaks(doc_obj):
+            """Remove section properties that can create unexpected blank pages when merging."""
             try:
-                # Word belgesini açıp sayfa sayısını hesapla
-                from docx import Document as DocxDocument
-                temp_doc = DocxDocument(temp_file_path)
+                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+                body = doc_obj.element.body
+                # body-level sectPr
+                for child in list(body.iterchildren()):
+                    if child.tag.endswith('}sectPr'):
+                        try:
+                            body.remove(child)
+                        except Exception:
+                            pass
+                # paragraph-level sectPr
+                for p in list(body.iterchildren()):
+                    if not p.tag.endswith('}p'):
+                        continue
+                    for sp in list(p.xpath('.//w:pPr/w:sectPr', namespaces=ns)):
+                        try:
+                            sp.getparent().remove(sp)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        def _fill_teklif2_table(doc_obj, teklif_obj):
+            try:
+                params = (teklif_obj or {}).get('parametreler', []) or []
+                if not params:
+                    return
+
+                def _find_pricing_table():
+                    for t in doc_obj.tables:
+                        try:
+                            if not t.rows:
+                                continue
+                            # Header row may not be the first row (some templates have a title row)
+                            for r in t.rows[:3]:
+                                hdr = '|'.join(_norm(c.text) for c in r.cells)
+                                if 'parametre' in hdr and ('metodu' in hdr or 'metot' in hdr or 'metod' in hdr):
+                                    return t
+                        except Exception:
+                            continue
+                    return None
+
+                table = _find_pricing_table()
+                if table is None:
+                    return
+
+                header_row_idx = 0
+                header_cells = table.rows[0].cells if table.rows else []
+                header_texts = [_norm(c.text) for c in header_cells]
+                try:
+                    for ri in range(min(3, len(table.rows))):
+                        ht = [_norm(c.text) for c in table.rows[ri].cells]
+                        joined = ' '.join(ht)
+                        if 'parametre' in joined and ('metodu' in joined or 'metot' in joined or 'metod' in joined):
+                            header_row_idx = ri
+                            header_cells = table.rows[ri].cells
+                            header_texts = ht
+                            break
+                except Exception:
+                    pass
+
+                def _find_col(*needles):
+                    for i, ht in enumerate(header_texts):
+                        if all(n in ht for n in needles):
+                            return i
+                    return None
+
+                col_param = _find_col('parametre')
+                col_metot = _find_col('metod')
+                if col_metot is None:
+                    col_metot = _find_col('metot')
+                if col_metot is None and len(header_texts) >= 2:
+                    col_metot = 1
+                col_adet = _find_col('adet')
+
+                col_birim = _find_col('birim')
+                if col_birim is None:
+                    col_birim = _find_col('birim', 'fiyat')
+                if col_birim is None:
+                    col_birim = _find_col('fiyat')
+
+                col_toplam = _find_col('toplam')
+                if col_toplam is None:
+                    # Templates may use 'TOP. FİYAT' instead of 'Toplam'
+                    col_toplam = _find_col('top', 'fiyat')
+                if col_toplam is None:
+                    col_toplam = _find_col('top')
                 
-                # Daha doğru sayfa hesaplama - basit ve doğru
-                total_paragraphs = len(temp_doc.paragraphs)
+                # İndirim veya İskonto sütununu bul
+                col_indirim = _find_col('indirim')
+                if col_indirim is None:
+                    col_indirim = _find_col('iskonto')
+
+                # Fallback: if header-based detection fails, assume last 2 columns are money columns
+                try:
+                    ncols = len(header_texts)
+                    if ncols >= 2:
+                        if col_toplam is None:
+                            col_toplam = ncols - 1
+                        if col_birim is None:
+                            col_birim = ncols - 2
+                except Exception:
+                    pass
+
+                totals_start_idx = None
+                for i, row in enumerate(table.rows):
+                    row_text = ' '.join(_norm(c.text) for c in row.cells)
+                    if 'toplam' in row_text and i > header_row_idx:
+                        totals_start_idx = i
+                        break
+
+                data_start = header_row_idx + 1
+                data_end = totals_start_idx if totals_start_idx is not None else len(table.rows)
+                capacity = max(0, data_end - data_start)
+
+                if len(params) > capacity:
+                    for _ in range(len(params) - capacity):
+                        if totals_start_idx is None:
+                            table.add_row()
+                        else:
+                            last_data_row = table.rows[data_end - 1]._tr
+                            new_tr = deepcopy(last_data_row)
+                            table._tbl.insert(totals_start_idx, new_tr)
+                            data_end += 1
+                            totals_start_idx += 1
+
+                def _as_int(v, default=0):
+                    try:
+                        return int(v)
+                    except Exception:
+                        try:
+                            return int(float(v))
+                        except Exception:
+                            return default
+
+                def _as_float(v, default=0.0):
+                    try:
+                        return float(v)
+                    except Exception:
+                        return default
+
+                # Word formatting helpers (alignment + row height)
+                try:
+                    from docx.enum.text import WD_ALIGN_PARAGRAPH as _WD_ALIGN_PARAGRAPH
+                    from docx.enum.table import WD_ALIGN_VERTICAL as _WD_ALIGN_VERTICAL, WD_ROW_HEIGHT_RULE as _WD_ROW_HEIGHT_RULE
+                    from docx.shared import Pt as _Pt
+                except Exception:
+                    _WD_ALIGN_PARAGRAPH = None
+                    _WD_ALIGN_VERTICAL = None
+                    _WD_ROW_HEIGHT_RULE = None
+                    _Pt = None
+
+                def _align_cell(cell, right: bool = False):
+                    try:
+                        if _WD_ALIGN_VERTICAL is not None:
+                            cell.vertical_alignment = _WD_ALIGN_VERTICAL.CENTER
+                        if _WD_ALIGN_PARAGRAPH is not None:
+                            for p in cell.paragraphs:
+                                p.alignment = _WD_ALIGN_PARAGRAPH.RIGHT if right else _WD_ALIGN_PARAGRAPH.LEFT
+                        # Add a bit of right padding for numeric cells so text doesn't touch the border
+                        if right:
+                            try:
+                                tcPr = cell._tc.get_or_add_tcPr()
+                                tcMar = tcPr.find(qn('w:tcMar'))
+                                if tcMar is None:
+                                    tcMar = OxmlElement('w:tcMar')
+                                    tcPr.append(tcMar)
+                                right_el = tcMar.find(qn('w:right'))
+                                if right_el is None:
+                                    right_el = OxmlElement('w:right')
+                                    tcMar.append(right_el)
+                                # twips: 1/20 pt. ~180 twips ≈ 0.125 in ≈ ~2 characters feel
+                                right_el.set(qn('w:w'), '180')
+                                right_el.set(qn('w:type'), 'dxa')
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                def _set_row_height(row_obj, points: float):
+                    try:
+                        if _Pt is None or _WD_ROW_HEIGHT_RULE is None:
+                            return
+                        row_obj.height = _Pt(points)
+                        row_obj.height_rule = _WD_ROW_HEIGHT_RULE.AT_LEAST
+                    except Exception:
+                        pass
+
+                for idx, pr in enumerate(params):
+                    row = table.rows[data_start + idx]
+                    _set_row_height(row, 18)
+                    adet_val = _as_int(pr.get('adet', 0), 0)
+                    birim_val = _as_float(pr.get('birimFiyat', 0), 0.0)
+                    toplam_val = _as_float(pr.get('topFiyat', birim_val * adet_val), birim_val * adet_val)
+
+                    def _set_cell(ci, v, is_money: bool = False, align_right: bool = False):
+                        if ci is None or ci >= len(row.cells):
+                            return
+                        try:
+                            cell = row.cells[ci]
+                            txt = '' if v is None else str(v)
+                            if is_money:
+                                try:
+                                    txt = f"{float(v):.2f}"
+                                except Exception:
+                                    pass
+                            cell.text = ''
+                            cell.text = txt
+                            _align_cell(cell, right=bool(is_money or align_right))
+                        except Exception:
+                            pass
+
+                    _set_cell(col_param, pr.get('parametre', ''))
+                    # Guarantee metot column is filled
+                    metot_value = pr.get('metot', '')
+                    if (metot_value is None) or (str(metot_value).strip() == ''):
+                        metot_value = pr.get('metod', '')
+                    _set_cell(col_metot, metot_value)
+                    _set_cell(col_adet, adet_val, align_right=True)
+                    _set_cell(col_birim, birim_val, is_money=True)
+                    _set_cell(col_toplam, toplam_val, is_money=True)
+                    # İskonto sütunu parametre satırlarında yok, sadece özet bölümünde var
+
+                # Remove extra template rows so row count matches param count
+                try:
+                    desired = len(params)
+                    # Recompute bounds after any row insertions
+                    if totals_start_idx is None:
+                        data_end = len(table.rows)
+                    else:
+                        data_end = totals_start_idx
+                    # Delete from bottom of data area to avoid index shifts
+                    last_keep = data_start + desired - 1
+                    for ridx in range(data_end - 1, last_keep, -1):
+                        if ridx < data_start:
+                            break
+                        try:
+                            table._tbl.remove(table.rows[ridx]._tr)
+                            if totals_start_idx is not None:
+                                totals_start_idx -= 1
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+                toplam = teklif_obj.get('toplam', None)
+                indirim = teklif_obj.get('indirim', None)
+                net = teklif_obj.get('netToplam', None)
                 
-                # Basit hesaplama: her 15 paragraf = 1 sayfa
-                estimated_pages = max(3, (total_paragraphs // 15) + 1)
-                
-                # Genel hükümler varsa sayfa sayısını artır
-                if genel_hukumler and len(genel_hukumler) > 500:
-                    estimated_pages += 1
-                
-                # Maksimum 8 sayfa ile sınırla
-                estimated_pages = min(estimated_pages, 8)
-                
-                firma_tablo.rows[6].cells[2].text = str(estimated_pages)
-                
-                # Güncellenmiş belgeyi tekrar kaydet
-                doc.save(temp_file_path)
-            except Exception as e:
-                print(f"Sayfa sayısı hesaplama hatası: {e}")
-                # Fallback: varsayılan sayfa sayısı
-                firma_tablo.rows[6].cells[2].text = "5"
-                doc.save(temp_file_path)
+                print(f"✓ Değerler: Toplam={toplam}, İndirim={indirim}, Net={net}, totals_start_idx={totals_start_idx}")
+
+                if totals_start_idx is not None:
+                    def _row_key(row_obj) -> str:
+                        return ' '.join(_norm(c.text) for c in row_obj.cells)
+
+                    def _write_total(row_idx: int, value):
+                        if value is None:
+                            return
+                        try:
+                            txt = f"{float(value):.2f}"
+                        except Exception:
+                            txt = str(value)
+                        try:
+                            r = table.rows[row_idx]
+                            _set_row_height(r, 18)
+                            r.cells[-1].text = txt
+                            _align_cell(r.cells[-1], right=True)
+                        except Exception:
+                            pass
+
+                    # Özet satırlarını doldur (yeni şablon TOPLAM, İSKONTO, TOPLAM TUTAR satırlarını içeriyor)
+                    for i in range(totals_start_idx, len(table.rows)):
+                        # Satırın ilk hücresinin içeriğini al (normalize etmeden)
+                        try:
+                            first_cell_text = table.rows[i].cells[0].text.strip().upper()
+                            print(f"  → Satır {i}: '{first_cell_text}'")
+                            
+                            # İskonto satırını bul - büyük harfe çevirip kontrol et
+                            if 'İSKONTO' in first_cell_text or 'ISKONTO' in first_cell_text or 'İNDİRİM' in first_cell_text or 'INDIRIM' in first_cell_text:
+                                print(f"    ✓ İskonto satırı bulundu, değer yazılıyor: {indirim}")
+                                _write_total(i, indirim)
+                            # Toplam tutar satırını bul
+                            elif 'TOPLAM TUTAR' in first_cell_text or 'NET TOPLAM' in first_cell_text:
+                                print(f"    ✓ Toplam tutar satırı bulundu, değer yazılıyor: {net}")
+                                _write_total(i, net)
+                            # Toplam satırını bul (ama toplam tutar veya iskonto değil)
+                            elif first_cell_text.startswith('TOPLAM') and 'TUTAR' not in first_cell_text and 'İSKONTO' not in first_cell_text and 'ISKONTO' not in first_cell_text:
+                                print(f"    ✓ Toplam satırı bulundu, değer yazılıyor: {toplam}")
+                                _write_total(i, toplam)
+                        except Exception as e:
+                            print(f"Satır {i} işlenirken hata: {e}")
+                            continue
+
+            except Exception as _e:
+                print(f"TEKLİF-2 tablo doldurma hatası: {_e}")
+
+        teklif1_path = os.path.join(app.root_path, 'static', 'images', 'TEKLİF-1 GİRİŞ.docx')
+        teklif2_path = os.path.join(app.root_path, 'static', 'images', 'TEKLİF - 2 FİYAT.docx')
+        teklif3_path = os.path.join(app.root_path, 'static', 'images', 'TEKLİF - 3 GENEL HUKUM.docx')
+
+        if not os.path.exists(teklif1_path):
+            return jsonify({'success': False, 'message': 'TEKLİF-1 GİRİŞ.docx şablonu bulunamadı'})
+
+        # 1) Prepare TEKLİF-1 (master)
+        doc1 = Document(teklif1_path)
+        tel_email = f"{firma.get('telefon', '') if firma else ''} / {firma.get('email', '') if firma else ''}"
+        teklif_tarihi_raw = teklif.get('teklif_tarihi', '')
+        try:
+            teklif_tarihi = format_tarih_gg_aa_yyyy(teklif_tarihi_raw)
+        except Exception:
+            teklif_tarihi = teklif_tarihi_raw
+        set_labeled_table_value(doc1, 'Firma Adı', firma.get('firmaAdi', '') if firma else '')
+        set_labeled_table_value(doc1, 'Firma Yetkili', firma.get('yetkiliAdi', '') if firma else '')
+        set_labeled_table_value(doc1, 'Firma Adresi', firma.get('adres', '') if firma else '')
+        set_labeled_table_value(doc1, 'Tel', tel_email)
+        set_labeled_table_value(doc1, 'Tel / E-Posta', tel_email)
+        set_labeled_table_value(doc1, 'Faks', firma.get('faks', '') if firma else '')
+        set_labeled_table_value(doc1, 'E-Posta', firma.get('email', '') if firma else '')
+        set_labeled_table_value(doc1, 'Talep', teklif.get('teklif_tipi', ''))
+        set_labeled_table_value(doc1, 'Teklif Kodu', teklif.get('teklif_no', ''))
+        set_labeled_table_value(doc1, 'Sayfa Adedi', '')
+        set_labeled_table_value(doc1, 'Tarih', teklif_tarihi)
+        _clean_template_breaks(doc1)
+        _apply_header_image_only(doc1)
+        _set_footer_distance_cm(doc1, 0.8)
+        # Footer placeholder'ları şablonda tanımlı: {{TEKLIF_NO}}, {{SAYFA_NO}}
+        # replace_placeholders_in_document ile değiştirilecek
+        _bump_doc_font_sizes(doc1, 1.0)
+        _set_specific_font_size(doc1, 14.0, 12.0)
+
+        # Merge with docxcompose when available (more stable than altChunk/body-copy)
+        final_path = None
+        try:
+            try:
+                from docxcompose.composer import Composer
+            except Exception:
+                Composer = None
+
+            master = doc1
+            composer = Composer(master) if Composer is not None else None
+
+            def _append_with_page_break(src_doc):
+                # Ensure no leftover section breaks from the source
+                _remove_all_section_breaks(src_doc)
+                _clean_template_breaks(src_doc)
+                # page break at end of current doc (not at start of next)
+                master.add_page_break()
+                if composer is not None:
+                    composer.append(src_doc)
+                else:
+                    # Fallback: append body elements (least preferred)
+                    src_body = src_doc.element.body
+                    for child in list(src_body.iterchildren()):
+                        if child.tag.endswith('}sectPr'):
+                            continue
+                        master.element.body.append(deepcopy(child))
+
+            def _fill_teklif3_acceptance_sentence(doc_obj, tarih_text: str, teklif_kodu: str):
+                """TEKLİF-3 şablonundaki 'Xxxxx tarih ve xxxx sayılı...' cümlesini doldur."""
+                try:
+                    # Requested final text format
+                    # Example: "gg.aa.yyyy Tarih ve TEYY-SSS Sayılı Teklifinizi Kabul Ediyoruz."
+                    tarih_text = (tarih_text or '').strip() or 'gg.aa.yyyy'
+                    teklif_kodu = (teklif_kodu or '').strip() or 'TEYY-SSS'
+                    target_sentence = f"{tarih_text} Tarih ve {teklif_kodu} Sayılı Teklifinizi Kabul Ediyoruz."
+                    keywords = ['tarih', 'sayılı', 'teklifinizi', 'kabul']
+
+                    try:
+                        from docx.shared import RGBColor
+                    except Exception:
+                        RGBColor = None
+
+                    def _matches(p_text: str) -> bool:
+                        t = (p_text or '').strip().lower()
+                        if not t:
+                            return False
+                        return all(k in t for k in keywords)
+
+                    def _set_paragraph(par):
+                        try:
+                            if not _matches(par.text):
+                                return False
+                            par.text = ''
+                            run = par.add_run(target_sentence)
+                            # Remove hyperlink-like underline/blue styling coming from template
+                            try:
+                                run.font.underline = False
+                            except Exception:
+                                pass
+                            try:
+                                if RGBColor is not None:
+                                    run.font.color.rgb = RGBColor(0, 0, 0)
+                            except Exception:
+                                pass
+                            return True
+                        except Exception:
+                            return False
+
+                    # Paragraphs outside tables
+                    for p in getattr(doc_obj, 'paragraphs', []) or []:
+                        if _set_paragraph(p):
+                            return
+
+                    # Paragraphs inside tables
+                    for t in getattr(doc_obj, 'tables', []) or []:
+                        for r in t.rows:
+                            for c in r.cells:
+                                for p in c.paragraphs:
+                                    if _set_paragraph(p):
+                                        return
+                except Exception:
+                    return
+
+            if os.path.exists(teklif2_path):
+                d2 = Document(teklif2_path)
+                _fill_teklif2_table(d2, teklif)
+                _set_footer_distance_cm(d2, 0.8)
+                # Footer placeholder'ları şablonda tanımlı
+                _bump_doc_font_sizes(d2, 1.0)
+                _set_specific_font_size(d2, 14.0, 12.0)
+                _append_with_page_break(d2)
+
+            if os.path.exists(teklif3_path):
+                d3 = Document(teklif3_path)
+                _fill_teklif3_acceptance_sentence(d3, teklif_tarihi, teklif.get('teklif_no', ''))
+                _set_footer_distance_cm(d3, 0.8)
+                # Footer placeholder'ları şablonda tanımlı
+                _bump_doc_font_sizes(d3, 1.0)
+                _set_specific_font_size(d3, 14.0, 12.0)
+                _append_with_page_break(d3)
+
+            # Apply header/footer on the final merged document (all sections)
+            _apply_header_image_only(master)
+            _set_footer_distance_cm(master, 0.8)
             
-            # Dosya adını oluştur (yeni format)
+            # Footer placeholder'ları değiştir
+            placeholder_data = {
+                'TEKLIF_NO': teklif.get('teklif_no', '')
+            }
+            replace_placeholders_in_document(master, placeholder_data)
+            
+            _bump_doc_font_sizes(master, 1.0)
+            _set_specific_font_size(master, 14.0, 12.0)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as fout:
+                final_path = fout.name
+            if composer is not None:
+                composer.save(final_path)
+            else:
+                master.save(final_path)
+
             firma_adi = firma.get('firmaAdi', '') if firma else ''
             if not firma_adi:
-                # Eğer firma objesinden alamazsak, teklif verisinden al
                 firma_adi = teklif.get('firma_adi', '')
-            
-            print(f"DEBUG - Firma adı: {firma_adi}")
-            print(f"DEBUG - Firma objesi: {firma}")
-            
-            # Firma adını temizle ve ilk 2 kelimeyi al
-            firma_adi_temiz = firma_adi.strip() if firma_adi else ''
-            print(f"DEBUG - Firma adı temiz: '{firma_adi_temiz}'")
-            
-            firma_kelimeler = firma_adi_temiz.split()[:2] if firma_adi_temiz else []
-            print(f"DEBUG - Firma kelimeler: {firma_kelimeler}")
-            
-            firma_kisa = '_'.join(firma_kelimeler) if firma_kelimeler else 'Firma'
-            print(f"DEBUG - Firma kısa: '{firma_kisa}'")
-            
+            firma_kisa = '_'.join((firma_adi or '').strip().split()[:2]) or 'Firma'
             teklif_tarihi = teklif.get('teklif_tarihi', '')
             if teklif_tarihi:
                 try:
-                    # Tarihi parse et ve ggaayy formatına çevir
                     tarih_obj = datetime.strptime(teklif_tarihi, '%Y-%m-%d')
                     tarih_format = tarih_obj.strftime('%d%m%y')
-                except:
+                except Exception:
                     tarih_format = datetime.now().strftime('%d%m%y')
             else:
                 tarih_format = datetime.now().strftime('%d%m%y')
-            
-            # Tutarı KDV hariç olarak ekle
             tutar_kdv_haric = teklif.get('netToplam', 0)
-            
             dosya_adi = f"{firma_kisa}_{teklif.get('teklif_no', '')}_{tarih_format}_{tutar_kdv_haric:.0f}TL.docx"
-            print(f"DEBUG - Dosya adı: {dosya_adi}")
-            
-            # Dosyayı gönder
+
+            if return_file_info:
+                return final_path, dosya_adi
+
             return send_file(
-                temp_file_path,
+                final_path,
                 as_attachment=True,
                 download_name=dosya_adi,
                 mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             )
-        
+
         except Exception as save_error:
-            # Geçici dosyayı temizle
-            if temp_file_path and os.path.exists(temp_file_path):
+            if final_path and os.path.exists(final_path):
                 try:
-                    os.unlink(temp_file_path)
-                except:
+                    os.unlink(final_path)
+                except Exception:
                     pass
             raise save_error
-        
+
     except Exception as e:
         return jsonify({'success': False, 'message': f'Word dosyası oluşturma hatası: {str(e)}'})
 
 def create_pdf_teklif(teklif, firma):
-    """PDF formatında teklif oluşturur (HTML olarak)"""
+    """PDF formatında teklif oluşturur (Word'den PDF'e çevir)"""
     try:
-        # HTML içeriği oluştur
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Teklif - {teklif.get('teklif_no', '')}</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                .header {{ text-align: center; margin-bottom: 30px; }}
-                .title {{ font-size: 24px; font-weight: bold; margin-bottom: 20px; }}
-                table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
-                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                th {{ background-color: #f2f2f2; font-weight: bold; }}
-                .total {{ font-weight: bold; margin-top: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>FİYAT TEKLİFİ</h1>
-                <p>Firma: {firma.get('firmaAdi', '') if firma else ''}</p>
-                <p>Teklif No: {teklif.get('teklif_no', '')}</p>
-                <p>Tarih: {format_tarih_gg_aa_yyyy(teklif.get('teklif_tarihi', ''))}</p>
-            </div>
-            
-            <h2>Parametreler</h2>
-            <table>
-                <tr>
-                    <th>Parametre</th>
-                    <th>Metot</th>
-                    <th>Adet</th>
-                    <th>Birim Fiyat</th>
-                    <th>Toplam</th>
-                </tr>
-        """
-        
-        # Parametreleri ekle
-        for parametre in teklif.get('parametreler', []):
-            if parametre.get('adet', 0) > 0:
-                html_content += f"""
-                <tr>
-                    <td>{parametre.get('parametre', '')}</td>
-                    <td>{parametre.get('metot', '')}</td>
-                    <td>{parametre.get('adet', 0)}</td>
-                    <td>{parametre.get('birimFiyat', 0):.2f} TL</td>
-                    <td>{parametre.get('topFiyat', 0):.2f} TL</td>
-                </tr>
-                """
-        
-        html_content += f"""
-            </table>
-            
-            <div class="total">
-                <p>Toplam: {teklif.get('toplam', 0):.2f} TL</p>
-                <p>İndirim: {teklif.get('indirim', 0):.2f} TL</p>
-                <p>Net Toplam: {teklif.get('netToplam', 0):.2f} TL</p>
-            </div>
-            
-            <h2>Genel Hükümler</h2>
-            <p>{teklif.get('genel_hukumler', 'Genel hükümler buraya gelecek.')}</p>
-        </body>
-        </html>
-        """
-        
-        # Geçici HTML dosyası oluştur
-        temp_html = tempfile.NamedTemporaryFile(delete=False, suffix='.html')
-        temp_html.write(html_content.encode('utf-8'))
-        temp_html.close()
-        
-        # Dosya adını oluştur
-        firma_adi = firma.get('firmaAdi', '') if firma else ''
-        firma_kelimeler = firma_adi.split()[:2]  # İlk 2 kelime
-        firma_kisa = '_'.join(firma_kelimeler) if firma_kelimeler else 'Firma'
-        
-        teklif_tarihi = teklif.get('teklif_tarihi', '')
-        if teklif_tarihi:
+        # Önce DOCX üret
+        word_path, word_name = create_word_teklif(teklif, firma, return_file_info=True)
+
+        pdf_path = None
+        try:
+            from docx2pdf import convert
+
+            base_name = os.path.splitext(word_name)[0]
+            pdf_name = f"{base_name}.pdf"
+            pdf_path = os.path.join(tempfile.gettempdir(), pdf_name)
+
+            # Dönüştür
+            convert(word_path, pdf_path)
+
+            with open(pdf_path, 'rb') as f:
+                pdf_bytes = f.read()
+
+            response = make_response(pdf_bytes)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename="{pdf_name}"'
+            return response
+
+        except Exception as pdf_error:
+            print(f"Teklif PDF dönüştürme hatası: {pdf_error}")
+            # PDF başarısızsa Word döndür
+            with open(word_path, 'rb') as f:
+                word_bytes = f.read()
+            response = make_response(word_bytes)
+            response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            response.headers['Content-Disposition'] = f'attachment; filename="{word_name}"'
+            return response
+        finally:
+            # Geçici dosyaları temizle
             try:
-                tarih_obj = datetime.strptime(teklif_tarihi, '%Y-%m-%d')
-                tarih_format = tarih_obj.strftime('%d%m%y')
-            except:
-                tarih_format = datetime.now().strftime('%d%m%y')
-        else:
-            tarih_format = datetime.now().strftime('%d%m%y')
-        
-        tutar_kdv_haric = teklif.get('netToplam', 0)
-        dosya_adi = f"{firma_kisa}_{teklif.get('teklif_no', '')}_{tarih_format}_{tutar_kdv_haric:.0f}.html"
-        
-        # HTML dosyasını gönder
-        return send_file(
-            temp_html.name,
-            as_attachment=True,
-            download_name=dosya_adi,
-            mimetype='text/html'
-        )
+                if word_path and os.path.exists(word_path):
+                    os.unlink(word_path)
+            except Exception:
+                pass
+            try:
+                if pdf_path and os.path.exists(pdf_path):
+                    os.unlink(pdf_path)
+            except Exception:
+                pass
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'PDF dosyası oluşturma hatası: {str(e)}'})
@@ -10270,6 +10486,72 @@ def api_pivot_compare():
         baca_bilgileri = load_baca_bilgileri()
         parametre_olcumleri = load_parametre_olcum()
         teklifler = load_teklif()
+
+        def _strip_scope_prefix(pname: str) -> str:
+            try:
+                s = (pname or '').strip()
+                if not s:
+                    return ''
+                up = s.upper()
+                if up.startswith('(E)') or up.startswith('(İ)') or up.startswith('(I)'):
+                    s = s[s.find(')') + 1:].strip()
+                if s.startswith('-'):
+                    s = s[1:].strip()
+                return s
+            except Exception:
+                return (pname or '').strip()
+
+        def _norm_param_key(pname: str) -> str:
+            """Normalize parameter names so prefixes/diacritics/punctuation differences don't split keys."""
+            try:
+                s = _strip_scope_prefix(pname)
+                s = (s or '').strip().lower()
+                if not s:
+                    return ''
+                tr_map = str.maketrans({'ı':'i','İ':'i','ş':'s','Ş':'s','ç':'c','Ç':'c','ğ':'g','Ğ':'g','ü':'u','Ü':'u','ö':'o','Ö':'o'})
+                s = s.translate(tr_map)
+                # keep letters/numbers/spaces only
+                import re
+                s = re.sub(r'[^a-z0-9\s]+', ' ', s)
+                s = re.sub(r'\s+', ' ', s).strip()
+                return s
+            except Exception:
+                return _strip_scope_prefix(pname).strip().lower()
+
+        def _is_non_baca_item(pname: str) -> bool:
+            try:
+                k = _norm_param_key(pname)
+                if not k:
+                    return True
+                # Offer/fee rows that must not contribute to baca estimation
+                if 'yol' in k:
+                    return True
+                if 'raporlama' in k:
+                    return True
+                if 'taban fiyat' in k:
+                    return True
+                if 'tesis tabani' in k:
+                    return True
+                return False
+            except Exception:
+                return False
+
+        def _is_non_parametre_total_item(pname: str) -> bool:
+            try:
+                k = _norm_param_key(pname)
+                if not k:
+                    return True
+                if 'yol' in k:
+                    return True
+                if 'raporlama' in k:
+                    return True
+                if 'taban fiyat' in k:
+                    return True
+                if 'tesis tabani' in k:
+                    return True
+                return False
+            except Exception:
+                return False
         
         result_data = {}
         
@@ -10331,6 +10613,36 @@ def api_pivot_compare():
                     except (ValueError, TypeError):
                         # Baca sayısı sayı değilse 0 olarak kabul et
                         pass
+
+            # Fallback: if firma_olcum doesn't provide bacas for the year, estimate from offers
+            # Each offer: take max(adet) among its parameters (Toz 10, Toc 5 => 10 bacas)
+            teklif_baca_adedi = 0
+            try:
+                for t in year_teklifler:
+                    max_adet = 0
+                    for p in (t.get('parametreler', []) or []):
+                        if not isinstance(p, dict):
+                            continue
+                        pname = p.get('parametre')
+                        if not pname:
+                            continue
+                        if _is_non_baca_item(pname):
+                            continue
+                        try:
+                            a = int(p.get('adet', 1) or 1)
+                        except Exception:
+                            a = 1
+                        if a > max_adet:
+                            max_adet = a
+                    if max_adet > 0:
+                        teklif_baca_adedi += max_adet
+            except Exception:
+                teklif_baca_adedi = 0
+
+            baca_sayisi_kaynak = 'FIRMA_OLCUM'
+            if toplam_baca_adedi == 0 and teklif_baca_adedi > 0:
+                toplam_baca_adedi = teklif_baca_adedi
+                baca_sayisi_kaynak = 'TEKLIF_MAX_ADET'
             
             # Parametre isim eşleştirme tablosu - önce tanımla
             parametre_eslesme = {
@@ -10359,10 +10671,19 @@ def api_pivot_compare():
                 'ÇT': 'ÇÖKEN TOZ',  # Alternatif yazım
                 'MODELLEME': 'MODELLEME'
             }
+
+            # Normalize mapping keys for more tolerant matching
+            parametre_eslesme_norm = {}
+            try:
+                for k, v in parametre_eslesme.items():
+                    parametre_eslesme_norm[_norm_param_key(k)] = v
+            except Exception:
+                parametre_eslesme_norm = {}
             
             # Firma ölçümlerinden parametre sayılarını hesapla
             from collections import defaultdict
-            parametre_sayilari = defaultdict(int)
+            parametre_sayilari_firma = defaultdict(int)
+            parametre_sayilari_teklif = defaultdict(int)
             toplam_parametre_adedi = 0
             
             # Firma ölçümlerindeki parametreleri say
@@ -10373,11 +10694,53 @@ def api_pivot_compare():
                     for baca_adi, parametre_listesi in baca_parametreleri.items():
                         for parametre in parametre_listesi:
                             if parametre:  # Boş parametre değilse
-                                norm_param = parametre.upper().strip()
-                                # Parametre eşleştirmesi yap
-                                eslesen_param = parametre_eslesme.get(norm_param, norm_param)
-                                parametre_sayilari[eslesen_param] += 1
+                                norm_key = _norm_param_key(parametre)
+                                # Parametre eşleştirmesi yap (tolerant)
+                                mapped = parametre_eslesme_norm.get(norm_key)
+                                eslesen_param = mapped if mapped else _strip_scope_prefix(parametre).upper().strip()
+                                parametre_sayilari_firma[eslesen_param] += 1
                                 toplam_parametre_adedi += 1
+
+            # Tekliflerden parametre sayılarını hesapla (kabul olan teklifler)
+            try:
+                for t in kabul_teklifler:
+                    for p in (t.get('parametreler', []) or []):
+                        pname = p.get('parametre') if isinstance(p, dict) else None
+                        if not pname:
+                            continue
+                        # Use adet if present, otherwise count as 1
+                        try:
+                            adet_val = int(p.get('adet', 1)) if isinstance(p, dict) else 1
+                        except Exception:
+                            adet_val = 1
+                        if adet_val <= 0:
+                            adet_val = 1
+                        norm_key = _norm_param_key(pname)
+                        mapped = parametre_eslesme_norm.get(norm_key)
+                        eslesen_param = mapped if mapped else _strip_scope_prefix(pname).upper().strip()
+                        parametre_sayilari_teklif[eslesen_param] += adet_val
+            except Exception:
+                pass
+
+            # Decide which source to use primarily: if firma_olcum has no rows for that year, fallback to teklifler
+            use_teklif = False
+            try:
+                use_teklif = (sum(parametre_sayilari_firma.values()) == 0 and sum(parametre_sayilari_teklif.values()) > 0)
+            except Exception:
+                use_teklif = False
+
+            parametre_sayilari = parametre_sayilari_teklif if use_teklif else parametre_sayilari_firma
+            try:
+                toplam_parametre_adedi = 0
+                for k, v in parametre_sayilari.items():
+                    if _is_non_parametre_total_item(k):
+                        continue
+                    try:
+                        toplam_parametre_adedi += int(v)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             
             # Parametre tutarlarını hesapla: Parametre Adedi × Asgari Fiyat
             parametre_tl = defaultdict(float)
@@ -10391,15 +10754,38 @@ def api_pivot_compare():
                     
                     # Asgari fiyat tablosundan o yılın fiyatını bul
                     fiyat = 0
+                    try:
+                        target_key = _norm_param_key(eslesen_param)
+                    except Exception:
+                        target_key = (eslesen_param or '').strip().lower()
                     for asg_fiyat in asgari_fiyatlar:
-                        if asg_fiyat.get('parametre', '').upper().strip() == eslesen_param:
+                        try:
+                            src_key = _norm_param_key(asg_fiyat.get('parametre', ''))
+                        except Exception:
+                            src_key = (asg_fiyat.get('parametre', '') or '').strip().lower()
+                        if src_key and target_key and src_key == target_key:
                             yillik_fiyatlar = asg_fiyat.get('yillik', {})
-                            fiyat = float(yillik_fiyatlar.get(str(year), 0))
+                            try:
+                                fiyat = float(yillik_fiyatlar.get(str(year), 0) or 0)
+                            except Exception:
+                                fiyat = 0
                             break
                     
                     # Tutar = Adet × Fiyat
                     parametre_tl[param_adi] = adet * fiyat
                     print(f"DEBUG PIVOT: {param_adi} -> {eslesen_param} -> {adet} adet × {fiyat} TL = {adet * fiyat} TL")
+
+            toplam_parametre_tutari = 0.0
+            try:
+                for k, v in parametre_tl.items():
+                    if _is_non_parametre_total_item(k):
+                        continue
+                    try:
+                        toplam_parametre_tutari += float(v or 0)
+                    except Exception:
+                        pass
+            except Exception:
+                toplam_parametre_tutari = 0.0
             
             # Personel performansını hesapla (baca bilgileri kayıtlarından)
             personel_performans = defaultdict(int)
@@ -10475,6 +10861,7 @@ def api_pivot_compare():
             summary = {
                 'toplam_baca_adedi': toplam_baca_adedi,
                 'toplam_parametre_adedi': toplam_parametre_adedi,
+                'toplam_parametre_tutari': round(float(toplam_parametre_tutari or 0), 2),
                 'toplam_teklif_adedi': toplam_teklif_adedi,
                 'kabul_adet': kabul_adet,
                 'kapsam_ici_adet': kapsam_ici_adet,
@@ -10486,6 +10873,8 @@ def api_pivot_compare():
                 'kapsam_disi_tutar': round(kapsam_disi_tutar, 2),
                 'is_birligi_tutar': round(is_birligi_tutar, 2),
                 'parametre_sayilari': dict(parametre_sayilari),
+                'parametre_sayilari_kaynak': 'TEKLIF' if use_teklif else 'FIRMA_OLCUM',
+                'baca_sayisi_kaynak': baca_sayisi_kaynak,
                 'personel_performans': dict(personel_performans),
                 'personel_tutarlar': dict(personel_tutarlar),
                 'personel_parametre_performans': dict(personel_parametre_performans)
@@ -10982,7 +11371,7 @@ def api_forms_genel_hukum_docx():
     
     try:
         # GENEL_HUKUM.docx dosyasını oku
-        genel_hukum_doc_path = 'static/images/GENEL_HUKUM.docx'
+        genel_hukum_doc_path = os.path.join(app.root_path, 'static', 'images', 'GENEL_HUKUM.docx')
         if not os.path.exists(genel_hukum_doc_path):
             return jsonify({'success': False, 'error': 'GENEL_HUKUM.docx dosyası bulunamadı'}), 404
         
@@ -11103,11 +11492,8 @@ if __name__ == '__main__':
     # Teklif numarası benzersizliği için migration çalıştır
     migrate_existing_teklif_numbers()
     
-    # Mevcut teklif numaralarını 3 haneli formata dönüştür
-    convert_teklif_numbers_to_3_digit()
-    
-    # Mevcut teklifleri 001'den başlayarak yeniden sırala
-    resequence_teklif_numbers()
+    # Eski teklif numaralarını yeni formata dönüştür (TE26-001 -> 2026/TE-001)
+    convert_teklif_numbers_to_new_format()
     
     # Render için port ayarı (Render'ın verdiği PORT değişkenini kullan, yoksa 5001 kullan)
     port = int(os.environ.get('PORT', 5001))

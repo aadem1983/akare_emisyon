@@ -101,6 +101,16 @@
     text-overflow: ellipsis !important;
 }
 
+/* Filtre satırındaki dropdown menüler (Firma/Baca) overflow hidden yüzünden arkada kalmasın */
+#parametreOlcumTableHead tr.table-light th {
+    overflow: visible !important;
+    position: relative;
+}
+
+#parametreOlcumTableHead tr.table-light .dropdown-menu {
+    z-index: 30000;
+}
+
 /* Tarih sütunu genişletme */
 #parametreOlcumTable th:nth-child(8), /* TARİH sütunu */
 #parametreOlcumTable td:nth-child(8) {
@@ -714,12 +724,10 @@ function filterBacaTable() {
 
 function filterParametreTable() {
     const filters = {
-        firma: document.getElementById('parametreFirmaFilter').value.toLowerCase(),
-        firmaDropdown: document.getElementById('parametreFirmaDropdown').value.toLowerCase(),
-        olcumKodu: document.getElementById('parametreOlcumKoduFilter').value.toLowerCase(),
-        olcumKoduDropdown: document.getElementById('parametreOlcumKoduDropdown').value.toLowerCase(),
-        baca: document.getElementById('parametreBacaFilter').value.toLowerCase(),
-        bacaDropdown: document.getElementById('parametreBacaDropdown').value.toLowerCase()
+        firma: (document.getElementById('parametreFirmaFilter')?.value || '').toLowerCase(),
+        olcumKodu: (document.getElementById('parametreOlcumKoduFilter')?.value || '').toLowerCase(),
+        baca: (document.getElementById('parametreBacaFilter')?.value || '').toLowerCase(),
+        parametre: (document.getElementById('parametreParametreFilter')?.value || '').toLowerCase()
     };
     
     const rows = document.querySelectorAll('#parametreOlcumTableBody tr');
@@ -728,17 +736,17 @@ function filterParametreTable() {
         const cells = row.querySelectorAll('td');
         let show = true;
         
-        // Firma filtresi - hem süzme hem dropdown
+        // Firma filtresi (yazdıkça süzme)
         if (filters.firma && cells[2] && !cells[2].textContent.toLowerCase().includes(filters.firma)) show = false;
-        if (filters.firmaDropdown && cells[2] && cells[2].textContent.toLowerCase() !== filters.firmaDropdown) show = false;
-        
-        // Ölçüm Kodu filtresi - hem süzme hem dropdown
+
+        // Ölçüm Kodu filtresi (yazdıkça süzme)
         if (filters.olcumKodu && cells[3] && !cells[3].textContent.toLowerCase().includes(filters.olcumKodu)) show = false;
-        if (filters.olcumKoduDropdown && cells[3] && cells[3].textContent.toLowerCase() !== filters.olcumKoduDropdown) show = false;
-        
-        // Baca filtresi - hem süzme hem dropdown
+
+        // Baca filtresi (yazdıkça süzme)
         if (filters.baca && cells[4] && !cells[4].textContent.toLowerCase().includes(filters.baca)) show = false;
-        if (filters.bacaDropdown && cells[4] && cells[4].textContent.toLowerCase() !== filters.bacaDropdown) show = false;
+
+        // Parametre filtresi (yazdıkça süzme)
+        if (filters.parametre && cells[5] && !cells[5].textContent.toLowerCase().includes(filters.parametre)) show = false;
         
         row.style.display = show ? '' : 'none';
     });
@@ -3098,32 +3106,41 @@ function createParametreOlcumTableHeaders() {
     headerHTML += '<th></th>'; // Checkbox
     headerHTML += '<th></th>'; // #
     
-    // Firma sütunu - hem süzme hem dropdown
+    // Firma sütunu - aramalı dropdown (datalist + dropdown button)
     headerHTML += `<th>
-        <input type="text" class="form-control form-control-sm mb-1" id="parametreFirmaFilter" placeholder="Firma filtrele..." onkeyup="filterParametreTable()">
-        <select class="form-control form-control-sm" id="parametreFirmaDropdown" onchange="filterParametreTable()">
-            <option value="">Tüm Firmalar</option>
-        </select>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="parametreFirmaFilter" placeholder="Firma seç/yaz..." list="parametreFirmaList" oninput="filterParametreTable()" onchange="filterParametreTable()" onclick="openParametreFilterMenu('firma', this.parentElement.querySelector('[data-parametre-filter-btn=\"1\"]')); return false;">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-parametre-filter-btn="1" onclick="openParametreFilterMenu('firma', this); return false;"></button>
+        </div>
+        <datalist id="parametreFirmaList"></datalist>
     </th>`;
     
-    // Ölçüm Kodu sütunu - hem süzme hem dropdown
+    // Ölçüm Kodu sütunu - aramalı dropdown (datalist + dropdown button)
     headerHTML += `<th>
-        <input type="text" class="form-control form-control-sm mb-1" id="parametreOlcumKoduFilter" placeholder="Ölçüm kodu filtrele..." onkeyup="filterParametreTable()">
-        <select class="form-control form-control-sm" id="parametreOlcumKoduDropdown" onchange="filterParametreTable()">
-            <option value="">Tüm Ölçüm Kodları</option>
-        </select>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="parametreOlcumKoduFilter" placeholder="Ölçüm kodu seç/yaz..." list="parametreOlcumKoduList" oninput="filterParametreTable()" onchange="filterParametreTable()" onclick="openParametreFilterMenu('olcumKodu', this.parentElement.querySelector('[data-parametre-filter-btn=\"1\"]')); return false;">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-parametre-filter-btn="1" onclick="openParametreFilterMenu('olcumKodu', this); return false;"></button>
+        </div>
+        <datalist id="parametreOlcumKoduList"></datalist>
     </th>`;
     
-    // Baca sütunu - hem süzme hem dropdown
+    // Baca sütunu - aramalı dropdown (datalist + dropdown button)
     headerHTML += `<th>
-        <input type="text" class="form-control form-control-sm mb-1" id="parametreBacaFilter" placeholder="Baca filtrele..." onkeyup="filterParametreTable()">
-        <select class="form-control form-control-sm" id="parametreBacaDropdown" onchange="filterParametreTable()">
-            <option value="">Tüm Bacalar</option>
-        </select>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="parametreBacaFilter" placeholder="Baca seç/yaz..." list="parametreBacaList" oninput="filterParametreTable()" onchange="filterParametreTable()" onclick="openParametreFilterMenu('baca', this.parentElement.querySelector('[data-parametre-filter-btn=\"1\"]')); return false;">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-parametre-filter-btn="1" onclick="openParametreFilterMenu('baca', this); return false;"></button>
+        </div>
+        <datalist id="parametreBacaList"></datalist>
     </th>`;
     
-    // Parametre sütunu - boş
-    headerHTML += '<th></th>';
+    // Parametre sütunu - aramalı dropdown (datalist + dropdown button)
+    headerHTML += `<th>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="parametreParametreFilter" placeholder="Parametre seç/yaz..." list="parametreParametreList" oninput="filterParametreTable()" onchange="filterParametreTable()" onclick="openParametreFilterMenu('parametre', this.parentElement.querySelector('[data-parametre-filter-btn=\"1\"]')); return false;">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-parametre-filter-btn="1" onclick="openParametreFilterMenu('parametre', this); return false;"></button>
+        </div>
+        <datalist id="parametreParametreList"></datalist>
+    </th>`;
     
     headerHTML += '<th></th>'; // İşlemler
     
@@ -3155,6 +3172,112 @@ function createParametreOlcumTableHeaders() {
     tableHead.innerHTML = headerHTML;
 }
 
+function selectFromParametreFilterDropdown(inputId, value) {
+    try {
+        const el = document.getElementById(inputId);
+        if (!el) return;
+        el.value = value || '';
+        filterParametreTable();
+    } catch (e) {}
+}
+
+function _getParametreFilterInputId(type) {
+    if (type === 'firma') return 'parametreFirmaFilter';
+    if (type === 'olcumKodu') return 'parametreOlcumKoduFilter';
+    if (type === 'baca') return 'parametreBacaFilter';
+    if (type === 'parametre') return 'parametreParametreFilter';
+    return null;
+}
+
+function _ensureParametreFloatingMenu() {
+    let el = document.getElementById('parametreFilterFloatingMenu');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'parametreFilterFloatingMenu';
+    el.style.position = 'fixed';
+    el.style.zIndex = '40000';
+    el.style.display = 'none';
+    el.style.minWidth = '180px';
+    el.style.maxHeight = '260px';
+    el.style.overflowY = 'auto';
+    el.style.background = '#fff';
+    el.style.border = '1px solid rgba(0,0,0,.15)';
+    el.style.borderRadius = '0.375rem';
+    el.style.boxShadow = '0 .5rem 1rem rgba(0,0,0,.15)';
+    el.style.padding = '0.25rem 0';
+    document.body.appendChild(el);
+
+    document.addEventListener('click', (ev) => {
+        try {
+            if (!el) return;
+            if (el.style.display === 'none') return;
+            const t = ev.target;
+            if (el.contains(t)) return;
+            if (t && t.closest && t.closest('[data-parametre-filter-btn="1"]')) return;
+            if (t && t.closest && t.closest('#parametreOlcumTableHead tr.table-light')) return;
+            // buton tıklaması openParametreFilterMenu içinde yönetiliyor
+            closeParametreFilterMenu();
+        } catch (e) {}
+    });
+
+    window.addEventListener('resize', () => closeParametreFilterMenu());
+    window.addEventListener('scroll', () => closeParametreFilterMenu(), true);
+    return el;
+}
+
+function closeParametreFilterMenu() {
+    const el = document.getElementById('parametreFilterFloatingMenu');
+    if (!el) return;
+    el.style.display = 'none';
+    el.setAttribute('data-open-type', '');
+}
+
+function openParametreFilterMenu(type, buttonEl) {
+    try {
+        const menu = _ensureParametreFloatingMenu();
+        const currentlyOpen = (menu.getAttribute('data-open-type') || '') === String(type);
+        if (menu.style.display !== 'none' && currentlyOpen) {
+            closeParametreFilterMenu();
+            return;
+        }
+
+        const opts = (window.parametreFilterOptions && window.parametreFilterOptions[type]) ? window.parametreFilterOptions[type] : [];
+        const inputId = _getParametreFilterInputId(type);
+        if (!inputId) return;
+
+        menu.innerHTML = '';
+        const addItem = (label, value) => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = label;
+            a.style.display = 'block';
+            a.style.padding = '0.25rem 1rem';
+            a.style.color = '#212529';
+            a.style.textDecoration = 'none';
+            a.onmouseenter = () => { a.style.background = 'rgba(0,0,0,.05)'; };
+            a.onmouseleave = () => { a.style.background = 'transparent'; };
+            a.onclick = (ev) => {
+                ev.preventDefault();
+                selectFromParametreFilterDropdown(inputId, value);
+                closeParametreFilterMenu();
+            };
+            menu.appendChild(a);
+        };
+
+        addItem('Tümü', '');
+        opts.forEach(v => addItem(String(v), String(v)));
+
+        const rect = buttonEl.getBoundingClientRect();
+        // menu pozisyonu
+        menu.style.left = `${Math.max(4, rect.left)}px`;
+        menu.style.top = `${Math.min(window.innerHeight - 10, rect.bottom)}px`;
+        menu.style.display = 'block';
+        menu.setAttribute('data-open-type', String(type));
+    } catch (e) {
+        console.error('openParametreFilterMenu hata:', e);
+    }
+}
+
 // Parametre dropdown'larını doldur
 function populateParametreDropdowns() {
     fetch('/api/parametre_olcumleri')
@@ -3163,33 +3286,58 @@ function populateParametreDropdowns() {
             const firmalar = [...new Set(data.map(item => item.firma).filter(Boolean))].sort();
             const olcumKodlari = [...new Set(data.map(item => item.olcum_kodu).filter(Boolean))].sort();
             const bacalar = [...new Set(data.map(item => item.baca).filter(Boolean))].sort();
+            const parametreler = [...new Set(data.map(item => item.parametre || item.parametre_adi).filter(Boolean))].sort();
+
+            window.parametreFilterOptions = {
+                firma: firmalar,
+                olcumKodu: olcumKodlari,
+                baca: bacalar,
+                parametre: parametreler
+            };
             
-            // Firma dropdown'ını doldur
-            const firmaDropdown = document.getElementById('parametreFirmaDropdown');
-            if (firmaDropdown) {
-                firmaDropdown.innerHTML = '<option value="">Tüm Firmalar</option>';
+            // Firma datalist
+            const firmaList = document.getElementById('parametreFirmaList');
+            if (firmaList) {
+                firmaList.innerHTML = '';
                 firmalar.forEach(firma => {
-                    firmaDropdown.innerHTML += `<option value="${firma.toLowerCase()}">${firma}</option>`;
+                    firmaList.innerHTML += `<option value="${firma}"></option>`;
                 });
             }
+
+            // Menüler özel floating menu ile gösteriliyor
             
-            // Ölçüm Kodu dropdown'ını doldur
-            const olcumKoduDropdown = document.getElementById('parametreOlcumKoduDropdown');
-            if (olcumKoduDropdown) {
-                olcumKoduDropdown.innerHTML = '<option value="">Tüm Ölçüm Kodları</option>';
+            // Ölçüm Kodu datalist
+            const olcumKoduList = document.getElementById('parametreOlcumKoduList');
+            if (olcumKoduList) {
+                olcumKoduList.innerHTML = '';
                 olcumKodlari.forEach(olcumKodu => {
-                    olcumKoduDropdown.innerHTML += `<option value="${olcumKodu.toLowerCase()}">${olcumKodu}</option>`;
+                    olcumKoduList.innerHTML += `<option value="${olcumKodu}"></option>`;
                 });
             }
+
+            // Menüler özel floating menu ile gösteriliyor
             
-            // Baca dropdown'ını doldur
-            const bacaDropdown = document.getElementById('parametreBacaDropdown');
-            if (bacaDropdown) {
-                bacaDropdown.innerHTML = '<option value="">Tüm Bacalar</option>';
+            // Baca datalist
+            const bacaList = document.getElementById('parametreBacaList');
+            if (bacaList) {
+                bacaList.innerHTML = '';
                 bacalar.forEach(baca => {
-                    bacaDropdown.innerHTML += `<option value="${baca.toLowerCase()}">${baca}</option>`;
+                    bacaList.innerHTML += `<option value="${baca}"></option>`;
                 });
             }
+
+            // Menüler özel floating menu ile gösteriliyor
+
+            // Parametre datalist
+            const parametreList = document.getElementById('parametreParametreList');
+            if (parametreList) {
+                parametreList.innerHTML = '';
+                parametreler.forEach(p => {
+                    parametreList.innerHTML += `<option value="${p}"></option>`;
+                });
+            }
+
+            // Menüler özel floating menu ile gösteriliyor
         })
         .catch(error => {
             console.error('Parametre dropdown\'ları doldurulurken hata:', error);

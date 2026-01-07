@@ -78,6 +78,87 @@
         border: 2px solid #007bff !important;
         outline: none !important;
     }
+
+    /* ASG.FIYAT: Excel benzeri görünüm (iç içe kareleri kaldır) */
+    #asg-fiyat table.table td {
+        padding: 1px 2px;
+        vertical-align: middle;
+    }
+
+    #asg-fiyat table.table td input.form-control,
+    #asg-fiyat table.table td select.form-select {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        height: auto;
+        min-height: 18px;
+        line-height: 1.05;
+        font-size: 12px;
+    }
+
+    #asg-fiyat table.table td input.form-control:focus,
+    #asg-fiyat table.table td select.form-select:focus {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    #asg-fiyat table.table td.asg-selected {
+        background-color: rgba(13, 110, 253, 0.10) !important;
+    }
+
+    #asg-fiyat table.table td.asg-active {
+        outline: 2px solid rgba(13, 110, 253, 0.8);
+        outline-offset: -2px;
+        background-color: rgba(13, 110, 253, 0.12) !important;
+    }
+
+    /* ASG.FIYAT: kolon genişliği ayarlarken diğer kolonların daralmasını engelle */
+    #asg-fiyat .table-responsive {
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        height: 72vh !important;
+        overscroll-behavior: contain;
+        position: relative;
+        isolation: isolate;
+    }
+
+    #asg-fiyat table.table {
+        width: max-content;
+        min-width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 0;
+        position: relative;
+    }
+
+    #asg-fiyat table.table th,
+    #asg-fiyat table.table td {
+        white-space: nowrap;
+    }
+
+    #asg-fiyat table.table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 8;
+        background: var(--bs-table-bg, #fff);
+    }
+
+    /* Frozen kolonların sınırını görünür yap */
+    #asg-fiyat table.table thead th:nth-child(4),
+    #asg-fiyat table.table tbody td:nth-child(4) {
+        box-shadow: 2px 0 0 rgba(0,0,0,.12);
+    }
+
+    #asg-fiyat table.table thead th::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 1px;
+        background: rgba(0,0,0,.15);
+    }
     
     /* Boş hücreler için özel stil */
     #importExportTable td:empty {
@@ -208,12 +289,7 @@
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="asg-fiyat-tab" data-bs-toggle="tab" data-bs-target="#asg-fiyat" type="button" role="tab" aria-controls="asg-fiyat" aria-selected="false">
-                                <i class="fas fa-dollar-sign me-1"></i>ASG.FIYAT
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="genel-hukumler-tab" data-bs-toggle="tab" data-bs-target="#genel-hukumler" type="button" role="tab" aria-controls="genel-hukumler" aria-selected="false">
-                                <i class="fas fa-gavel me-1"></i>TEKLİF METNİ
+                                <i class="fas fa-table me-1"></i>ASG.FIYAT
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -905,6 +981,12 @@
                                         <button type="button" class="btn btn-primary btn-sm" onclick="addNewAsgRow()">
                                             <i class="fas fa-plus me-1"></i>Yeni Ekle
                                         </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveSelectedAsgRows(-1)">
+                                            <i class="fas fa-arrow-up me-1"></i>Yukarı Taşı
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveSelectedAsgRows(1)">
+                                            <i class="fas fa-arrow-down me-1"></i>Aşağı Taşı
+                                        </button>
                                         <button type="button" class="btn btn-success btn-sm" onclick="saveAsgFiyatTable()">
                                             <i class="fas fa-save me-1"></i>Kaydet
                                         </button>
@@ -923,14 +1005,11 @@
                                     <table class="table table-bordered table-hover table-sm">
                                         <thead class="table-primary">
                                             <tr>
-                                                <th rowspan="2" class="align-middle" style="width: 40px;"><input type="checkbox" id="asgSelectAll"></th>
-                                                <th rowspan="2" class="align-middle" style="width: 60px;">SIRA</th>
-                                                <th rowspan="2" class="align-middle">PARAMETRE</th>
-                                                <th rowspan="2" class="align-middle" style="width: 200px;">METOT</th>
-                                                <th colspan="10" class="text-center">YIL</th>
-                                                <th rowspan="2" class="align-middle" style="width: 120px;">İŞLEMLER</th>
-                                            </tr>
-                                            <tr>
+                                                <th class="align-middle" style="width: 40px;"><input type="checkbox" id="asgSelectAll"></th>
+                                                <th class="align-middle" style="width: 60px;">SIRA</th>
+                                                <th class="align-middle" style="width: 130px;">KAPSAM</th>
+                                                <th class="align-middle">PARAMETRE</th>
+                                                <th class="align-middle" style="width: 200px;">METOT</th>
                                                 <th>2025</th>
                                                 <th>2026</th>
                                                 <th>2027</th>
@@ -941,808 +1020,11 @@
                                                 <th>2032</th>
                                                 <th>2033</th>
                                                 <th>2034</th>
+                                                <th class="align-middle" style="width: 120px;">İŞLEMLER</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td><input type="checkbox" class="asg-row-checkbox"></td>
-                                                <td>1</td>
-                                                <td>TABAN FİYAT</td>
-                                                <td></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="9265.00" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>YOL</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>TOZ</td>
-                                                <td>Epa 5/Epa 17/Ts En 13284-1/Ts 9096</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6655" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>YANMA GAZI</td>
-                                                <td>So2/No/Co/O2</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="3855" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>VOC</td>
-                                                <td>TS 13649</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="13170" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>TOC</td>
-                                                <td>TS EN 12619</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="13170" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>HIZ</td>
-                                                <td>EPA Metot 2 / TS ISO 10780</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="1430" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>NEM</td>
-                                                <td>EPA 4 - İŞLETME İÇİ METOT</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="1430" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>AĞIR METAL</td>
-                                                <td>EPA 29/TS 14384</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="19000" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>SÜLFÜRİK ASİT</td>
-                                                <td>EPA 8</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6290" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>HF</td>
-                                                <td>IOS 15713/EPA 13A</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="7505" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>HCL</td>
-                                                <td>ITS EN 1911</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="7505" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>AMONYAK</td>
-                                                <td>SCAWMD METOT 207.1</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6645" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>İSLİLİK</td>
-                                                <td></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="710" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>FORMALDEHİT</td>
-                                                <td>EPA METOT323</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6685" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>CR+6</td>
-                                                <td>CARB 425</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6290" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>FOSFORİK ASİT</td>
-                                                <td>Nmx-aa-90-1986</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6290" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>HCN</td>
-                                                <td>CARB 426</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6810" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>DİOKSİN FURAN</td>
-                                                <td></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="83950" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>PAH</td>
-                                                <td>ISO 11338-1/2</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="42220" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>PM10</td>
-                                                <td>EPA 40 cfr 50 appj</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="7370" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>ÇÖKEN TOZ</td>
-                                                <td>TS 2342</td>
-                                                <td><input type="number" class="form-control form-control-sm" value="6640" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>MODELLEME</td>
-                                                <td></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="10560" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td><input type="number" class="form-control form-control-sm" value="" step="0.01" placeholder="0.00"></td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary" title="Düzenle">
-                                                            <i class="fas fa-pencil"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-warning" title="Güncelle">
-                                                            <i class="fas fa-sync"></i>
-                                                        </button>
-                                                        <button class="btn btn-outline-danger" title="Sil">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-VOC</td>
-                                                <td>ITS 13649</td>
-                                                <td>10210</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-AĞIR METAL</td>
-                                                <td>EPA 29/TS 14384</td>
-                                                <td>14070</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-SÜLFÜRİK ASİT</td>
-                                                <td>EPA 8</td>
-                                                <td>2000</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-HF</td>
-                                                <td>IOS 15713/EPA 13A</td>
-                                                <td>3215</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-HCL</td>
-                                                <td>ITS EN 1911</td>
-                                                <td>3215</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-AMONYAK</td>
-                                                <td>SCAWMD METOT 207.1</td>
-                                                <td>2335</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-FOSFORİK ASİT</td>
-                                                <td>Nmx-aa-90-1986</td>
-                                                <td>2000</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-HCN</td>
-                                                <td>CARB 426</td>
-                                                <td>2520</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                            <tr>
-                                                <td>ANALİZ-CR+6</td>
-                                                <td>CARB 425</td>
-                                                <td>2000</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                            </tr>
-                                        </tbody>
+                                        <tbody></tbody>
                                     </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- TEKLİF METNİ Sekmesi -->
-                        <div class="tab-pane fade" id="genel-hukumler" role="tabpanel" aria-labelledby="genel-hukumler-tab">
-                            <div class="mt-3">
-                                <div class="row">
-                                    <!-- Sol Sütun - Teklif Giriş -->
-                                    <div class="col-md-6">
-                                        <div class="card">
-                                            <div class="card-header bg-primary text-white">
-                                                <h6 class="mb-0">
-                                                    <i class="fas fa-file-alt me-2"></i>
-                                                    Teklif Giriş Metni
-                                                </h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="rich-text-toolbar mb-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('teklifGirisText', 'bold')">
-                                                        <i class="fas fa-bold"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('teklifGirisText', 'italic')">
-                                                        <i class="fas fa-italic"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('teklifGirisText', 'underline')">
-                                                        <i class="fas fa-underline"></i>
-                                                    </button>
-                                                    <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontFamily('teklifGirisText', this.value)">
-                                                        <option value="Arial">Arial</option>
-                                                        <option value="Times New Roman">Times New Roman</option>
-                                                        <option value="Calibri">Calibri</option>
-                                                        <option value="Verdana">Verdana</option>
-                                                        <option value="Tahoma">Tahoma</option>
-                                                        <option value="Georgia">Georgia</option>
-                                                    </select>
-                                                    <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontSize('teklifGirisText', this.value)">
-                                                        <option value="10">10px</option>
-                                                        <option value="12">12px</option>
-                                                        <option value="14">14px</option>
-                                                        <option value="16">16px</option>
-                                                        <option value="18">18px</option>
-                                                        <option value="20">20px</option>
-                                                    </select>
-                                                    <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeLineHeight('teklifGirisText', this.value)">
-                                                        <option value="1">1.0</option>
-                                                        <option value="1.25">1.25</option>
-                                                        <option value="1.5" selected>1.5</option>
-                                                        <option value="2">2.0</option>
-                                                    </select>
-                                                </div>
-                                                <div class="form-control rich-text-editor" id="teklifGirisText" contenteditable="true" style="min-height: 400px; max-height: 600px; overflow-y: auto;" placeholder="Teklif giriş metnini buraya yapıştırın..."></div>
-                                                <div class="mt-3">
-                                                    <button type="button" class="btn btn-primary" onclick="teklifGirisMetniGuncelle()">
-                                                        <i class="fas fa-save me-1"></i>
-                                                        Teklif Giriş Metni Güncelle
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Sağ Sütun - Genel Hükümler -->
-                                    <div class="col-md-6">
-                                        <div class="card">
-                                            <div class="card-header bg-success text-white">
-                                                <h6 class="mb-0">
-                                                    <i class="fas fa-gavel me-2"></i>
-                                                    Genel Hükümler Metni
-                                                </h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="rich-text-toolbar mb-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('genelHukumlerText', 'bold')">
-                                                        <i class="fas fa-bold"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('genelHukumlerText', 'italic')">
-                                                        <i class="fas fa-italic"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('genelHukumlerText', 'underline')">
-                                                        <i class="fas fa-underline"></i>
-                                                    </button>
-                                                    <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontFamily('genelHukumlerText', this.value)">
-                                                        <option value="Arial">Arial</option>
-                                                        <option value="Times New Roman">Times New Roman</option>
-                                                        <option value="Calibri">Calibri</option>
-                                                        <option value="Verdana">Verdana</option>
-                                                        <option value="Tahoma">Tahoma</option>
-                                                        <option value="Georgia">Georgia</option>
-                                                    </select>
-                                                    <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeFontSize('genelHukumlerText', this.value)">
-                                                        <option value="10">10px</option>
-                                                        <option value="12">12px</option>
-                                                        <option value="14">14px</option>
-                                                        <option value="16">16px</option>
-                                                        <option value="18">18px</option>
-                                                        <option value="20">20px</option>
-                                                    </select>
-                                                    <select class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changeLineHeight('genelHukumlerText', this.value)">
-                                                        <option value="1">1.0</option>
-                                                        <option value="1.25">1.25</option>
-                                                        <option value="1.5" selected>1.5</option>
-                                                        <option value="2">2.0</option>
-                                                    </select>
-                                                </div>
-                                                <div class="form-control rich-text-editor" id="genelHukumlerText" contenteditable="true" style="min-height: 400px; max-height: 600px; overflow-y: auto;" placeholder="Genel hükümler metnini buraya yapıştırın..."></div>
-                                                <div class="mt-3">
-                                                    <button type="button" class="btn btn-primary me-2" onclick="maddeleriGuncelle()">
-                                                        <i class="fas fa-sync me-1"></i>
-                                                        Maddeleri Güncelle
-                                                    </button>
-                                                    <button type="button" class="btn btn-success" onclick="maddeleriKaydet()">
-                                                        <i class="fas fa-save me-1"></i>
-                                                        Kaydet
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3185,6 +2467,16 @@ function exportForms(format) {
 
 // ASG.FIYAT Tablosu için JavaScript fonksiyonları
 // Tüm satırlara checkbox ve sıra numarası ekle, işlemler hücresini garanti et
+function inferAsgKapsamFromParametre(paramText) {
+    const s = String(paramText || '').trim().toUpperCase();
+    if (!s) return 'EMİSYON';
+    // Öncelik: (E) ANALİZ => İŞBİR
+    if (s.includes('(E)') && s.includes('ANALİZ')) return 'İŞBİR';
+    if (s.startsWith('(İ)')) return 'İMİSYON';
+    if (s.startsWith('(E)')) return 'EMİSYON';
+    return 'EMİSYON';
+}
+
 function setupAsgRowPrefixesAndActions() {
     const tbody = document.querySelector('#asg-fiyat table tbody');
     if (!tbody) return;
@@ -3213,6 +2505,61 @@ function setupAsgRowPrefixesAndActions() {
             if (orderCell) orderCell.textContent = String(idx + 1);
         }
 
+        // KAPSAM sütunu garanti et (SIRA'nın hemen sağı)
+        const kapsamCell = row.children[2];
+        const hasKapsamSelect = kapsamCell && kapsamCell.querySelector && kapsamCell.querySelector('select.asg-kapsam');
+        if (!hasKapsamSelect) {
+            const td = document.createElement('td');
+            const sel = document.createElement('select');
+            sel.className = 'form-select form-select-sm asg-kapsam';
+            const opts = ['EMİSYON', 'İMİSYON', 'İŞBİR'];
+            opts.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = o;
+                sel.appendChild(opt);
+            });
+            // Mevcut hücre metninden set etmeye çalış
+            try {
+                const existing = kapsamCell ? String(kapsamCell.textContent || '').trim().toUpperCase() : '';
+                if (existing) sel.value = existing;
+            } catch (e) {}
+            td.appendChild(sel);
+            // Eğer yanlış yerde parametre/metot varsa, araya ekle
+            row.insertBefore(td, row.children[2]);
+        }
+
+        // Kapsam/Parametre ilişkisi: kullanıcı elle seçmezse otomatik ata
+        try {
+            const kapsamSel = row.children[2] ? row.children[2].querySelector('select.asg-kapsam') : null;
+            const paramInput = row.children[3] ? row.children[3].querySelector('input[type="text"]') : null;
+            if (kapsamSel) {
+                // kullanıcı manuel değiştirirse işaretle
+                if (!kapsamSel.dataset.bound) {
+                    kapsamSel.dataset.bound = '1';
+                    kapsamSel.addEventListener('change', () => {
+                        kapsamSel.dataset.userSet = '1';
+                    });
+                }
+                const autoApply = () => {
+                    if (!paramInput) return;
+                    if (kapsamSel.dataset.userSet === '1') return;
+                    const inferred = inferAsgKapsamFromParametre(paramInput.value);
+                    // kapsam boşsa veya varsayılan EMİSYON ise ve inferred farklıysa uygula
+                    if (!kapsamSel.value || kapsamSel.value === 'EMİSYON') {
+                        kapsamSel.value = inferred;
+                    }
+                };
+                if (paramInput && !paramInput.dataset.kapsamBind) {
+                    paramInput.dataset.kapsamBind = '1';
+                    paramInput.addEventListener('blur', autoApply);
+                    paramInput.addEventListener('change', autoApply);
+                }
+                // ilk yüklemede de uygula (userSet yoksa)
+                autoApply();
+            }
+        } catch (e) {}
+
         // İşlemler hücresi ekle (eğer yoksa)
         const lastTd = row.lastElementChild;
         const hasActions = lastTd && lastTd.querySelector('.btn-group');
@@ -3220,6 +2567,8 @@ function setupAsgRowPrefixesAndActions() {
             const actionsTd = document.createElement('td');
             actionsTd.innerHTML = `
                 <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary asg-move-up" title="Yukarı"><i class="fas fa-arrow-up"></i></button>
+                    <button type="button" class="btn btn-outline-secondary asg-move-down" title="Aşağı"><i class="fas fa-arrow-down"></i></button>
                     <button type="button" class="btn btn-outline-secondary asg-detail" title="Detay"><i class="fas fa-eye"></i></button>
                     <button type="button" class="btn btn-outline-primary asg-edit" title="Düzenle"><i class="fas fa-pencil"></i></button>
                     <button type="button" class="btn btn-outline-warning asg-update" title="Güncelle"><i class="fas fa-sync"></i></button>
@@ -3244,8 +2593,8 @@ function setupAsgRowPrefixesAndActions() {
         btn.addEventListener('click', (e) => {
             const row = e.currentTarget.closest('tr');
             // Önce parametre alanına odaklan, yoksa metot alanına, yoksa ilk fiyat alanına
-            const paramInput = row.querySelector('td:nth-child(3) input[type="text"]');
-            const metotInput = row.querySelector('td:nth-child(4) input[type="text"]');
+            const paramInput = row.querySelector('td:nth-child(4) input[type="text"]');
+            const metotInput = row.querySelector('td:nth-child(5) input[type="text"]');
             const firstPriceInput = row.querySelector('td input[type="number"]');
             
             if (paramInput) {
@@ -3268,7 +2617,7 @@ function setupAsgRowPrefixesAndActions() {
     tbody.querySelectorAll('.asg-delete').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const row = e.currentTarget.closest('tr');
-            const param = row.children[2] ? row.children[2].textContent.trim() : '';
+            const param = row.children[3] ? row.children[3].textContent.trim() : '';
             if (confirm(`${param} satırındaki tüm yıl değerleri temizlensin mi?`)) {
                 row.querySelectorAll('td input[type="number"]').forEach(inp => inp.value = '');
             }
@@ -3277,15 +2626,61 @@ function setupAsgRowPrefixesAndActions() {
     tbody.querySelectorAll('.asg-detail').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const row = e.currentTarget.closest('tr');
-            const paramInput = row.children[2] ? row.children[2].querySelector('input') : null;
-            const metotInput = row.children[3] ? row.children[3].querySelector('input') : null;
-            const param = paramInput ? paramInput.value : (row.children[2] ? row.children[2].textContent.trim() : '');
-            const metot = metotInput ? metotInput.value : (row.children[3] ? row.children[3].textContent.trim() : '');
+            const kapsamSel = row.children[2] ? row.children[2].querySelector('select') : null;
+            const paramInput = row.children[3] ? row.children[3].querySelector('input') : null;
+            const metotInput = row.children[4] ? row.children[4].querySelector('input') : null;
+            const kapsam = kapsamSel ? kapsamSel.value : (row.children[2] ? row.children[2].textContent.trim() : '');
+            const param = paramInput ? paramInput.value : (row.children[3] ? row.children[3].textContent.trim() : '');
+            const metot = metotInput ? metotInput.value : (row.children[4] ? row.children[4].textContent.trim() : '');
             const values = Array.from(row.querySelectorAll('td input[type="number"]')).map(i => i.value || '');
-            alert(`Parametre: ${param}\nMetot: ${metot}\nDeğerler: ${values.join(' | ')}`);
+            alert(`Kapsam: ${kapsam}\nParametre: ${param}\nMetot: ${metot}\nDeğerler: ${values.join(' | ')}`);
         });
     });
 }
+
+function moveSelectedAsgRows(direction) {
+    const tbody = document.querySelector('#asg-fiyat table tbody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const selected = rows.filter(r => {
+        const cb = r.querySelector('input.asg-row-checkbox');
+        return cb && cb.checked;
+    });
+    if (selected.length === 0) {
+        alert('Taşımak için en az 1 satır seçin.');
+        return;
+    }
+
+    const ordered = direction > 0 ? selected.slice().reverse() : selected;
+    ordered.forEach(row => {
+        if (direction < 0) {
+            const prev = row.previousElementSibling;
+            if (prev) tbody.insertBefore(row, prev);
+        } else {
+            const next = row.nextElementSibling;
+            if (next) tbody.insertBefore(next, row);
+        }
+    });
+
+    updateRowNumbers();
+}
+
+// Satır içi yukarı/aşağı tuşları
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.querySelector('#asg-fiyat table tbody');
+    if (!tbody) return;
+    tbody.addEventListener('click', (e) => {
+        const up = e.target.closest('.asg-move-up');
+        const down = e.target.closest('.asg-move-down');
+        if (!up && !down) return;
+        e.preventDefault();
+        const row = e.target.closest('tr');
+        if (!row) return;
+        const cb = row.querySelector('input.asg-row-checkbox');
+        if (cb) cb.checked = true;
+        moveSelectedAsgRows(up ? -1 : 1);
+    });
+});
 
 // Mevcut hücre metinlerini koruyarak input'a dönüştür
 function makeAsgCellsEditable() {
@@ -3295,22 +2690,38 @@ function makeAsgCellsEditable() {
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length === 0) return;
-        
-        // Parametre sütunu (3. sütun) - düzenlenebilir yap
-        if (cells[2] && !cells[2].querySelector('input')) {
-            const paramText = cells[2].textContent.trim();
-            cells[2].innerHTML = `<input type="text" class="form-control form-control-sm" value="${paramText}" placeholder="Parametre">`;
+
+        // KAPSAM sütunu (3. sütun) - dropdown garanti et
+        if (cells[2] && !cells[2].querySelector('select.asg-kapsam')) {
+            const existing = cells[2].textContent.trim().toUpperCase();
+            cells[2].innerHTML = `
+                <select class="form-select form-select-sm asg-kapsam">
+                    <option value="EMİSYON">EMİSYON</option>
+                    <option value="İMİSYON">İMİSYON</option>
+                    <option value="İŞBİR">İŞBİR</option>
+                </select>
+            `;
+            const sel = cells[2].querySelector('select');
+            if (sel && existing) {
+                try { sel.value = existing; } catch (e) {}
+            }
         }
-        
-        // Metot sütunu (4. sütun) - düzenlenebilir yap
+
+        // Parametre sütunu (4. sütun) - düzenlenebilir yap
         if (cells[3] && !cells[3].querySelector('input')) {
-            const metotText = cells[3].textContent.trim();
-            cells[3].innerHTML = `<input type="text" class="form-control form-control-sm" value="${metotText}" placeholder="Metot">`;
+            const paramText = cells[3].textContent.trim();
+            cells[3].innerHTML = `<input type="text" class="form-control form-control-sm" value="${paramText}" placeholder="Parametre">`;
         }
-        
-        // Yıl sütunları (5. sütundan itibaren) - düzenlenebilir yap
+
+        // Metot sütunu (5. sütun) - düzenlenebilir yap
+        if (cells[4] && !cells[4].querySelector('input')) {
+            const metotText = cells[4].textContent.trim();
+            cells[4].innerHTML = `<input type="text" class="form-control form-control-sm" value="${metotText}" placeholder="Metot">`;
+        }
+
+        // Yıl sütunları (6. sütundan itibaren) - düzenlenebilir yap
         const lastIndex = (cells[cells.length - 1].querySelector('.btn-group')) ? cells.length - 1 : cells.length;
-        for (let i = 4; i < lastIndex; i++) {
+        for (let i = 5; i < lastIndex; i++) {
             const cell = cells[i];
             if (!cell) continue;
             if (!cell.querySelector('input')) {
@@ -3328,6 +2739,390 @@ function makeAsgCellsEditable() {
     });
 }
 
+// Excel benzeri grid davranışları
+function initAsgGridExcelLike() {
+    const container = document.querySelector('#asg-fiyat');
+    if (!container) return;
+    const scrollWrap = container.querySelector('.table-responsive');
+    const table = container.querySelector('table');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    // Kolon dizilimi:
+    // 0: checkbox, 1: sıra, 2: kapsam, 3: parametre, 4: metot, 5..14: yıllar, 15: işlemler
+    const YEAR_COL_OFFSET = 5;
+
+    let anchorCell = null;
+    let activeCell = null;
+
+    const frozenCols = [0, 1, 2, 3];
+
+    // Mouse tekerini tablo alanında yakala: sayfa yerine tablo kutusu scroll olsun
+    if (scrollWrap && !scrollWrap.dataset.wheelBound) {
+        scrollWrap.dataset.wheelBound = '1';
+        scrollWrap.addEventListener('wheel', (ev) => {
+            try {
+                const deltaY = ev.deltaY || 0;
+                if (!deltaY) return;
+                const canScroll = scrollWrap.scrollHeight > scrollWrap.clientHeight;
+                if (!canScroll) return;
+                const before = scrollWrap.scrollTop;
+                scrollWrap.scrollTop = before + deltaY;
+                // sayfanın scroll olmasını engelle
+                ev.preventDefault();
+            } catch (e) {}
+        }, { passive: false });
+    }
+
+    const applyFrozenCols = () => {
+        try {
+            const top = table.tHead ? table.tHead.rows[0] : null;
+            if (!top) return;
+            const widths = Array.from(top.cells).map(th => {
+                const w = Math.round(th.getBoundingClientRect().width);
+                return w || (th.offsetWidth || 0);
+            });
+            const leftByIdx = {};
+            let acc = 0;
+            for (let i = 0; i < widths.length; i += 1) {
+                leftByIdx[i] = acc;
+                acc += widths[i] || 0;
+            }
+            table.querySelectorAll('tr').forEach(tr => {
+                const isHead = tr.closest('thead');
+                frozenCols.forEach(ci => {
+                    const cell = tr.children[ci];
+                    if (!cell) return;
+                    cell.style.position = 'sticky';
+                    cell.style.left = String(leftByIdx[ci] || 0) + 'px';
+                    cell.style.zIndex = isHead ? '10' : '6';
+                    cell.style.backgroundClip = 'padding-box';
+                    if (!isHead) cell.style.background = 'var(--bs-body-bg, #fff)';
+                    if (isHead) cell.style.background = 'var(--bs-table-bg, #fff)';
+                });
+            });
+        } catch (e) {}
+    };
+
+    const scheduleApplyFrozen = () => {
+        try {
+            window.requestAnimationFrame(() => {
+                applyFrozenCols();
+                setTimeout(applyFrozenCols, 50);
+            });
+        } catch (e) {
+            setTimeout(applyFrozenCols, 0);
+        }
+    };
+
+    const getGridCells = () => {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        return rows.map(r => Array.from(r.querySelectorAll('td')));
+    };
+
+    const isEditableCell = (td) => {
+        if (!td) return false;
+        if (td.querySelector('input.asg-row-checkbox')) return false;
+        if (td.querySelector('.btn-group')) return false;
+        return !!td.querySelector('input') || !!td.querySelector('select');
+    };
+
+    const getCellPos = (td) => {
+        const tr = td.closest('tr');
+        if (!tr) return null;
+        const rowIndex = Array.from(tbody.querySelectorAll('tr')).indexOf(tr);
+        const colIndex = Array.from(tr.querySelectorAll('td')).indexOf(td);
+        if (rowIndex < 0 || colIndex < 0) return null;
+        return { r: rowIndex, c: colIndex };
+    };
+
+    const clearSelection = () => {
+        tbody.querySelectorAll('td.asg-selected').forEach(td => td.classList.remove('asg-selected'));
+        tbody.querySelectorAll('td.asg-active').forEach(td => td.classList.remove('asg-active'));
+    };
+
+    const applyRangeSelection = (a, b) => {
+        if (!a || !b) return;
+        const r1 = Math.min(a.r, b.r);
+        const r2 = Math.max(a.r, b.r);
+        const c1 = Math.min(a.c, b.c);
+        const c2 = Math.max(a.c, b.c);
+        const grid = getGridCells();
+        for (let r = r1; r <= r2; r += 1) {
+            for (let c = c1; c <= c2; c += 1) {
+                const td = grid[r] && grid[r][c];
+                if (isEditableCell(td)) td.classList.add('asg-selected');
+            }
+        }
+    };
+
+    const setActiveCell = (td, keepAnchor) => {
+        if (!td || !isEditableCell(td)) return;
+        clearSelection();
+        td.classList.add('asg-selected');
+        td.classList.add('asg-active');
+        activeCell = td;
+        if (!keepAnchor) anchorCell = td;
+        const inp = td.querySelector('input');
+        const sel = td.querySelector('select');
+        if (inp) {
+            inp.focus();
+            try { inp.select(); } catch (e) {}
+        } else if (sel) {
+            sel.focus();
+        }
+    };
+
+    const moveActive = (dr, dc, extend) => {
+        if (!activeCell) return;
+        const pos = getCellPos(activeCell);
+        if (!pos) return;
+        const grid = getGridCells();
+        const rMax = grid.length - 1;
+        let r = pos.r;
+        let c = pos.c;
+        let tries = 0;
+        while (tries < 200) {
+            r = Math.max(0, Math.min(rMax, r + dr));
+            const cMax = (grid[r] ? grid[r].length - 1 : 0);
+            c = Math.max(0, Math.min(cMax, c + dc));
+            const td = grid[r] && grid[r][c];
+            if (isEditableCell(td)) {
+                if (!extend) {
+                    setActiveCell(td, false);
+                } else {
+                    clearSelection();
+                    activeCell = td;
+                    td.classList.add('asg-active');
+                    applyRangeSelection(getCellPos(anchorCell), getCellPos(td));
+                    const inp = td.querySelector('input');
+                    const sel = td.querySelector('select');
+                    if (inp) inp.focus();
+                    if (!inp && sel) sel.focus();
+                }
+                return;
+            }
+            tries += 1;
+            if (r === pos.r && c === pos.c) return;
+        }
+    };
+
+    tbody.addEventListener('mousedown', (e) => {
+        const td = e.target.closest('td');
+        if (!td || !isEditableCell(td)) return;
+        e.preventDefault();
+        if (e.shiftKey && anchorCell) {
+            clearSelection();
+            activeCell = td;
+            td.classList.add('asg-active');
+            applyRangeSelection(getCellPos(anchorCell), getCellPos(td));
+            const inp = td.querySelector('input');
+            const sel = td.querySelector('select');
+            if (inp) inp.focus();
+            if (!inp && sel) sel.focus();
+        } else {
+            setActiveCell(td, false);
+        }
+    });
+
+    // Klavye gezinme
+    tbody.addEventListener('keydown', (e) => {
+        const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+        if (!isArrow) return;
+        const td = e.target.closest('td');
+        if (td && isEditableCell(td) && !activeCell) activeCell = td;
+        if (!activeCell) return;
+        e.preventDefault();
+        const extend = e.shiftKey;
+        if (e.key === 'ArrowUp') moveActive(-1, 0, extend);
+        if (e.key === 'ArrowDown') moveActive(1, 0, extend);
+        if (e.key === 'ArrowLeft') moveActive(0, -1, extend);
+        if (e.key === 'ArrowRight') moveActive(0, 1, extend);
+    }, true);
+
+    // Copy/Paste TSV
+    document.addEventListener('copy', (e) => {
+        if (!container.contains(document.activeElement)) return;
+        const selected = Array.from(tbody.querySelectorAll('td.asg-selected')).filter(isEditableCell);
+        if (selected.length === 0) return;
+        const positions = selected.map(getCellPos).filter(Boolean);
+        if (positions.length === 0) return;
+        const r1 = Math.min(...positions.map(p => p.r));
+        const r2 = Math.max(...positions.map(p => p.r));
+        const c1 = Math.min(...positions.map(p => p.c));
+        const c2 = Math.max(...positions.map(p => p.c));
+        const grid = getGridCells();
+        const lines = [];
+        for (let r = r1; r <= r2; r += 1) {
+            const rowVals = [];
+            for (let c = c1; c <= c2; c += 1) {
+                const td = grid[r] && grid[r][c];
+                if (isEditableCell(td)) {
+                    const inp = td.querySelector('input');
+                    const sel = td.querySelector('select');
+                    rowVals.push(inp ? inp.value : (sel ? sel.value : ''));
+                } else {
+                    rowVals.push('');
+                }
+            }
+            lines.push(rowVals.join('\t'));
+        }
+        const tsv = lines.join('\n');
+        e.clipboardData.setData('text/plain', tsv);
+        e.preventDefault();
+    });
+
+    document.addEventListener('paste', (e) => {
+        if (!container.contains(document.activeElement)) return;
+        if (!activeCell || !isEditableCell(activeCell)) return;
+        const text = e.clipboardData.getData('text/plain');
+        if (!text) return;
+        e.preventDefault();
+        const rows = text.replace(/\r/g, '').split('\n');
+        const matrix = rows.map(r => r.split('\t'));
+        const start = getCellPos(activeCell);
+        const grid = getGridCells();
+        for (let rr = 0; rr < matrix.length; rr += 1) {
+            for (let cc = 0; cc < matrix[rr].length; cc += 1) {
+                const r = start.r + rr;
+                const c = start.c + cc;
+                const td = grid[r] && grid[r][c];
+                if (!isEditableCell(td)) continue;
+                const inp = td.querySelector('input');
+                const sel = td.querySelector('select');
+                if (inp) inp.value = matrix[rr][cc];
+                if (!inp && sel) {
+                    try { sel.value = matrix[rr][cc]; } catch (e) {}
+                }
+            }
+        }
+        // Seçimi güncelle
+        clearSelection();
+        anchorCell = activeCell;
+        const endTd = grid[start.r + matrix.length - 1] && grid[start.r + matrix.length - 1][start.c + matrix[0].length - 1];
+        if (endTd && isEditableCell(endTd)) {
+            activeCell = endTd;
+            endTd.classList.add('asg-active');
+            applyRangeSelection(getCellPos(anchorCell), getCellPos(endTd));
+        } else {
+            setActiveCell(activeCell, false);
+        }
+    });
+
+    // Sütun genişliği ayarı (thead ikinci satırdaki yıl başlıkları dahil)
+    const setColWidth = (colIndex, widthPx) => {
+        const w = Math.max(40, parseInt(widthPx, 10) || 0);
+        if (!w) return;
+        table.querySelectorAll('tr').forEach(tr => {
+            const cell = tr.children[colIndex];
+            if (cell) {
+                cell.style.width = w + 'px';
+                cell.style.minWidth = w + 'px';
+            }
+        });
+        scheduleApplyFrozen();
+    };
+
+    const applyColWidths = (colWidths) => {
+        if (!colWidths || typeof colWidths !== 'object') return;
+        Object.keys(colWidths).forEach(k => {
+            const idx = parseInt(k, 10);
+            const w = parseInt(colWidths[k], 10);
+            if (isNaN(idx) || isNaN(w) || w < 30) return;
+            setColWidth(idx, w);
+        });
+        applyFrozenCols();
+    };
+
+    // UI state yükle
+    fetch('/api/ui_state/asgari_fiyat')
+        .then(r => r.json())
+        .then(resp => {
+            if (resp && resp.success && resp.data && resp.data.col_widths) {
+                applyColWidths(resp.data.col_widths);
+            }
+        })
+        .catch(() => {});
+
+    const addResizer = (th, actualColIndex) => {
+        if (!th) return;
+        // aynı handle'ı iki kez ekleme
+        if (th.querySelector('.asg-col-resizer')) return;
+        th.style.position = 'relative';
+        const handle = document.createElement('div');
+        handle.className = 'asg-col-resizer';
+        handle.style.position = 'absolute';
+        handle.style.right = '0';
+        handle.style.top = '0';
+        handle.style.height = '100%';
+        handle.style.width = '6px';
+        handle.style.cursor = 'col-resize';
+        handle.style.userSelect = 'none';
+        handle.style.zIndex = '10';
+        handle.style.pointerEvents = 'auto';
+        handle.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+            const startX = ev.clientX;
+            const startW = th.getBoundingClientRect().width;
+            const onMove = (mv) => {
+                const delta = mv.clientX - startX;
+                const newW = Math.max(40, Math.round(startW + delta));
+                setColWidth(actualColIndex, newW);
+            };
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+        th.appendChild(handle);
+    };
+
+    // Tek satır başlık: tüm kolonlar için resizer
+    const headerTop = table.tHead ? table.tHead.rows[0] : null;
+    if (headerTop) {
+        Array.from(headerTop.cells).forEach((th, idx) => {
+            // SEÇ kolonunu resize etmeyelim
+            if (idx === 0) return;
+            addResizer(th, idx);
+        });
+    }
+
+    applyFrozenCols();
+
+    const collectColWidths = () => {
+        const widths = {};
+        try {
+            // tek başlık satırından tüm kolonlar
+            const top = table.tHead ? table.tHead.rows[0] : null;
+            if (top) {
+                Array.from(top.cells).forEach((th, idx) => {
+                    if (idx === 0) return;
+                    widths[String(idx)] = Math.round(th.getBoundingClientRect().width);
+                });
+            }
+        } catch (e) {}
+        return widths;
+    };
+
+    // Kaydet butonu ile UI state kaydet
+    const saveBtn = container.querySelector('button[onclick="saveAsgFiyatTable()"]');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            try {
+                const widths = collectColWidths();
+                fetch('/api/ui_state/asgari_fiyat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ col_widths: widths })
+                }).catch(() => {});
+            } catch (e) {}
+        }, { capture: true });
+    }
+}
+
 function saveAsgFiyatTable() {
     const table = document.querySelector('#asg-fiyat table tbody');
     const rows = table.querySelectorAll('tr');
@@ -3337,25 +3132,32 @@ function saveAsgFiyatTable() {
         const cells = row.querySelectorAll('td');
         if (cells.length > 0) {
             const rowData = {
+                kapsam: 'EMİSYON',
                 parametre: '',
                 metot: '',
                 yillar: []
             };
-            
-            // Parametre değerini al (3. sütun)
+
+            // Kapsam değerini al (3. sütun)
             if (cells[2]) {
-                const paramInput = cells[2].querySelector('input');
-                rowData.parametre = paramInput ? paramInput.value : cells[2].textContent.trim();
+                const sel = cells[2].querySelector('select');
+                rowData.kapsam = sel ? sel.value : (cells[2].textContent.trim() || 'EMİSYON');
             }
             
-            // Metot değerini al (4. sütun)
+            // Parametre değerini al (4. sütun)
             if (cells[3]) {
-                const metotInput = cells[3].querySelector('input');
-                rowData.metot = metotInput ? metotInput.value : cells[3].textContent.trim();
+                const paramInput = cells[3].querySelector('input');
+                rowData.parametre = paramInput ? paramInput.value : cells[3].textContent.trim();
             }
             
-            // Yıl sütunlarından verileri al (5. sütundan sonra, işlemler sütunu hariç)
-            for (let i = 4; i < cells.length - 1; i++) {
+            // Metot değerini al (5. sütun)
+            if (cells[4]) {
+                const metotInput = cells[4].querySelector('input');
+                rowData.metot = metotInput ? metotInput.value : cells[4].textContent.trim();
+            }
+            
+            // Yıl sütunlarından verileri al (6. sütundan sonra, işlemler sütunu hariç)
+            for (let i = 5; i < cells.length - 1; i++) {
                 const input = cells[i].querySelector('input');
                 rowData.yillar.push(input ? input.value : '');
             }
@@ -3363,10 +3165,40 @@ function saveAsgFiyatTable() {
             data.push(rowData);
         }
     });
-    
-    // LocalStorage'a kaydet
-    localStorage.setItem('asgFiyatData', JSON.stringify(data));
-    alert('Asgari fiyat tablosu başarıyla kaydedildi!');
+
+    const years = [
+        '2025','2026','2027','2028','2029','2030','2031','2032','2033','2034'
+    ];
+
+    fetch('/api/asgari_fiyatlar/save_table', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ years, rows: data })
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp && resp.success) {
+            alert(resp.message || 'Asgari fiyat tablosu başarıyla kaydedildi!');
+            // Kaydedildikten sonra sistemdeki son hali tekrar yükle
+            try {
+                fetch('/api/asgari_fiyatlar/full')
+                    .then(x => x.json())
+                    .then(r2 => {
+                        if (r2 && r2.success && Array.isArray(r2.data)) {
+                            // render fonksiyonu global değilse bile, mevcut sayfadaki DOM hazır
+                            // bir sonraki F5'te de backend'den yüklenecek.
+                        }
+                    })
+                    .catch(() => {});
+            } catch (e) {}
+        } else {
+            alert('Kaydetme hatası: ' + (resp && resp.message ? resp.message : 'Bilinmeyen hata'));
+        }
+    })
+    .catch(err => {
+        console.error('Asgari fiyat kaydetme hatası:', err);
+        alert('Sunucu hatası! Kaydetme başarısız.');
+    });
 }
 
 function exportAsgFiyatTable() {
@@ -3383,10 +3215,9 @@ function exportAsgFiyatTable() {
     const years = [
         '2025','2026','2027','2028','2029','2030','2031','2032','2033','2034'
     ];
-    const headerRow1 = ['SEÇ','SIRA','PARAMETRE','METOT','YIL',...Array(years.length-1).fill(''),'İŞLEMLER'];
-    const headerRow2 = ['', '', '', '', ...years, ''];
+    const headerRow1 = ['SEÇ','SIRA','KAPSAM','PARAMETRE','METOT',...years,'İŞLEMLER'];
 
-    const aoa = [headerRow1, headerRow2];
+    const aoa = [headerRow1];
 
     const normalizeNumber = (v) => {
         const s = String(v ?? '').trim();
@@ -3405,51 +3236,54 @@ function exportAsgFiyatTable() {
         // SIRA
         const siraCell = tds[1] ? tds[1].textContent.trim() : String(idx + 1);
 
+        // KAPSAM
+        let kapsamCell = '';
+        if (tds[2]) {
+            const sel = tds[2].querySelector('select');
+            kapsamCell = sel ? sel.value : tds[2].textContent.trim();
+        }
+
         // PARAMETRE
         let parametreCell = '';
-        if (tds[2]) {
-            const inp = tds[2].querySelector('input');
-            parametreCell = inp ? inp.value : tds[2].textContent.trim();
+        if (tds[3]) {
+            const inp = tds[3].querySelector('input');
+            parametreCell = inp ? inp.value : tds[3].textContent.trim();
         }
 
         // METOT
         let metotCell = '';
-        if (tds[3]) {
-            const inp = tds[3].querySelector('input');
-            metotCell = inp ? inp.value : tds[3].textContent.trim();
+        if (tds[4]) {
+            const inp = tds[4].querySelector('input');
+            metotCell = inp ? inp.value : tds[4].textContent.trim();
         }
 
         // YIL değerleri (5. sütundan itibaren, son sütun işlemler)
         const yilValues = [];
-        for (let i = 4; i < tds.length - 1; i += 1) {
-            const inp = tds[i].querySelector('input');
-            const val = inp ? inp.value : tds[i].textContent.trim();
+        for (let i = 5; i < tds.length - 1; i++) {
+            const inp = tds[i] ? tds[i].querySelector('input') : null;
+            const val = inp ? inp.value : (tds[i] ? tds[i].textContent.trim() : '');
             yilValues.push(normalizeNumber(val));
         }
 
         // İŞLEMLER (metin taşımıyoruz)
         const islem = '';
 
-        aoa.push([secCell, siraCell, parametreCell, metotCell, ...yilValues, islem]);
+        aoa.push([secCell, siraCell, kapsamCell, parametreCell, metotCell, ...yilValues, '']);
     });
 
     // Sheet oluştur
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-    // "YIL" başlığını birleştir (E1:N1)
-    ws['!merges'] = [
-        { s: { r:0, c:4 }, e: { r:0, c:13 } }
-    ];
-
     // Sütun genişlikleri
     ws['!cols'] = [
         { wch: 5 },   // SEÇ
         { wch: 6 },   // SIRA
+        { wch: 12 },  // KAPSAM
         { wch: 25 },  // PARAMETRE
         { wch: 25 },  // METOT
         { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
         { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-        { wch: 12 }   // İŞLEMLER
+        { wch: 10 }, // İŞLEMLER
     ];
 
     const wb = XLSX.utils.book_new();
@@ -3951,12 +3785,7 @@ function maddeleriKaydet() {
 
 // LocalStorage ile otomatik kaydetme
 function autoSaveContent() {
-    const teklifGirisText = document.getElementById('teklifGirisText');
     const genelHukumlerText = document.getElementById('genelHukumlerText');
-    
-    if (teklifGirisText) {
-        localStorage.setItem('teklifGirisText', teklifGirisText.innerHTML);
-    }
     
     if (genelHukumlerText) {
         localStorage.setItem('genelHukumlerText', genelHukumlerText.innerHTML);
@@ -3965,16 +3794,7 @@ function autoSaveContent() {
 
 // LocalStorage'dan içerik yükleme
 function loadSavedContent() {
-    const teklifGirisText = document.getElementById('teklifGirisText');
     const genelHukumlerText = document.getElementById('genelHukumlerText');
-    
-    // Varsayılan teklif giriş metni
-    const defaultTeklifGiris = `<p><strong>Sayın Yetkili,</strong></p>
-<p>Firmanız için yapılacak emisyon ölçümleri hakkında aşağıdaki teklifimizi sunuyoruz:</p>
-<p>• Ölçümler TS EN 14181 standardına uygun olarak yapılacaktır.</p>
-<p>• Tüm parametreler akredite laboratuarımızda analiz edilecektir.</p>
-<p>• Ölçüm raporları 15 iş günü içinde teslim edilecektir.</p>
-<p>• Teklifimiz 30 gün geçerlidir.</p>`;
     
     // Varsayılan genel hükümler metni
     const defaultGenelHukumler = `<strong>1. GENEL HÜKÜMLER</strong>
@@ -3993,17 +3813,6 @@ function loadSavedContent() {
     <li><strong>Laboratuvarımız TS EN ISO/IEC 17025 standardına uygun çalışmaktadır.</strong></li>
     <li><strong>Karar kuralları: Ölçüm sonuçları belirsizlik hesaplamaları ile birlikte değerlendirilir.</strong></li>
 </ul>`;
-    
-    if (teklifGirisText) {
-        const savedContent = localStorage.getItem('teklifGirisText');
-        if (savedContent) {
-            teklifGirisText.innerHTML = savedContent;
-        } else {
-            // Varsayılan içeriği yükle
-            teklifGirisText.innerHTML = defaultTeklifGiris;
-            localStorage.setItem('teklifGirisText', defaultTeklifGiris);
-        }
-    }
     
     if (genelHukumlerText) {
         const savedContent = localStorage.getItem('genelHukumlerText');
@@ -4024,49 +3833,87 @@ document.addEventListener('DOMContentLoaded', function() {
     // 1) Mevcut değerleri koruyarak tüm yıl hücrelerini input'a çevir
     makeAsgCellsEditable();
 
-    // 2) Kaydedilmiş veriler varsa input'lara yaz
-    const savedData = localStorage.getItem('asgFiyatData');
-    if (savedData) {
-        const data = JSON.parse(savedData);
-        const table = document.querySelector('#asg-fiyat table tbody');
-        const rows = table.querySelectorAll('tr');
-        
-        data.forEach((rowData, index) => {
-            if (rows[index]) {
-                const cells = rows[index].querySelectorAll('td');
-                
-                // Parametre değerini yükle (3. sütun)
-                if (cells[2] && cells[2].querySelector('input') && rowData.parametre) {
-                    cells[2].querySelector('input').value = rowData.parametre;
-                }
-                
-                // Metot değerini yükle (4. sütun)
-                if (cells[3] && cells[3].querySelector('input') && rowData.metot) {
-                    cells[3].querySelector('input').value = rowData.metot;
-                }
-                
-                // Yıl sütunları (sadece fiyat verileri, işlemler sütunu hariç)
-                rowData.yillar.forEach((value, yearIndex) => {
-                    const targetIndex = yearIndex + 4; // checkbox,sıra,parametre,metot
-                    if (cells[targetIndex] && cells[targetIndex].querySelector('input')) {
-                        cells[targetIndex].querySelector('input').value = value || '';
-                    }
-                });
-            }
+    const years = [
+        '2025','2026','2027','2028','2029','2030','2031','2032','2033','2034'
+    ];
+
+    function renderAsgTableFromRows(rowsData) {
+        const tbody = document.querySelector('#asg-fiyat table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        (rowsData || []).forEach((r, idx) => {
+            const tr = document.createElement('tr');
+            const parametre = (r && r.parametre) ? String(r.parametre) : '';
+            const rawKapsam = (r && r.kapsam) ? String(r.kapsam) : '';
+            const kapsam = rawKapsam && rawKapsam.trim() ? rawKapsam : inferAsgKapsamFromParametre(parametre);
+            const metot = (r && r.metot) ? String(r.metot) : '';
+            const yillik = (r && r.yillik && typeof r.yillik === 'object') ? r.yillik : {};
+
+            const yearInputs = years.map(y => {
+                const val = (yillik && yillik[String(y)] != null) ? String(yillik[String(y)]) : '';
+                return `<td><input type="number" class="form-control form-control-sm" step="0.01" placeholder="0.00" value="${val.replace(/"/g, '&quot;')}"></td>`;
+            }).join('');
+
+            tr.innerHTML = `
+                <td><input type="checkbox" class="asg-row-checkbox"></td>
+                <td>${idx + 1}</td>
+                <td>
+                    <select class="form-select form-select-sm asg-kapsam">
+                        <option value="EMİSYON">EMİSYON</option>
+                        <option value="İMİSYON">İMİSYON</option>
+                        <option value="İŞBİR">İŞBİR</option>
+                    </select>
+                </td>
+                <td><input type="text" class="form-control form-control-sm" value="${parametre.replace(/"/g, '&quot;')}" placeholder="Parametre"></td>
+                <td><input type="text" class="form-control form-control-sm" value="${metot.replace(/"/g, '&quot;')}" placeholder="Metot"></td>
+                ${yearInputs}
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary asg-move-up" title="Yukarı"><i class="fas fa-arrow-up"></i></button>
+                        <button type="button" class="btn btn-outline-secondary asg-move-down" title="Aşağı"><i class="fas fa-arrow-down"></i></button>
+                        <button type="button" class="btn btn-outline-secondary asg-detail" title="Detay"><i class="fas fa-eye"></i></button>
+                        <button type="button" class="btn btn-outline-primary asg-edit" title="Düzenle"><i class="fas fa-pencil"></i></button>
+                        <button type="button" class="btn btn-outline-warning asg-update" title="Güncelle"><i class="fas fa-sync"></i></button>
+                        <button type="button" class="btn btn-outline-danger asg-delete" title="Sil"><i class="fas fa-times"></i></button>
+                    </div>
+                </td>
+            `;
+            // Kapsam seçimini ayarla
+            try {
+                const sel = tr.querySelector('select.asg-kapsam');
+                if (sel) sel.value = String(kapsam).toUpperCase().trim();
+            } catch (e) {}
+            tbody.appendChild(tr);
         });
+
+        setupAsgRowPrefixesAndActions();
+        makeAsgCellsEditable();
     }
+
+    fetch('/api/asgari_fiyatlar/full')
+        .then(r => r.json())
+        .then(resp => {
+            if (resp && resp.success && Array.isArray(resp.data)) {
+                // Backend'de hiç veri yoksa, statik tablo kalabilir.
+                if (resp.data.length > 0) {
+                    renderAsgTableFromRows(resp.data);
+                }
+                // Excel benzeri grid davranışları
+                initAsgGridExcelLike();
+                return;
+            }
+            // LocalStorage fallback YOK
+        })
+        .catch(() => {
+            // LocalStorage fallback YOK
+        });
     
     // 3) Zengin metin editörü içeriklerini yükle
     loadSavedContent();
     
     // 4) Zengin metin editörlerine otomatik kaydetme ekle
-    const teklifGirisText = document.getElementById('teklifGirisText');
     const genelHukumlerText = document.getElementById('genelHukumlerText');
-    
-    if (teklifGirisText) {
-        teklifGirisText.addEventListener('input', autoSaveContent);
-        teklifGirisText.addEventListener('blur', autoSaveContent);
-    }
     
     if (genelHukumlerText) {
         genelHukumlerText.addEventListener('input', autoSaveContent);
