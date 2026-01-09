@@ -11178,8 +11178,10 @@ def api_admin_backup():
         
         backed_up_files = []
         for file in data_files:
-            if os.path.exists(file):
-                shutil.copy2(file, backup_dir)
+            src_path = data_path(file)
+            dst_path = os.path.join(backup_dir, file)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, dst_path)
                 backed_up_files.append(file)
         
         # Eski yedekleri temizle (7 günden eski)
@@ -11246,15 +11248,17 @@ def api_admin_restore():
         
         # Mevcut dosyaları yedekle
         for file in data_files:
-            if os.path.exists(file):
-                shutil.copy2(file, current_backup_dir)
+            src_path = data_path(file)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, os.path.join(current_backup_dir, file))
         
         # Yedek dosyalarını geri yükle
         restored_files = []
         for file in data_files:
             backup_file = os.path.join(latest_backup_path, file)
+            dst_path = data_path(file)
             if os.path.exists(backup_file):
-                shutil.copy2(backup_file, file)
+                shutil.copy2(backup_file, dst_path)
                 restored_files.append(file)
         
         return jsonify({
@@ -11321,8 +11325,9 @@ def api_admin_backup_download():
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for file in data_files:
-                if os.path.exists(file):
-                    zip_file.write(file, file)
+                src_path = data_path(file)
+                if os.path.exists(src_path):
+                    zip_file.write(src_path, file)
         
         zip_buffer.seek(0)
         
@@ -11429,8 +11434,9 @@ def api_admin_restore_upload():
         
         # Mevcut dosyaları yedekle
         for file in data_files:
-            if os.path.exists(file):
-                shutil.copy2(file, current_backup_dir)
+            src_path = data_path(file)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, os.path.join(current_backup_dir, file))
         
         restored_files = []
         
@@ -11444,14 +11450,15 @@ def api_admin_restore_upload():
                         if zip_info.filename in data_files:
                             # Dosyayı çıkar ve kaydet
                             file_data = zip_file.read(zip_info.filename)
-                            with open(zip_info.filename, 'wb') as f:
+                            dst_path = data_path(zip_info.filename)
+                            with open(dst_path, 'wb') as f:
                                 f.write(file_data)
                             restored_files.append(zip_info.filename)
             else:
                 # Tekil JSON dosyası
                 filename = file.filename
                 if filename in data_files:
-                    file.save(filename)
+                    file.save(data_path(filename))
                     restored_files.append(filename)
         
         return jsonify({
