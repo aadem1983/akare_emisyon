@@ -125,5 +125,55 @@
         "teklif_durumu": "BEKLEMEDE",
         "created_at": "2026-01-07T22:26:09.505592",
         "updated_at": "2026-01-07T22:26:39.915409"
+    },
+    {
+        "id": "0dbc6299-93c2-4e1b-97a0-24876b8d340a",
+        "teklif_tipi": "KAPSAM DIŞI",
+        "firma_adi": "NUH ÇİMENTO SANAYİ A.Ş. HEREKE ŞUBESİ",
+        "teklif_tarihi": "2026-01-09",
+        "teklif_no": "2026/TE-004",
+        "indirim_orani": "130628.5",
+        "indirim_tipi": "TL",
+        "parametreler": [
+            {
+                "parametre": "TABAN FİYAT ( 1-5 ARASI BACA)",
+                "metot": "---",
+                "birimFiyat": 12750,
+                "adet": 1,
+                "topFiyat": 12750
+            },
+            {
+                "parametre": "(İ) ÇÖKEN TOZ",
+                "metot": "TS 2342",
+                "birimFiyat": 9140,
+                "adet": 35,
+                "topFiyat": 319900
+            },
+            {
+                "parametre": "(İ) MODELLEME",
+                "metot": "---",
+                "birimFiyat": 14535,
+                "adet": 1,
+                "topFiyat": 14535
+            },
+            {
+                "parametre": "(İ) RAPORLAMA",
+                "metot": "Taban fiyat ve yol ücreti hariç toplamın %10",
+                "birimFiyat": 33443.5,
+                "adet": 1,
+                "topFiyat": 33443.5,
+                "_locked": true,
+                "_manual": false,
+                "_autoBirimFiyat": 33443.5
+            }
+        ],
+        "toplam": 380628.5,
+        "indirim": 130628.5,
+        "netToplam": 250000,
+        "teklif_giris_metni": "",
+        "genel_hukumler": "",
+        "teklif_durumu": "BEKLEMEDE",
+        "created_at": "2026-01-09T06:24:44.877182",
+        "updated_at": "2026-01-09T06:24:44.877209"
     }
 ]

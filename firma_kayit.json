@@ -62,5 +62,37 @@
         "danismanMail": "",
         "danismanTel": "",
         "kayitTarihi": "05.09.2025"
+    },
+    {
+        "id": "17a78481-d9dc-4c65-94eb-0741e3ba7fb3",
+        "firmaAdi": "VEGA FABRİKA A.Ş",
+        "adres": "KÖRFEZ",
+        "il": "SAKARYA",
+        "ilce": "KAYNARCA",
+        "vergiDairesi": "",
+        "vergiNo": "",
+        "yetkiliAdi": "ATALAY",
+        "yetkiliTel": "5065064457",
+        "yetkiliMail": "",
+        "danismanAdi": "",
+        "danismanMail": "",
+        "danismanTel": "",
+        "kayitTarihi": "08.01.2026"
+    },
+    {
+        "id": "ffe30cfe-34d1-4615-a727-38c364a04735",
+        "firmaAdi": "NUH ÇİMENTO SANAYİ A.Ş. HEREKE ŞUBESİ",
+        "adres": "HACI AKİF Mahallesi, D-100 KARAYOLU CADDE, No: 92-, KÖRFEZ,KOCAELİ",
+        "il": "KOCAELİ",
+        "ilce": "KÖRFEZ",
+        "vergiDairesi": "TEPECİK",
+        "vergiNo": "6320009768",
+        "yetkiliAdi": "GÜL KAYAOĞLU",
+        "yetkiliTel": "05054624441",
+        "yetkiliMail": "gul.kayaoglu@nuhcimento.com.tr",
+        "danismanAdi": "",
+        "danismanMail": "",
+        "danismanTel": "",
+        "kayitTarihi": "09.01.2026"
     }
 ]

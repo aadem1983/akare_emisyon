@@ -98,5 +98,45 @@
         },
         "notlar": "",
         "olusturma_tarihi": "2025-10-01T20:58:05.381924"
+    },
+    {
+        "id": "386ecee6-3c43-4cc4-af0e-0ab51286f65c",
+        "firma_adi": "VEGA FABRİKA A.Ş",
+        "olcum_kodu": "E-260108-01",
+        "baslangic_tarihi": "2026-01-08",
+        "bitis_tarihi": "2026-01-11",
+        "il": "SAKARYA",
+        "ilce": "KAYNARCA",
+        "yetkili": "ATALAY",
+        "telefon": "5065064457",
+        "durum": "Aktif",
+        "personel": [
+            "Semih",
+            "Kaan",
+            "Emin"
+        ],
+        "baca_sayisi": "3",
+        "baca_parametreleri": {
+            "SEMİH": [
+                "Toz",
+                "NEM",
+                "Yg",
+                "Voc"
+            ],
+            "KAAN": [
+                "Toz",
+                "NEM",
+                "Yg",
+                "Voc"
+            ],
+            "EMİN": [
+                "Toz",
+                "NEM",
+                "Yg",
+                "Voc"
+            ]
+        },
+        "notlar": "",
+        "olusturma_tarihi": "2026-01-08T08:24:06.760662"
     }
 ]
