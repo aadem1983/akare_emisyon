@@ -1,7 +1,7 @@
 import os
 import json
 import gc
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, make_response, send_from_directory, abort
 from werkzeug.utils import secure_filename
 import requests
 import uuid
@@ -71,6 +71,9 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
+def allowed_image_file(filename):
+    return allowed_file(filename, {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'})
+
 DATA_DIR = os.environ.get('DATA_DIR')
 if DATA_DIR:
     try:
@@ -131,8 +134,44 @@ def ensure_data_files():
     except Exception as e:
         print(f"DATA_DIR başlangıç kopyalama hatası: {e}")
 
+# Image assets handling
+@app.route('/api/images/list', methods=['GET'])
+def api_images_list():
+    try:
+        files = []
+        for fname in sorted(os.listdir(IMAGES_DIR)):
+            path = os.path.join(IMAGES_DIR, fname)
+            if not os.path.isfile(path):
+                continue
+            modified_ts = os.path.getmtime(path)
+            files.append({
+                'name': fname,
+                'size': os.path.getsize(path),
+                'modified': datetime.fromtimestamp(modified_ts).strftime('%d.%m.%Y %H:%M:%S')
+            })
+        return jsonify({'success': True, 'images': files})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Görsel listelenirken hata oluştu: {e}'}), 500
+
+@app.route('/images/<path:filename>')
+def serve_image_asset(filename):
+    safe_name = secure_filename(filename)
+    if not safe_name:
+        abort(404)
+    file_path = os.path.join(IMAGES_DIR, safe_name)
+    if not os.path.isfile(file_path):
+        abort(404)
+    return send_from_directory(IMAGES_DIR, safe_name)
+
 # Başlangıçta tek seferlik kontrol
 ensure_data_files()
+
+IMAGES_DIR = os.path.join(app.root_path, 'static', 'images')
+os.makedirs(IMAGES_DIR, exist_ok=True)
+
+# Dinamik resimler için klasör
+IMAGES_DIR = data_path('images')
+os.makedirs(IMAGES_DIR, exist_ok=True)
 
 def load_users():
     """Kullanıcıları JSON dosyasından yükler."""
@@ -2336,8 +2375,23 @@ def teklif():
     if not session.get('logged_in') or not can_read(session.get('role')):
         return redirect(url_for('login'))
     
-    # Teklif verilerini yükle
-    teklifler = load_teklif()
+    # Teklif verilerini yükle ve Teklif No'ya göre (büyükten küçüğe) sırala
+    def teklif_no_key(t):
+        no = t.get('teklif_no', '') or ''
+        digits = ''.join(ch if ch.isdigit() else ' ' for ch in no).split()
+        year = 0
+        seq = 0
+        try:
+            if digits:
+                year = int(digits[0])
+            if digits:
+                seq = int(digits[-1])  # son sayı dizisi asıl sıra
+        except Exception:
+            pass
+        # Önce sıra numarasını, sonra yılı büyükten küçüğe sırala
+        return (seq, year)
+
+    teklifler = sorted(load_teklif(), key=teklif_no_key, reverse=True)
     
     # Firma listesini yükle (firma seçimi için)
     firma_kayitlar = load_firma_kayit()
@@ -9432,6 +9486,80 @@ def yazdir_teklif(teklif_id):
             
     except Exception as e:
         return jsonify({'success': False, 'message': f'Hata: {str(e)}'})
+
+@app.route('/api/teklif/export_excel', methods=['POST'])
+def export_teklif_excel():
+    """Seçili (veya tüm) teklifleri Excel (XLSX) olarak döndürür"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'message': 'Oturum açmanız gerekiyor'})
+    try:
+        data = request.get_json(force=True) if request.data else {}
+        selected_ids = data.get('teklif_ids', []) if data else []
+        teklifler = load_teklif()
+        if selected_ids:
+            teklifler = [t for t in teklifler if t.get('id') in selected_ids]
+        if not teklifler:
+            return jsonify({'success': False, 'message': 'Dışa aktarılacak teklif bulunamadı'}), 404
+        # Excel üret
+        pd = load_pandas()
+        df = pd.DataFrame([{
+            'Teklif No': t.get('teklif_no', ''),
+            'Firma Adı': t.get('firma_adi', ''),
+            'Teklif Tipi': t.get('teklif_tipi', ''),
+            'Teklif Tarihi': t.get('teklif_tarihi', ''),
+            'Top Fiyat': t.get('toplam', 0),
+            'İskonto (TL)': t.get('indirim', 0),
+            'Son Fiyat': t.get('netToplam', 0),
+            'Teklif Durumu': t.get('teklif_durumu', ''),
+            'DRM TRH': t.get('durum_tarihi', '')
+        } for t in teklifler])
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Teklifler')
+            workbook = writer.book
+            worksheet = writer.sheets['Teklifler']
+
+            header_format = workbook.add_format({
+                'bold': True,
+                'bg_color': '#0D47A1',
+                'font_color': '#FFFFFF',
+                'align': 'center',
+                'valign': 'vcenter',
+                'border': 0
+            })
+            worksheet.set_row(0, 25, header_format)
+            worksheet.freeze_panes(1, 0)
+            worksheet.autofilter(0, 0, len(df), len(df.columns) - 1)
+
+            column_formats = {
+                'Teklif No': {'width': 18},
+                'Firma Adı': {'width': 38},
+                'Teklif Tipi': {'width': 15},
+                'Teklif Tarihi': {'width': 14, 'num_format': 'dd.mm.yy'},
+                'Top Fiyat': {'width': 16, 'num_format': '#,##0.00'},
+                'İskonto (TL)': {'width': 16, 'num_format': '#,##0.00'},
+                'Son Fiyat': {'width': 16, 'num_format': '#,##0.00'},
+                'Teklif Durumu': {'width': 12},
+                'DRM TRH': {'width': 14}
+            }
+            for col_num, column in enumerate(df.columns):
+                fmt = column_formats.get(column, {})
+                width = fmt.get('width', 14)
+                if 'num_format' in fmt:
+                    col_format = workbook.add_format({
+                        'align': 'right',
+                        'num_format': fmt['num_format']
+                    })
+                else:
+                    col_format = workbook.add_format({'align': 'left'})
+                worksheet.set_column(col_num, col_num, width, col_format)
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = 'attachment; filename="teklif_listesi.xlsx"'
+        return response
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Excel export hatası: {str(e)}'}), 500
 
 def create_word_teklif(teklif, firma, return_file_info: bool = False):
     try:

@@ -303,6 +303,11 @@
                                 <i class="fas fa-database me-1"></i>YEDEKLEME
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="images-tab" data-bs-toggle="tab" data-bs-target="#images" type="button" role="tab" aria-controls="images" aria-selected="false">
+                                <i class="fas fa-image me-1"></i>IMAGES
+                            </button>
+                        </li>
                         {% endif %}
  
                     </ul>
@@ -489,6 +494,25 @@
                                 </div>
                             </div>
                         </div>
+
+                        {% if username == 'admin' %}
+                        <!-- IMAGES Sekmesi -->
+                        <div class="tab-pane fade" id="images" role="tabpanel" aria-labelledby="images-tab">
+                            <div class="mt-3">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold">Üst Bilgi Görselleri</span>
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadHeaderImages()">
+                                            <i class="fas fa-sync-alt me-1"></i> Yenile
+                                        </button>
+                                    </div>
+                                    <div class="card-body" id="headerImageList">
+                                        <p class="text-muted mb-0">Görseller yükleniyor...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <!-- PARAMETRE Sekmesi -->
                         <div class="tab-pane fade" id="parametre" role="tabpanel" aria-labelledby="parametre-tab">
@@ -4595,6 +4619,53 @@ if (restoreBtn) {
         document.getElementById('restoreFileInput').click();
     });
 }
+
+// IMAGES sekmesi: statik görselleri listele
+function renderHeaderImages(files) {
+    const container = document.getElementById('headerImageList');
+    if (!container) return;
+    if (!files.length) {
+        container.innerHTML = '<p class="text-muted mb-0">Henüz yüklenmiş görsel yok.</p>';
+        return;
+    }
+    const list = document.createElement('div');
+    list.className = 'list-group';
+    files.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap';
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${file.name}</strong><br><small class="text-muted">${file.size} bayt • ${file.modified}</small>`;
+        const right = document.createElement('a');
+        right.href = `/images/${encodeURIComponent(file.name)}`;
+        right.target = '_blank';
+        right.className = 'btn btn-sm btn-outline-primary';
+        right.textContent = 'Göster';
+        item.appendChild(left);
+        item.appendChild(right);
+        list.appendChild(item);
+    });
+    container.innerHTML = '';
+    container.appendChild(list);
+}
+
+function loadHeaderImages() {
+    const container = document.getElementById('headerImageList');
+    if (container) {
+        container.innerHTML = '<p class="text-muted mb-0">Görseller yükleniyor...</p>';
+    }
+    fetch('/api/images/list')
+        .then(r => r.json())
+        .then(data => renderHeaderImages(data.images || []))
+        .catch(err => {
+            console.error('Görsel yükleme hatası', err);
+            const c = document.getElementById('headerImageList');
+            if (c) c.innerHTML = '<p class="text-danger mb-0">Görseller yüklenirken hata oluştu.</p>';
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadHeaderImages();
+});
 
 // Restore dosya seçimi
 const restoreFileInput = document.getElementById('restoreFileInput');

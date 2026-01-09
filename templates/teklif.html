@@ -193,7 +193,7 @@
                              </div>
                              <div class="card-body">
                                  <div class="row">
-                                     <div class="col-md-3">
+                                    <div class="col-md-2">
                                          <div class="mb-3">
                                              <label for="filterTeklifNo" class="form-label">Teklif No</label>
                                              <input type="text" class="form-control" id="filterTeklifNo" placeholder="Teklif no ara...">
@@ -205,6 +205,12 @@
                                              <input type="text" class="form-control" id="filterFirma" placeholder="Firma ara...">
                                          </div>
                                      </div>
+                                    <div class="col-md-2">
+                                        <div class="mb-3">
+                                            <label for="filterBaslangicTarih" class="form-label">Teklif Tarihi ≥</label>
+                                            <input type="date" class="form-control" id="filterBaslangicTarih">
+                                        </div>
+                                    </div>
                                      <div class="col-md-2">
                                          <div class="mb-3">
                                              <label for="filterTeklifTipi" class="form-label">Teklif Tipi</label>
@@ -227,7 +233,7 @@
                                              </select>
                                          </div>
                                      </div>
-                                     <div class="col-md-2">
+                                    <div class="col-md-1">
                                          <div class="mb-3">
                                              <label class="form-label">&nbsp;</label>
                                              <div class="d-grid">
@@ -250,7 +256,7 @@
                                              <input type="checkbox" id="tumunuSecTeklif" class="form-check-input" onchange="tumunuSecTeklif(this)">
                                          </th>
                                          <th class="text-center">SIRA</th>
-                                         <th>TEKLİF NO</th>
+                                        <th style="width: 130px;">TEKLİF NO</th>
                                          <th>FİRMA ADI</th>
                                          <th>TEKLİF TİPİ</th>
                                          <th>TEKLİF TARİHİ</th>
@@ -269,7 +275,7 @@
                                              <input type="checkbox" name="selected_teklifler" class="form-check-input teklif-secim-checkbox" value="{{ teklif.id }}">
                                          </td>
                                          <td class="text-center">{{ loop.index }}</td>
-                                         <td>{{ teklif.teklif_no }}</td>
+                                        <td style="width: 130px; white-space: nowrap;">{{ teklif.teklif_no }}</td>
                                          <td>{{ teklif.firma_adi }}</td>
                                          <td>{{ teklif.teklif_tipi }}</td>
                                          <td>{{ format_tarih_gg_aa_yyyy(teklif.teklif_tarihi) }}</td>
@@ -1056,6 +1062,15 @@ window.addEventListener('beforeunload', function() {
             teklif_no: reservedTeklifNo
         }));
     }
+
+    // Başlangıç tarihine varsayılan olarak yılın ilk günü ver
+    const startDateInput = document.getElementById('filterBaslangicTarih');
+    if (startDateInput) {
+        const now = new Date();
+        const defaultDate = `${now.getFullYear()}-01-01`;
+        startDateInput.value = defaultDate; // her açılışta yılın ilk günü
+        startDateInput.addEventListener('change', filterTeklifler);
+    }
 });
 
 // Live filtering fonksiyonları
@@ -1088,44 +1103,52 @@ function setupLiveFiltering() {
     });
 }
 
+function parseTrDate(str) {
+    if (!str) return null;
+    const parts = str.trim().split('.');
+    if (parts.length !== 3) return null;
+    const [dd, mm, yyyy] = parts;
+    const iso = `${yyyy}-${mm}-${dd}`;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function getMinDateFilter() {
+    const el = document.getElementById('filterBaslangicTarih');
+    if (!el || !el.value) return null;
+    const d = new Date(el.value);
+    return isNaN(d.getTime()) ? null : d;
+}
+
 function filterTeklifler() {
     const filterTeklifNo = document.getElementById('filterTeklifNo').value.toLowerCase();
     const filterFirma = document.getElementById('filterFirma').value.toLowerCase();
     const filterTeklifTipi = document.getElementById('filterTeklifTipi').value;
     const filterDurum = document.getElementById('filterDurum').value;
+    const minDate = getMinDateFilter();
     
     const rows = document.querySelectorAll('#teklifTablosu tbody tr');
     let visibleCount = 0;
     
     rows.forEach(row => {
-        const teklifNo = row.cells[1].textContent.toLowerCase();
-        const firmaAdi = row.cells[2].textContent.toLowerCase();
-        const teklifTipi = row.cells[3].textContent;
-        const durum = row.cells[8].textContent;
+        const teklifNo = row.cells[2]?.textContent.toLowerCase();
+        const firmaAdi = row.cells[3]?.textContent.toLowerCase();
+        const teklifTipi = row.cells[4]?.textContent;
+        const teklifTarihStr = row.cells[5]?.textContent.trim();
+        const rowDate = parseTrDate(teklifTarihStr);
+        const durum = row.cells[9]?.textContent;
         
         let showRow = true;
         
-        // Teklif No filtresi
-        if (filterTeklifNo && !teklifNo.includes(filterTeklifNo)) {
-            showRow = false;
+        if (filterTeklifNo && !(teklifNo || '').includes(filterTeklifNo)) showRow = false;
+        if (filterFirma && !(firmaAdi || '').includes(filterFirma)) showRow = false;
+        if (filterTeklifTipi && teklifTipi !== filterTeklifTipi) showRow = false;
+        if (filterDurum && durum !== filterDurum) showRow = false;
+        if (minDate) {
+            // Sadece minDate veya sonrası kalsın
+            if (!rowDate || rowDate < minDate) showRow = false;
         }
         
-        // Firma filtresi
-        if (filterFirma && !firmaAdi.includes(filterFirma)) {
-            showRow = false;
-        }
-        
-        // Teklif Tipi filtresi
-        if (filterTeklifTipi && teklifTipi !== filterTeklifTipi) {
-            showRow = false;
-        }
-        
-        // Durum filtresi
-        if (filterDurum && durum !== filterDurum) {
-            showRow = false;
-        }
-        
-        // Satırı göster/gizle
         row.style.display = showRow ? '' : 'none';
         if (showRow) visibleCount++;
     });
@@ -2496,42 +2519,42 @@ function deleteSelectedTeklifler() {
 }
 
 function exportTeklifler() {
-    // Seçili teklifleri kontrol et
-    const selectedCheckboxes = document.querySelectorAll('input[name="selected_teklifler"]:checked');
+    // Ekranda görünen (filtrelenmiş) teklifleri al
+    const visibleRows = Array.from(document.querySelectorAll('#teklifTablosu tr'))
+        .filter(row => row.style.display !== 'none');
+    const visibleIds = visibleRows
+        .map(row => row.getAttribute('data-teklif-id'))
+        .filter(Boolean);
     
-    if (selectedCheckboxes.length === 0) {
+    if (visibleIds.length === 0) {
         Swal.fire({
             icon: 'warning',
             title: 'Uyarı!',
-            text: 'Lütfen dışa aktarmak istediğiniz teklifleri seçin.'
+            text: 'Dışa aktarılacak görünür teklif bulunamadı.'
         });
         return;
     }
     
-    // Seçili teklif ID'lerini topla
-    const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-    
     // Kullanıcıya onay sor
     Swal.fire({
         title: 'Teklifleri Dışa Aktar',
-        text: `${selectedIds.length} teklif Word formatında dışa aktarılacak. Devam etmek istiyor musunuz?`,
+        text: `${visibleIds.length} teklif Excel (XLSX) olarak dışa aktarılacak. Devam etmek istiyor musunuz?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Evet, Dışa Aktar',
         cancelButtonText: 'İptal'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Her teklif için Word export yap
-            exportSelectedTeklifler(selectedIds);
+            exportVisibleTeklifler(visibleIds);
         }
     });
 }
 
-function exportSelectedTeklifler(teklifIds) {
+function exportVisibleTeklifler(teklifIds) {
     // Loading göster
     Swal.fire({
         title: 'Dışa Aktarılıyor...',
-        text: 'Teklifler Word formatında hazırlanıyor...',
+        text: 'Teklifler Excel (XLSX) formatında hazırlanıyor...',
         allowOutsideClick: false,
         showConfirmButton: false,
         willOpen: () => {
@@ -2539,53 +2562,46 @@ function exportSelectedTeklifler(teklifIds) {
         }
     });
     
-    // İlk teklifi export et (şimdilik tek tek)
-    if (teklifIds.length > 0) {
-        const teklifId = teklifIds[0];
+    fetch('/api/teklif/export_excel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            teklif_ids: teklifIds
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        } else {
+            throw new Error('Export hatası');
+        }
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'teklif_listesi.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
         
-        fetch(`/api/teklif/yazdir/${teklifId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                format: 'word'
-            })
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.blob();
-            } else {
-                throw new Error('Export hatası');
-            }
-        })
-        .then(blob => {
-            // Dosyayı indir
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `teklif_${teklifId}.docx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            // Başarı mesajı
-            Swal.fire({
-                icon: 'success',
-                title: 'Başarılı!',
-                text: 'Teklif Word formatında dışa aktarıldı.'
-            });
-        })
-        .catch(error => {
-            console.error('Export hatası:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Hata!',
-                text: 'Teklif dışa aktarılırken bir hata oluştu.'
-            });
+        Swal.fire({
+            icon: 'success',
+            title: 'Başarılı!',
+            text: 'Görünen teklifler Excel (XLSX) olarak indirildi.'
         });
-    }
+    })
+    .catch(error => {
+        console.error('Export hatası:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Hata!',
+            text: 'Teklif dışa aktarılırken bir hata oluştu.'
+        });
+    });
 }
 
 function importTeklifler() {
@@ -2866,6 +2882,7 @@ function tumunuSecTeklif(checkbox) {
      const firma = document.getElementById('filterFirma').value.toLowerCase();
      const teklifTipi = document.getElementById('filterTeklifTipi').value;
      const durum = document.getElementById('filterDurum').value;
+     const minDate = getMinDateFilter();
      
      const rows = document.querySelectorAll('#teklifTablosu tr');
      
@@ -2873,6 +2890,8 @@ function tumunuSecTeklif(checkbox) {
          const teklifNoCell = row.cells[2].textContent.toLowerCase();
          const firmaCell = row.cells[3].textContent.toLowerCase();
          const teklifTipiCell = row.cells[4].textContent;
+         const tarihCell = row.cells[5].textContent.trim();
+         const rowDate = parseTrDate(tarihCell);
          const durumSelect = row.cells[9].querySelector('select');
          const durumCell = durumSelect ? durumSelect.value : row.cells[9].textContent.trim();
          
@@ -2880,8 +2899,9 @@ function tumunuSecTeklif(checkbox) {
          const firmaMatch = firma === '' || firmaCell.includes(firma);
          const teklifTipiMatch = teklifTipi === '' || teklifTipiCell === teklifTipi;
          const durumMatch = durum === '' || durumCell === durum;
+         const tarihMatch = !minDate || (rowDate && rowDate >= minDate);
          
-         if (teklifNoMatch && firmaMatch && teklifTipiMatch && durumMatch) {
+         if (teklifNoMatch && firmaMatch && teklifTipiMatch && durumMatch && tarihMatch) {
              row.style.display = '';
              // Sıra numarasını güncelle
              row.cells[1].textContent = index + 1;

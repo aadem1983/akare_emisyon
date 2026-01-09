@@ -1,0 +1,70 @@
+[
+    {
+        "id": "test-baca-1",
+        "olcum_id": "e08440e2-b78d-42c3-8354-035ea34bd402",
+        "baca_adi": "Baca 1",
+        "parametreler": [
+            "CO",
+            "NOx",
+            "SO2"
+        ]
+    },
+    {
+        "id": "test-baca-2",
+        "olcum_id": "e08440e2-b78d-42c3-8354-035ea34bd402",
+        "baca_adi": "Baca 2",
+        "parametreler": [
+            "CO",
+            "NOx"
+        ]
+    },
+    {
+        "id": "test-baca-3",
+        "olcum_id": "e08440e2-b78d-42c3-8354-035ea34bd402",
+        "baca_adi": "Baca 3",
+        "parametreler": [
+            "SO2",
+            "CO"
+        ]
+    },
+    {
+        "id": "c0eaaa19-35e5-4578-9aba-a70b1272f651",
+        "olcum_id": "1d810762-70a0-4e71-b56b-964e27a59ff3",
+        "baca_adi": "yanma",
+        "parametreler": [
+            "Toz",
+            "Toc",
+            "Hf"
+        ]
+    },
+    {
+        "id": "e4abdc06-463e-4578-8215-34afc9641de1",
+        "olcum_id": "1d810762-70a0-4e71-b56b-964e27a59ff3",
+        "baca_adi": "proses",
+        "parametreler": [
+            "Toz",
+            "Toc",
+            "Amet"
+        ]
+    },
+    {
+        "id": "602dcf5c-a7fa-490a-aba4-28129285541c",
+        "olcum_id": "ebd3af20-9e3d-4441-afc6-88667fe1d119",
+        "baca_adi": "yanma",
+        "parametreler": [
+            "Toz",
+            "Toc",
+            "Hf"
+        ]
+    },
+    {
+        "id": "46f720cf-ecc2-4bdd-ac29-8acbf17a7c18",
+        "olcum_id": "ebd3af20-9e3d-4441-afc6-88667fe1d119",
+        "baca_adi": "proses",
+        "parametreler": [
+            "Toz",
+            "Toc",
+            "Amet"
+        ]
+    }
+]

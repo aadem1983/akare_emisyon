@@ -1,0 +1,85 @@
+{
+    "genel": [
+        "METOT",
+        "NOZZLE ÇAP",
+        "TRAVERS",
+        "B.HIZ",
+        "B.SIC",
+        "B.BAS(KPA)",
+        "B.NEM(G/M3)",
+        "B.NEM(%)",
+        "SYC.HAC.",
+        "SYC.İLK",
+        "SYC.SON",
+        "SYC.SIC",
+        "DEBİ",
+        "ISDL",
+        "AA",
+        "SS",
+        "DD"
+    ],
+    "nem": [
+        "1İMP-İ",
+        "1-İMP-S",
+        "2-İMP-İ",
+        "2-İMP-S",
+        "3-İMP-İ",
+        "3-İMP-S",
+        "HAC."
+    ],
+    "yg": [
+        "B.SIC",
+        "O2",
+        "CO",
+        "NO",
+        "NOX",
+        "SO2",
+        "KK1-O2",
+        "KK1-CO",
+        "KK1-NO",
+        "KK1-SO2",
+        "KK2-O2",
+        "KK2-CO",
+        "KK2-NO",
+        "KK2-SO2",
+        "T90"
+    ],
+    "toc": [
+        "B.NEM",
+        "B.SIC",
+        "TOC(PPM)",
+        "KK1-O",
+        "KK1-SPAN",
+        "KK2-O",
+        "KK2-SPAN"
+    ],
+    "voc": [
+        "GAZ HAC.",
+        "GAZ.SIC.",
+        "SEY.GAZ.HAC",
+        "SEY.GAZ.SIC"
+    ],
+    "pm10": [
+        "METOT",
+        "ORT.SIC",
+        "ORT.NEM",
+        "ORT.RUZ.HIZ",
+        "ÇEK.HACİM",
+        "SYC.İLK",
+        "SYC.SON",
+        "ISDL"
+    ],
+    "ct": [
+        "T.İÇİ-1",
+        "T.İÇİ-2",
+        "T.İÇİ-3",
+        "T.İÇİ-4",
+        "T-DIŞ-1",
+        "T.DIŞ-2",
+        "T.DIŞ-3",
+        "TDİS-4",
+        "İLK KURULUM",
+        "2. KURULUM",
+        "TOPLAMA"
+    ]
+}

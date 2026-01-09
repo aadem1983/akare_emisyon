@@ -1,0 +1,117 @@
+{
+  "rapor_adi": "Emisyon Ölçüm Raporu",
+  "versiyon": "1.0",
+  "header": {
+    "logo": {
+      "dosya_yolu": "static/images/FORM54.png",
+      "genislik": "3cm",
+      "yukseklik": "2cm"
+    },
+    "baslik": {
+      "metin": "EMİSYON ÖLÇÜM FORMU",
+      "font_boyutu": 16,
+      "kalin": true,
+      "ortala": true
+    },
+    "form_bilgileri": {
+      "form_kodu": "FORM-001",
+      "yayin_tarihi": "01.01.2025",
+      "revizyon_no": "1.0",
+      "revizyon_tarihi": "01.01.2025",
+      "sayfa_no": "1"
+    }
+  },
+  "firma_bilgileri": {
+    "baslik": "FİRMA BİLGİLERİ",
+    "alanlar": [
+      {
+        "etiket": "FİRMA ADI",
+        "veri_kaynagi": "firma_adi",
+        "genislik": "4cm"
+      },
+      {
+        "etiket": "ÖLÇÜM KODU",
+        "veri_kaynagi": "olcum_kodu",
+        "genislik": "4cm"
+      }
+    ]
+  },
+  "baca_tablosu": {
+    "baslik": "BACA ÖLÇÜMLERİ",
+    "sutunlar": [
+      {
+        "baslik": "BACA ADI",
+        "veri_kaynagi": "baca_adi",
+        "genislik": "3cm"
+      },
+      {
+        "baslik": "KAYNAK TÜRÜ",
+        "veri_kaynagi": "baca_bilgileri.2517064c-c286-4210-8f60-fa0a6b9e22a9",
+        "genislik": "2.5cm"
+      },
+      {
+        "baslik": "BACA ŞEKLİ",
+        "veri_kaynagi": "baca_bilgileri.394272bc-a8dc-46c4-a1a8-15ed4c0dbf29",
+        "genislik": "2.5cm"
+      },
+      {
+        "baslik": "ISIL GÜÇ",
+        "veri_kaynagi": "baca_bilgileri.2360aa46-81dd-41db-a6b6-5c23e62900fe",
+        "genislik": "2cm"
+      },
+      {
+        "baslik": "YAKIT TÜRÜ",
+        "veri_kaynagi": "baca_bilgileri.7647078a-4f69-4908-99f7-3fff5651cc9b",
+        "genislik": "2.5cm"
+      }
+    ]
+  },
+  "parametre_tablosu": {
+    "baslik": "PARAMETRE ÖLÇÜMLERİ",
+    "sutunlar": [
+      {
+        "baslik": "BACA ADI",
+        "veri_kaynagi": "baca_adi",
+        "genislik": "3cm"
+      },
+      {
+        "baslik": "PARAMETRE",
+        "veri_kaynagi": "parametre_adi",
+        "genislik": "2.5cm"
+      },
+      {
+        "baslik": "METOT",
+        "veri_kaynagi": "parametre_verileri.METOT",
+        "genislik": "3cm"
+      },
+      {
+        "baslik": "TARİH",
+        "veri_kaynagi": "parametre_verileri.TARİH",
+        "genislik": "2cm"
+      },
+      {
+        "baslik": "DEĞERLER",
+        "veri_kaynagi": "parametre_verileri",
+        "genislik": "4cm",
+        "format": "anahtar_deger"
+      }
+    ]
+  },
+  "sayfa_ayarlari": {
+    "kenar_bosluklari": {
+      "ust": "1cm",
+      "alt": "1cm",
+      "sol": "1cm",
+      "sag": "1cm"
+    },
+    "font": {
+      "ad": "Arial",
+      "boyut": 11
+    },
+    "baslik_font": {
+      "ad": "Arial",
+      "boyut": 14,
+      "kalin": true
+    }
+  }
+} 

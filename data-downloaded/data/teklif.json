@@ -1,0 +1,179 @@
+[
+    {
+        "id": "9c6c4841-b659-4984-8385-b3f0118379fd",
+        "teklif_tipi": "KAPSAM İÇİ",
+        "firma_adi": "AKARE ÇEVRE LAB. VE DAN. HİZM. TİC. LTD. ŞTİ",
+        "teklif_tarihi": "2026-01-02",
+        "teklif_no": "2026/TE-001",
+        "indirim_orani": "20",
+        "indirim_tipi": "%",
+        "parametreler": [
+            {
+                "adet": 1,
+                "birimFiyat": 12750,
+                "metot": "",
+                "parametre": "TABAN FİYAT ( 1-5 ARASI BACA)",
+                "topFiyat": 12750
+            },
+            {
+                "adet": 100,
+                "birimFiyat": 15,
+                "metot": "",
+                "parametre": "YOL",
+                "topFiyat": 1500
+            },
+            {
+                "adet": 5,
+                "birimFiyat": 9400,
+                "metot": "Epa 5/Epa 17/Ts En 13284-1/Ts 9096",
+                "parametre": "(E) TOZ",
+                "topFiyat": 47000
+            },
+            {
+                "adet": 6,
+                "birimFiyat": 5780,
+                "metot": "So2/No/Co/O2",
+                "parametre": "(E) YANMA GAZI",
+                "topFiyat": 34680
+            },
+            {
+                "_autoBirimFiyat": 8168,
+                "_locked": true,
+                "_manual": false,
+                "adet": 1,
+                "birimFiyat": 8168,
+                "metot": "Taban fiyat ve yol ücreti hariç toplamın %10",
+                "parametre": "RAPORLAMA ÜCRETİ",
+                "topFiyat": 8168
+            }
+        ],
+        "toplam": 104098,
+        "indirim": 20819.600000000002,
+        "netToplam": 83278.4,
+        "teklif_giris_metni": "",
+        "genel_hukumler": "",
+        "teklif_durumu": "KABUL",
+        "created_at": "2026-01-03T02:02:36.950625",
+        "updated_at": "2026-01-07T21:36:52.440571",
+        "durum_tarihi": "2026-01-03"
+    },
+    {
+        "id": "fc9a80a1-d5c4-4b79-91f4-bf11a358b335",
+        "teklif_tipi": "KAPSAM DIŞI",
+        "firma_adi": "ATALAY TOKER",
+        "teklif_tarihi": "2026-01-07",
+        "teklif_no": "2026/TE-002",
+        "indirim_orani": "2000",
+        "indirim_tipi": "TL",
+        "parametreler": [
+            {
+                "parametre": "(E) TOZ",
+                "metot": "Epa 5/Epa 17/Ts En 13284-1/Ts 9096",
+                "birimFiyat": 9400,
+                "adet": 1,
+                "topFiyat": 9400
+            },
+            {
+                "parametre": "RAPORLAMA ÜCRETİ",
+                "metot": "Taban fiyat ve yol ücreti hariç toplamın %10",
+                "adet": 1,
+                "_locked": true,
+                "_manual": false,
+                "_autoBirimFiyat": 940,
+                "birimFiyat": 940,
+                "topFiyat": 940
+            }
+        ],
+        "toplam": 10340,
+        "indirim": 2000,
+        "netToplam": 8340,
+        "teklif_giris_metni": "",
+        "genel_hukumler": "",
+        "teklif_durumu": "BEKLEMEDE",
+        "created_at": "2026-01-07T21:59:24.577269",
+        "updated_at": "2026-01-07T21:59:24.577286"
+    },
+    {
+        "id": "57c92938-eea5-45a2-b127-a991c9a7d55a",
+        "teklif_tipi": "KAPSAM DIŞI",
+        "firma_adi": "HAFİZE",
+        "teklif_tarihi": "2026-01-07",
+        "teklif_no": "2026/TE-003",
+        "indirim_orani": "2750",
+        "indirim_tipi": "TL",
+        "parametreler": [
+            {
+                "adet": 1,
+                "birimFiyat": 9400,
+                "metot": "Epa 5/Epa 17/Ts En 13284-1/Ts 9096",
+                "parametre": "(E) TOZ",
+                "topFiyat": 9400
+            },
+            {
+                "adet": 1,
+                "birimFiyat": 18125,
+                "metot": "TS 13649",
+                "parametre": "(E) VOC",
+                "topFiyat": 18125
+            }
+        ],
+        "toplam": 27525,
+        "indirim": 2750,
+        "netToplam": 24775,
+        "teklif_giris_metni": "",
+        "genel_hukumler": "",
+        "teklif_durumu": "BEKLEMEDE",
+        "created_at": "2026-01-07T22:26:09.505592",
+        "updated_at": "2026-01-07T22:26:39.915409"
+    },
+    {
+        "id": "0dbc6299-93c2-4e1b-97a0-24876b8d340a",
+        "teklif_tipi": "KAPSAM DIŞI",
+        "firma_adi": "NUH ÇİMENTO SANAYİ A.Ş. HEREKE ŞUBESİ",
+        "teklif_tarihi": "2026-01-09",
+        "teklif_no": "2026/TE-004",
+        "indirim_orani": "130628.5",
+        "indirim_tipi": "TL",
+        "parametreler": [
+            {
+                "parametre": "TABAN FİYAT ( 1-5 ARASI BACA)",
+                "metot": "---",
+                "birimFiyat": 12750,
+                "adet": 1,
+                "topFiyat": 12750
+            },
+            {
+                "parametre": "(İ) ÇÖKEN TOZ",
+                "metot": "TS 2342",
+                "birimFiyat": 9140,
+                "adet": 35,
+                "topFiyat": 319900
+            },
+            {
+                "parametre": "(İ) MODELLEME",
+                "metot": "---",
+                "birimFiyat": 14535,
+                "adet": 1,
+                "topFiyat": 14535
+            },
+            {
+                "parametre": "(İ) RAPORLAMA",
+                "metot": "Taban fiyat ve yol ücreti hariç toplamın %10",
+                "birimFiyat": 33443.5,
+                "adet": 1,
+                "topFiyat": 33443.5,
+                "_locked": true,
+                "_manual": false,
+                "_autoBirimFiyat": 33443.5
+            }
+        ],
+        "toplam": 380628.5,
+        "indirim": 130628.5,
+        "netToplam": 250000,
+        "teklif_giris_metni": "",
+        "genel_hukumler": "",
+        "teklif_durumu": "BEKLEMEDE",
+        "created_at": "2026-01-09T06:24:44.877182",
+        "updated_at": "2026-01-09T06:24:44.877209"
+    }
+]

@@ -1,0 +1,60 @@
+[
+    {
+        "id": "b60e757d-1eb5-4e4b-9d18-7717fbcb67e5",
+        "firma_adi": "VEGA FABRİKA A.Ş",
+        "olcum_kodu": "E-260108-01",
+        "baca_adi": "KAAN",
+        "baca_bilgileri": {
+            "597fad80-d28f-40ea-bd28-a76c61c5203d": "1",
+            "ddca398d-0e55-4662-b661-3731e0975bd2": "BİOKÜTLE",
+            "22867c9a-ca3c-4d80-b017-b73dafdd7fef": "222",
+            "6b3546e0-184c-49de-82e4-e2835e81923b": "DÜZ",
+            "98399625-5bbc-465e-8e09-de454f231ae4": "YAKMA",
+            "d9958774-43f7-4bc3-8e12-436614a6193a": "DAİRESEL",
+            "b1b6fc38-98c0-4048-8b8e-795cf7d44c48": "2x2",
+            "6a301d72-f21b-485b-b8fb-116ad5cb223f": "11",
+            "8ec9ecc9-ecda-4bf2-9802-02fa2e3fda4c": "2",
+            "ab2b67dd-16a5-4bee-9b6e-b60b8cfc2d0c": "4",
+            "eca60e54-ec39-4412-8884-caa17faed0be": "22",
+            "64238e0a-6387-4c31-9bf4-d7f800ef17e1": "45",
+            "b09ad69a-e4d4-4219-b055-2cf923ffd499": "101.3",
+            "9c8c8bcf-c98e-4109-8b10-63b08b26460e": "4",
+            "af55c55f-f83b-4b90-a655-ee76bf6bb2ac": "5",
+            "20881447-f7c8-4a6b-8583-76c7246082ef": "6",
+            "a2c28cce-86ed-41ff-97aa-d23fec4e01ca": ""
+        },
+        "personel_adi": "Kaan Süzer",
+        "photo_path": null,
+        "created_at": "2026-01-08T08:43:25.437897",
+        "updated_at": "2026-01-08T08:43:25.437907"
+    },
+    {
+        "id": "601cd6c8-af0f-4b8e-ad18-531a7c87630f",
+        "firma_adi": "VEGA FABRİKA A.Ş",
+        "olcum_kodu": "E-260108-01",
+        "baca_adi": "SEMİH",
+        "baca_bilgileri": {
+            "597fad80-d28f-40ea-bd28-a76c61c5203d": "1",
+            "ddca398d-0e55-4662-b661-3731e0975bd2": "DOĞAL GAZ",
+            "22867c9a-ca3c-4d80-b017-b73dafdd7fef": "",
+            "6b3546e0-184c-49de-82e4-e2835e81923b": "EĞİK",
+            "98399625-5bbc-465e-8e09-de454f231ae4": "YAKMA",
+            "d9958774-43f7-4bc3-8e12-436614a6193a": "DAİRESEL",
+            "b1b6fc38-98c0-4048-8b8e-795cf7d44c48": "0.60",
+            "6a301d72-f21b-485b-b8fb-116ad5cb223f": "14",
+            "8ec9ecc9-ecda-4bf2-9802-02fa2e3fda4c": "3",
+            "ab2b67dd-16a5-4bee-9b6e-b60b8cfc2d0c": "5",
+            "eca60e54-ec39-4412-8884-caa17faed0be": "22.3",
+            "64238e0a-6387-4c31-9bf4-d7f800ef17e1": "58.7",
+            "b09ad69a-e4d4-4219-b055-2cf923ffd499": "100.54",
+            "9c8c8bcf-c98e-4109-8b10-63b08b26460e": "1.80",
+            "af55c55f-f83b-4b90-a655-ee76bf6bb2ac": "5.20",
+            "20881447-f7c8-4a6b-8583-76c7246082ef": "2",
+            "a2c28cce-86ed-41ff-97aa-d23fec4e01ca": ""
+        },
+        "personel_adi": "Semih",
+        "photo_path": null,
+        "created_at": "2026-01-08T08:43:55.286879",
+        "updated_at": "2026-01-08T08:43:55.286890"
+    }
+]
