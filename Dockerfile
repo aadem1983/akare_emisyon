@@ -32,7 +32,7 @@ RUN python init_data.py
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /app /data
-USER app
+USER root
 
 # Expose port
 EXPOSE 8080
