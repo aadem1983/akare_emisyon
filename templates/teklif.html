@@ -2159,10 +2159,10 @@ function yazdirFormatSec(format, teklifId) {
                         }
                         
                         const tutar_kdv_haric = teklif.netToplam || 0;
-                        filename = `${firma_kisa}_${teklif.teklif_no || ''}_${tarih_format}_${Math.round(tutar_kdv_haric)}TL.${format === 'pdf' ? 'html' : 'docx'}`;
+                        filename = `${firma_kisa}_${teklif.teklif_no || ''}_${tarih_format}_${Math.round(tutar_kdv_haric)}TL.${format === 'pdf' ? 'pdf' : 'docx'}`;
                     } else {
                         // Fallback
-                        filename = `teklif_${teklifId}_${new Date().toISOString().slice(0,10)}.${format === 'pdf' ? 'html' : 'docx'}`;
+                        filename = `teklif_${teklifId}_${new Date().toISOString().slice(0,10)}.${format === 'pdf' ? 'pdf' : 'docx'}`;
                     }
                     
                     return response.blob().then(blob => ({ blob, filename }));

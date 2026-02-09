@@ -75,6 +75,18 @@ def allowed_image_file(filename):
     return allowed_file(filename, {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'})
 
 DATA_DIR = os.environ.get('DATA_DIR')
+if not DATA_DIR:
+    try:
+        if os.path.isdir('/data'):
+            DATA_DIR = '/data'
+    except Exception:
+        DATA_DIR = None
+if not DATA_DIR:
+    try:
+        import tempfile
+        DATA_DIR = os.path.join(tempfile.gettempdir(), 'emisyon_data')
+    except Exception:
+        DATA_DIR = None
 if DATA_DIR:
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -262,6 +274,33 @@ def save_parameters(parameters_data):
 def api_debug_storage():
     """Debug endpoint: shows resolved storage paths and file stats."""
     try:
+        write_test = {
+            'ok': False,
+            'dir': DATA_DIR,
+            'error': None
+        }
+        try:
+            import tempfile
+            if DATA_DIR:
+                os.makedirs(DATA_DIR, exist_ok=True)
+                test_target = os.path.join(DATA_DIR, '.__write_test__.json')
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8', dir=DATA_DIR, suffix='.tmp') as tf:
+                    tf.write('{"ok": true}')
+                    tf.flush()
+                    try:
+                        os.fsync(tf.fileno())
+                    except Exception:
+                        pass
+                    tmp_path = tf.name
+                os.replace(tmp_path, test_target)
+                try:
+                    os.unlink(test_target)
+                except Exception:
+                    pass
+                write_test['ok'] = True
+        except Exception as _e:
+            write_test['error'] = str(_e)
+
         def _stat(p):
             try:
                 if not p:
@@ -282,8 +321,10 @@ def api_debug_storage():
             'success': True,
             'DATA_DIR': DATA_DIR,
             'app_root_path': app.root_path,
+            'write_test': write_test,
             'files': {
                 'PARAMETERS_FILE': _stat(PARAMETERS_FILE),
+                'FIRMA_OLCUM_FILE': _stat(FIRMA_OLCUM_FILE),
                 'FIRMA_KAYIT_FILE': _stat(FIRMA_KAYIT_FILE),
                 'TEKLIF_FILE': _stat(TEKLIF_FILE),
                 'ASGARI_FIYATLAR_FILE': _stat(ASGARI_FIYATLAR_FILE),
@@ -366,9 +407,10 @@ def save_firma_olcum(firma_olcum_data):
         if not isinstance(firma_olcum_data, list):
             print("Hata: firma_olcum_data liste olmalıdır")
             return False
-        with open(FIRMA_OLCUM_FILE, 'w', encoding='utf-8') as f:
-            json.dump(firma_olcum_data, f, indent=4, ensure_ascii=False)
-        return True
+        ok = _atomic_write_json(FIRMA_OLCUM_FILE, firma_olcum_data, indent=4, ensure_ascii=False)
+        if not ok:
+            print(f"Firma ölçüm verileri kaydedilemedi: file={FIRMA_OLCUM_FILE}")
+        return bool(ok)
     except Exception as e:
         print(f"Firma ölçüm verileri kaydedilirken hata: {e}")
         return False
@@ -393,9 +435,10 @@ def save_firma_kayit(firma_kayit_data):
         if not isinstance(firma_kayit_data, list):
             print("Hata: firma_kayit_data liste olmalıdır")
             return False
-        with open(FIRMA_KAYIT_FILE, 'w', encoding='utf-8') as f:
-            json.dump(firma_kayit_data, f, indent=4, ensure_ascii=False)
-        return True
+        ok = _atomic_write_json(FIRMA_KAYIT_FILE, firma_kayit_data, indent=4, ensure_ascii=False)
+        if not ok:
+            print(f"Firma kayıt verileri kaydedilemedi: file={FIRMA_KAYIT_FILE}")
+        return bool(ok)
     except Exception as e:
         print(f"Firma kayıt verileri kaydedilirken hata: {e}")
         return False
@@ -501,9 +544,10 @@ def save_teklif(teklif_data):
         if not isinstance(teklif_data, list):
             print("Hata: teklif_data liste olmalıdır")
             return False
-        with open(TEKLIF_FILE, 'w', encoding='utf-8') as f:
-            json.dump(teklif_data, f, indent=4, ensure_ascii=False)
-        return True
+        ok = _atomic_write_json(TEKLIF_FILE, teklif_data, indent=4, ensure_ascii=False)
+        if not ok:
+            print(f"Teklif verileri kaydedilemedi: file={TEKLIF_FILE}")
+        return bool(ok)
     except Exception as e:
         print(f"Teklif verileri kaydedilirken hata: {e}")
         return False
@@ -524,9 +568,10 @@ def save_used_teklif_numbers(used_numbers):
     """Kullanılmış teklif numaralarını kaydeder"""
     try:
         used_numbers_file = USED_TEKLIF_NUMBERS_FILE
-        with open(used_numbers_file, 'w', encoding='utf-8') as f:
-            json.dump(list(used_numbers), f, ensure_ascii=False, indent=2)
-        return True
+        ok = _atomic_write_json(used_numbers_file, list(used_numbers), indent=2, ensure_ascii=False)
+        if not ok:
+            print(f"Kullanılmış teklif numaraları kaydedilemedi: file={used_numbers_file}")
+        return bool(ok)
     except Exception as e:
         print(f"Kullanılmış teklif numaraları kaydedilirken hata: {e}")
         return False
@@ -10429,6 +10474,14 @@ def create_pdf_teklif(teklif, firma):
     try:
         # Önce DOCX üret
         word_path, word_name = create_word_teklif(teklif, firma, return_file_info=True)
+
+        try:
+            import platform
+            if platform.system().lower() == 'linux':
+                raise RuntimeError('PDF dönüşümü Linux ortamında devre dışı bırakıldı')
+        except Exception:
+            # platform tespit edilemezse mevcut akış devam etsin
+            pass
 
         pdf_path = None
         try:
