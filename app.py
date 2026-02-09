@@ -3319,12 +3319,19 @@ def add_firma_olcum_step1():
 
 @app.route('/firma_olcum/add_step2', methods=['GET', 'POST'])
 def add_firma_olcum_step2():
+    is_ajax = (request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest') or \
+              ('application/json' in (request.headers.get('Accept', '') or '').lower())
+
     if not session.get('logged_in'):
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Oturum açmanız gerekiyor'}), 401
         return redirect(url_for('login'))
     
     # Session'dan geçici veriyi al
     temp_data = session.get('temp_firma_olcum')
     if not temp_data:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Geçici oturum verisi bulunamadı. Lütfen 1. aşamadan tekrar başlayın.'}), 400
         return redirect(url_for('add_firma_olcum_step1'))
     
     if request.method == 'POST':
@@ -3373,7 +3380,7 @@ def add_firma_olcum_step2():
             session.pop('temp_firma_olcum', None)
             
             # AJAX isteği ise JSON döndür
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if is_ajax:
                 return jsonify({'success': True, 'message': 'Firma ölçüm kaydı başarıyla oluşturuldu!'})
             
             flash('Firma ölçüm kaydı başarıyla oluşturuldu!', 'success')
@@ -3384,8 +3391,14 @@ def add_firma_olcum_step2():
             import traceback
             traceback.print_exc()
             
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'error': f'Kayıt hatası: {str(e)}'})
+            try:
+                is_ajax = (request.headers.get('X-Requested-With', '').lower() == 'xmlhttprequest') or \
+                          ('application/json' in (request.headers.get('Accept', '') or '').lower())
+            except Exception:
+                is_ajax = False
+
+            if is_ajax:
+                return jsonify({'success': False, 'error': f'Kayıt hatası: {str(e)}'}), 500
             
             flash(f'Kayıt sırasında hata oluştu: {str(e)}', 'error')
             return redirect(url_for('add_firma_olcum_step2'))
