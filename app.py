@@ -9736,11 +9736,6 @@ def create_word_teklif(teklif, firma, return_file_info: bool = False):
                         pb.getparent().remove(pb)
                     except Exception:
                         pass
-                for sp in list(p_el.xpath('.//w:pPr/w:sectPr', namespaces=ns)):
-                    try:
-                        sp.getparent().remove(sp)
-                    except Exception:
-                        pass
                 for br in list(p_el.xpath('.//w:br[@w:type="page"]', namespaces=ns)):
                     try:
                         br.getparent().remove(br)
@@ -10393,8 +10388,8 @@ def create_word_teklif(teklif, firma, return_file_info: bool = False):
             composer = Composer(master) if Composer is not None else None
 
             def _append_with_page_break(src_doc):
-                # Ensure no leftover section breaks from the source
-                _remove_all_section_breaks(src_doc)
+                # Keep section properties (sectPr) intact to preserve template layout;
+                # only trim page-break markers / empty trailing paragraphs.
                 _clean_template_breaks(src_doc)
                 # page break at end of current doc (not at start of next)
                 master.add_page_break()
@@ -10495,8 +10490,8 @@ def create_word_teklif(teklif, firma, return_file_info: bool = False):
             _bump_doc_font_sizes(master, 1.0)
             _set_specific_font_size(master, 14.0, 12.0)
 
-            # Final cleanup to reduce trailing blank pages caused by section/page breaks
-            _remove_all_section_breaks(master)
+            # Final cleanup: remove only page-break markers / trailing empty paragraphs
+            # (do not touch sectPr to keep the original Word layout intact)
             _clean_template_breaks(master)
 
             with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as fout:
