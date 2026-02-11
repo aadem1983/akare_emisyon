@@ -581,29 +581,61 @@ def generate_teklif_no():
     try:
         current_year = datetime.now().year
         teklif_prefix = f"{current_year}/TE-"
-        
+
         # Mevcut teklifleri yükle
         teklifler = load_teklif()
-        
-        # Mevcut tekliflerdeki numaraları topla (basit sistem)
-        used_numbers = set()
-        for teklif in teklifler:
-            teklif_no = teklif.get('teklif_no', '')
-            if teklif_no:
-                used_numbers.add(teklif_no)
 
-        # Sadece bu yıla ait teklif numaralarını dikkate al
-        used_numbers = {n for n in used_numbers if isinstance(n, str) and n.startswith(teklif_prefix)}
-        
-        # Bu yıl için kullanılmamış en küçük numarayı bul (3 haneli format)
-        number = 1
+        # Kullanılmış tüm numaraları topla: hem mevcut teklifler hem de silinen/rezerve numaralar
+        all_used_numbers = set()
+        try:
+            all_used_numbers |= set(load_used_teklif_numbers() or set())
+        except Exception:
+            pass
+        for teklif in teklifler:
+            teklif_no = (teklif or {}).get('teklif_no', '')
+            if teklif_no:
+                all_used_numbers.add(teklif_no)
+
+        # Sadece bu yıla ait teklif numaralarını dikkate al (hem yeni hem eski format)
+        import re
+        year_suffix = f"{current_year % 100:02d}"
+        used_seqs_year = set()
+        for n in all_used_numbers:
+            if not isinstance(n, str):
+                continue
+            n = n.strip()
+            if not n:
+                continue
+            if n.startswith(teklif_prefix):
+                m = re.search(r"/TE-(\d{3})$", n)
+                if m:
+                    try:
+                        used_seqs_year.add(int(m.group(1)))
+                    except Exception:
+                        pass
+                continue
+            # Eski format: TE26-001
+            m2 = re.fullmatch(r"TE(\d{2})-(\d{3})", n)
+            if m2 and m2.group(1) == year_suffix:
+                try:
+                    used_seqs_year.add(int(m2.group(2)))
+                except Exception:
+                    pass
+
+        max_seq = max(used_seqs_year) if used_seqs_year else 0
+
+        number = max_seq + 1
+        if number < 1:
+            number = 1
+        if number > 999:
+            raise Exception("Teklif numarası limiti aşıldı!")
+
+        # Güvenlik: çakışma varsa bir sonrakine ilerle
         while True:
             new_teklif_no = f"{teklif_prefix}{number:03d}"
-            if new_teklif_no not in used_numbers:
+            if number not in used_seqs_year:
                 return new_teklif_no
             number += 1
-            
-            # Güvenlik için maksimum 999'a kadar dene
             if number > 999:
                 raise Exception("Teklif numarası limiti aşıldı!")
         
@@ -631,23 +663,48 @@ def reserve_teklif_no():
             if teklif_no:
                 all_used_numbers.add(teklif_no)
 
-        # Sadece bu yıla ait teklif numaralarını dikkate al
-        used_numbers_year = {n for n in all_used_numbers if isinstance(n, str) and n.startswith(teklif_prefix)}
-        
-        # Bu yıl için kullanılmamış en küçük numarayı bul ve rezerve et (3 haneli format)
-        number = 1
+        # Sadece bu yıla ait teklif numaralarını dikkate al (hem yeni hem eski format)
+        import re
+        year_suffix = f"{current_year % 100:02d}"
+        used_seqs_year = set()
+        for n in all_used_numbers:
+            if not isinstance(n, str):
+                continue
+            n = n.strip()
+            if not n:
+                continue
+            if n.startswith(teklif_prefix):
+                m = re.search(r"/TE-(\d{3})$", n)
+                if m:
+                    try:
+                        used_seqs_year.add(int(m.group(1)))
+                    except Exception:
+                        pass
+                continue
+            # Eski format: TE26-001
+            m2 = re.fullmatch(r"TE(\d{2})-(\d{3})", n)
+            if m2 and m2.group(1) == year_suffix:
+                try:
+                    used_seqs_year.add(int(m2.group(2)))
+                except Exception:
+                    pass
+
+        max_seq = max(used_seqs_year) if used_seqs_year else 0
+
+        number = max_seq + 1
+        if number < 1:
+            number = 1
+
+        # Bu yıl için kullanılmamış numarayı bul ve rezerve et (3 haneli format)
         while True:
+            if number > 999:
+                raise Exception("Teklif numarası limiti aşıldı!")
             new_teklif_no = f"{teklif_prefix}{number:03d}"
-            if new_teklif_no not in used_numbers_year:
-                # Bu numarayı rezerve et (kullanılmış olarak işaretle)
+            if number not in used_seqs_year:
                 all_used_numbers.add(new_teklif_no)
                 save_used_teklif_numbers(all_used_numbers)
                 return new_teklif_no
             number += 1
-            
-            # Güvenlik için maksimum 999'a kadar dene
-            if number > 999:
-                raise Exception("Teklif numarası limiti aşıldı!")
                 
     except Exception as e:
         print(f"Teklif numarası rezerve edilirken hata: {e}")
@@ -10437,6 +10494,10 @@ def create_word_teklif(teklif, firma, return_file_info: bool = False):
             
             _bump_doc_font_sizes(master, 1.0)
             _set_specific_font_size(master, 14.0, 12.0)
+
+            # Final cleanup to reduce trailing blank pages caused by section/page breaks
+            _remove_all_section_breaks(master)
+            _clean_template_breaks(master)
 
             with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as fout:
                 final_path = fout.name
